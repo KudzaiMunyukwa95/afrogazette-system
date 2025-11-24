@@ -14,15 +14,11 @@ import {
   Calendar,
   Activity,
   CheckCircle,
-  XCircle,
-  Zap,
-  Download,
-  PlusCircle,
-  Brain
+  XCircle
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -67,9 +63,6 @@ const Dashboard = () => {
                 <h1 className="text-3xl font-bold text-gray-900">
                   {isAdmin() ? 'Admin Dashboard' : 'My Dashboard'}
                 </h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  {isAdmin() ? 'Real-time analytics and performance insights' : 'Your performance overview'}
-                </p>
                 {!isAdmin() && data?.monthRange && (
                   <p className="mt-1 text-sm text-gray-500">
                     Current Period: {new Date(data.monthRange.start).toLocaleDateString('en-US', { 
@@ -82,12 +75,6 @@ const Dashboard = () => {
               <div className="flex items-center space-x-3">
                 <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-sm text-gray-600 font-medium">Live Data</span>
-                {isAdmin() && (
-                  <button className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors duration-200 flex items-center">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Report
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -103,31 +90,22 @@ const Dashboard = () => {
 };
 
 const AdminDashboard = ({ data }) => {
-  const totalAdverts = data?.statusStats?.reduce((sum, s) => sum + parseInt(s.count), 0) || 0;
-  const pendingAdverts = data?.statusStats?.find(s => s.status === 'pending')?.count || 0;
-  const totalRevenue = parseFloat(data?.revenueStats?.total_revenue || 0);
-  const totalCommission = parseFloat(data?.revenueStats?.total_commission || 0);
-  const avgRevenue = parseFloat(data?.revenueStats?.average_revenue || 0);
+  const totalAdverts = data.statusStats?.reduce((sum, s) => sum + parseInt(s.count), 0) || 0;
+  const pendingAdverts = data.statusStats?.find(s => s.status === 'pending')?.count || 0;
+  const totalRevenue = parseFloat(data.revenueStats?.total_revenue || 0);
+  const totalCommission = parseFloat(data.revenueStats?.total_commission || 0);
+  const avgRevenue = parseFloat(data.revenueStats?.average_revenue || 0);
 
   return (
     <div className="space-y-8">
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Total Revenue"
-          value={`$${totalRevenue.toLocaleString()}`}
-          icon={<TrendingUp className="h-6 w-6" />}
-          color="green"
-          trend={`Avg: $${avgRevenue.toFixed(2)}`}
-          change="+12.5%"
-        />
-        <StatCard
           title="Total Adverts"
           value={totalAdverts.toLocaleString()}
           icon={<BarChart3 className="h-6 w-6" />}
           color="blue"
           trend={`${totalAdverts} total campaigns`}
-          change="+8.2%"
         />
         <StatCard
           title="Pending Approval"
@@ -135,47 +113,25 @@ const AdminDashboard = ({ data }) => {
           icon={<Clock className="h-6 w-6" />}
           color="amber"
           trend="Awaiting review"
-          change={`${pendingAdverts} new`}
         />
         <StatCard
-          title="Performance Score"
-          value="94/100"
-          icon={<Zap className="h-6 w-6" />}
-          color="purple"
-          trend="Excellent"
-          change="+2 points"
+          title="Total Revenue"
+          value={`$${totalRevenue.toLocaleString()}`}
+          icon={<TrendingUp className="h-6 w-6" />}
+          color="green"
+          trend={`Avg: $${avgRevenue.toFixed(2)}`}
         />
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <QuickActionButton
-            icon={<PlusCircle className="h-5 w-5" />}
-            title="Create Campaign"
-            description="Launch new advertisement"
-            color="red"
-            href="/create-advert"
-          />
-          <QuickActionButton
-            icon={<Clock className="h-5 w-5" />}
-            title={`Review Pending (${pendingAdverts})`}
-            description="Approve waiting adverts"
-            color="amber"
-            href="/pending-approvals"
-          />
-          <QuickActionButton
-            icon={<Download className="h-5 w-5" />}
-            title="Export Report"
-            description="Download monthly analytics"
-            color="blue"
-          />
-        </div>
+        <StatCard
+          title="Total Commissions"
+          value={`$${totalCommission.toLocaleString()}`}
+          icon={<DollarSign className="h-6 w-6" />}
+          color="emerald"
+          trend="10% of total sales"
+        />
       </div>
 
       {/* Expiring Soon Alert */}
-      {data?.expiringSoon && data.expiringSoon.length > 0 && (
+      {data.expiringSoon?.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden">
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-amber-200">
             <div className="flex items-center justify-between">
@@ -263,8 +219,8 @@ const AdminDashboard = ({ data }) => {
           
           <div className="p-6">
             <div className="space-y-4 max-h-96 overflow-y-auto">
-              {data?.salesRepStats?.map((rep) => (
-                <div key={rep.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:bg-gray-100 transition-colors duration-200">
+              {data.salesRepStats?.map((rep) => (
+                <div key={rep.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex-1">
                       <h4 className="font-semibold text-gray-900">{rep.full_name}</h4>
@@ -304,57 +260,32 @@ const AdminDashboard = ({ data }) => {
           </div>
         </div>
 
-        {/* Category Distribution & AI Insights */}
-        <div className="space-y-6">
-          {/* Category Distribution */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <BarChart3 className="h-5 w-5 text-gray-400" />
-                <h3 className="text-lg font-semibold text-gray-900">Top Categories</h3>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              <div className="space-y-3">
-                {data?.categoryStats?.slice(0, 5).map((cat, index) => (
-                  <div key={cat.category} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900 capitalize">
-                        {cat.category.replace(/_/g, ' ')}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {cat.count} adverts
-                      </div>
-                    </div>
-                    <div className="text-lg font-semibold text-green-600">
-                      ${parseFloat(cat.revenue || 0).toLocaleString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
+        {/* Category Distribution */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <BarChart3 className="h-5 w-5 text-gray-400" />
+              <h3 className="text-lg font-semibold text-gray-900">Category Distribution</h3>
             </div>
           </div>
-
-          {/* AI Insights */}
-          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl border border-purple-200 p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <Brain className="h-5 w-5 text-purple-600" />
-              <h3 className="text-lg font-semibold text-gray-900">AI Insights</h3>
-            </div>
-            <div className="space-y-3">
-              <div className="bg-white/70 rounded-lg p-3 border border-purple-100">
-                <div className="text-sm font-medium text-gray-900 mb-1">💡 Optimization Tip</div>
-                <div className="text-xs text-gray-600">Peak performance time: 2-4 PM. Consider promoting premium slots.</div>
-              </div>
-              <div className="bg-white/70 rounded-lg p-3 border border-purple-100">
-                <div className="text-sm font-medium text-gray-900 mb-1">📈 Trend Alert</div>
-                <div className="text-xs text-gray-600">Automotive category up 23% this week. High demand expected.</div>
-              </div>
-              <div className="bg-white/70 rounded-lg p-3 border border-purple-100">
-                <div className="text-sm font-medium text-gray-900 mb-1">🎯 Recommendation</div>
-                <div className="text-xs text-gray-600">Focus on WhatsApp Groups - 15% higher conversion rate.</div>
-              </div>
+          
+          <div className="p-6">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {data.categoryStats?.map((cat) => (
+                <div key={cat.category} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900 capitalize">
+                      {cat.category.replace(/_/g, ' ')}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {cat.count} adverts
+                    </div>
+                  </div>
+                  <div className="text-lg font-semibold text-green-600">
+                    ${parseFloat(cat.revenue || 0).toLocaleString()}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -364,22 +295,35 @@ const AdminDashboard = ({ data }) => {
 };
 
 const SalesRepDashboard = ({ data }) => {
-  const commission = parseFloat(data?.summary?.total_commission || 0);
-  const sales = parseFloat(data?.summary?.total_sales || 0);
-  const pendingCount = data?.summary?.pending_count || 0;
-  const activeCount = data?.summary?.active_count || 0;
+  const commission = parseFloat(data.summary?.total_commission || 0);
+  const sales = parseFloat(data.summary?.total_sales || 0);
+  const pendingCount = data.summary?.pending_count || 0;
+  const activeCount = data.summary?.active_count || 0;
 
   return (
     <div className="space-y-8">
       {/* Current Month Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
+          title="Pending"
+          value={pendingCount.toLocaleString()}
+          icon={<Clock className="h-6 w-6" />}
+          color="amber"
+          trend="Awaiting approval"
+        />
+        <StatCard
+          title="Active"
+          value={activeCount.toLocaleString()}
+          icon={<Activity className="h-6 w-6" />}
+          color="green"
+          trend="Currently running"
+        />
+        <StatCard
           title="Monthly Sales"
           value={`$${sales.toLocaleString()}`}
           icon={<TrendingUp className="h-6 w-6" />}
           color="blue"
           trend="This month only"
-          change="+12%"
         />
         <StatCard
           title="Your Commission"
@@ -387,48 +331,11 @@ const SalesRepDashboard = ({ data }) => {
           icon={<DollarSign className="h-6 w-6" />}
           color="emerald"
           trend="10% of sales"
-          change={`+$${(commission * 0.1).toFixed(2)}`}
         />
-        <StatCard
-          title="Active Adverts"
-          value={activeCount.toLocaleString()}
-          icon={<Activity className="h-6 w-6" />}
-          color="green"
-          trend="Currently running"
-          change="+3 new"
-        />
-        <StatCard
-          title="Pending"
-          value={pendingCount.toLocaleString()}
-          icon={<Clock className="h-6 w-6" />}
-          color="amber"
-          trend="Awaiting approval"
-          change="Review soon"
-        />
-      </div>
-
-      {/* Quick Actions for Sales Rep */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <QuickActionButton
-            icon={<PlusCircle className="h-5 w-5" />}
-            title="Create New Advert"
-            description="Start a new campaign"
-            color="red"
-            href="/create-advert"
-          />
-          <QuickActionButton
-            icon={<BarChart3 className="h-5 w-5" />}
-            title="View Performance"
-            description="Check your statistics"
-            color="blue"
-          />
-        </div>
       </div>
 
       {/* Active Adverts */}
-      {data?.active && data.active.length > 0 && (
+      {data.active?.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
@@ -457,7 +364,7 @@ const SalesRepDashboard = ({ data }) => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {data.active.map((advert, index) => (
-                  <tr key={advert.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors duration-150`}>
+                  <tr key={advert.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-semibold text-gray-900">{advert.client_name}</div>
                     </td>
@@ -488,7 +395,7 @@ const SalesRepDashboard = ({ data }) => {
       )}
 
       {/* Pending Adverts */}
-      {data?.pending && data.pending.length > 0 && (
+      {data.pending?.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
@@ -517,7 +424,7 @@ const SalesRepDashboard = ({ data }) => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {data.pending.map((advert, index) => (
-                  <tr key={advert.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-amber-50 transition-colors duration-150`}>
+                  <tr key={advert.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-semibold text-gray-900">{advert.client_name}</div>
                     </td>
@@ -548,7 +455,7 @@ const SalesRepDashboard = ({ data }) => {
       )}
 
       {/* Empty State */}
-      {(!data?.pending || data.pending.length === 0) && (!data?.active || data.active.length === 0) && (
+      {data.pending?.length === 0 && data.active?.length === 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
           <Radio className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No Adverts This Month</h3>
@@ -566,21 +473,12 @@ const SalesRepDashboard = ({ data }) => {
 };
 
 // Utility Components
-const StatCard = ({ title, value, icon, color, trend, change }) => {
+const StatCard = ({ title, value, icon, color, trend }) => {
   const colorClasses = {
     blue: 'bg-blue-50 text-blue-600',
     amber: 'bg-amber-50 text-amber-600',
     green: 'bg-green-50 text-green-600',
     emerald: 'bg-emerald-50 text-emerald-600',
-    purple: 'bg-purple-50 text-purple-600',
-  };
-
-  const changeColors = {
-    blue: 'text-blue-600',
-    amber: 'text-amber-600',
-    green: 'text-green-600',
-    emerald: 'text-emerald-600',
-    purple: 'text-purple-600',
   };
 
   return (
@@ -589,12 +487,6 @@ const StatCard = ({ title, value, icon, color, trend, change }) => {
         <div className={`p-3 rounded-xl ${colorClasses[color]}`}>
           {icon}
         </div>
-        {change && (
-          <div className="text-right">
-            <div className={`text-sm font-semibold ${changeColors[color]}`}>{change}</div>
-            <div className="text-xs text-gray-500">vs last period</div>
-          </div>
-        )}
       </div>
       <div className="space-y-1">
         <p className="text-sm font-medium text-gray-600">{title}</p>
@@ -604,32 +496,6 @@ const StatCard = ({ title, value, icon, color, trend, change }) => {
         )}
       </div>
     </div>
-  );
-};
-
-const QuickActionButton = ({ icon, title, description, color, href }) => {
-  const colorClasses = {
-    red: 'bg-red-500 hover:bg-red-600 text-white',
-    amber: 'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200',
-    blue: 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200',
-  };
-
-  const ButtonComponent = href ? 'a' : 'button';
-  const buttonProps = href ? { href } : { type: 'button' };
-
-  return (
-    <ButtonComponent 
-      {...buttonProps}
-      className={`w-full flex items-center p-4 text-left rounded-lg transition-all duration-200 ${colorClasses[color]} no-underline`}
-    >
-      <div className="mr-3">
-        {icon}
-      </div>
-      <div className="flex-1">
-        <div className="font-medium text-sm">{title}</div>
-        <div className="text-xs opacity-75">{description}</div>
-      </div>
-    </ButtonComponent>
   );
 };
 
