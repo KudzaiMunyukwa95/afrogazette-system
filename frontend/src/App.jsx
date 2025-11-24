@@ -11,6 +11,7 @@ import CreateAdvert from './pages/CreateAdvert';
 import PendingApprovals from './pages/PendingApprovals';
 import Schedule from './pages/Schedule';
 import Users from './pages/Users';
+import ClientManagement from './pages/ClientManagement';
 
 function App() {
   return (
@@ -61,6 +62,15 @@ function App() {
               element={
                 <PrivateRoute adminOnly>
                   <Users />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/clients"
+              element={
+                <PrivateRoute adminOnly>
+                  <ClientManagement />
                 </PrivateRoute>
               }
             />
