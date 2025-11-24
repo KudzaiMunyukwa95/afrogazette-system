@@ -30,6 +30,7 @@ const Layout = ({ children }) => {
         { name: 'Create Advert', href: '/create-advert', icon: Plus, current: currentPath === '/create-advert' },
         { name: 'Pending Approvals', href: '/pending-approvals', icon: Clock, current: currentPath === '/pending-approvals' },
         { name: 'Schedule', href: '/schedule', icon: Calendar, current: currentPath === '/schedule' },
+        { name: 'Clients', href: '/clients', icon: User, current: currentPath === '/clients' },
         { name: 'Users', href: '/users', icon: Users, current: currentPath === '/users' },
       ];
     } else {
