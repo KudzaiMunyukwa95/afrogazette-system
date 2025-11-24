@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -59,11 +59,11 @@ const Dashboard = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50">
-        {/* Enhanced Page Header */}
+        {/* Page Header */}
         <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
           <div className="max-w-7xl mx-auto px-6 py-6">
             <div className="flex items-center justify-between">
-              <div className="animate-fade-in">
+              <div>
                 <h1 className="text-3xl font-bold text-gray-900">
                   {isAdmin() ? 'Admin Dashboard' : 'My Dashboard'}
                 </h1>
@@ -80,10 +80,8 @@ const Dashboard = () => {
                 )}
               </div>
               <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2">
-                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm text-gray-600 font-medium">Live Data</span>
-                </div>
+                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm text-gray-600 font-medium">Live Data</span>
                 {isAdmin() && (
                   <button className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors duration-200 flex items-center">
                     <Download className="h-4 w-4 mr-2" />
@@ -105,83 +103,79 @@ const Dashboard = () => {
 };
 
 const AdminDashboard = ({ data }) => {
-  const totalAdverts = data.statusStats?.reduce((sum, s) => sum + parseInt(s.count), 0) || 0;
-  const pendingAdverts = data.statusStats?.find(s => s.status === 'pending')?.count || 0;
-  const totalRevenue = parseFloat(data.revenueStats?.total_revenue || 0);
-  const totalCommission = parseFloat(data.revenueStats?.total_commission || 0);
-  const avgRevenue = parseFloat(data.revenueStats?.average_revenue || 0);
+  const totalAdverts = data?.statusStats?.reduce((sum, s) => sum + parseInt(s.count), 0) || 0;
+  const pendingAdverts = data?.statusStats?.find(s => s.status === 'pending')?.count || 0;
+  const totalRevenue = parseFloat(data?.revenueStats?.total_revenue || 0);
+  const totalCommission = parseFloat(data?.revenueStats?.total_commission || 0);
+  const avgRevenue = parseFloat(data?.revenueStats?.average_revenue || 0);
 
   return (
     <div className="space-y-8">
-      {/* Enhanced Key Metrics */}
+      {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <EnhancedStatCard
+        <StatCard
           title="Total Revenue"
           value={`$${totalRevenue.toLocaleString()}`}
           icon={<TrendingUp className="h-6 w-6" />}
           color="green"
           trend={`Avg: $${avgRevenue.toFixed(2)}`}
           change="+12.5%"
-          delay="100"
         />
-        <EnhancedStatCard
+        <StatCard
           title="Total Adverts"
           value={totalAdverts.toLocaleString()}
           icon={<BarChart3 className="h-6 w-6" />}
           color="blue"
           trend={`${totalAdverts} total campaigns`}
           change="+8.2%"
-          delay="200"
         />
-        <EnhancedStatCard
+        <StatCard
           title="Pending Approval"
           value={pendingAdverts.toLocaleString()}
           icon={<Clock className="h-6 w-6" />}
           color="amber"
           trend="Awaiting review"
           change={`${pendingAdverts} new`}
-          delay="300"
         />
-        <EnhancedStatCard
+        <StatCard
           title="Performance Score"
           value="94/100"
           icon={<Zap className="h-6 w-6" />}
           color="purple"
           trend="Excellent"
           change="+2 points"
-          delay="400"
         />
       </div>
 
       {/* Quick Actions */}
-      {isAdmin() && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <QuickActionButton
-              icon={<PlusCircle className="h-5 w-5" />}
-              title="Create Campaign"
-              description="Launch new advertisement"
-              color="red"
-            />
-            <QuickActionButton
-              icon={<Clock className="h-5 w-5" />}
-              title={`Review Pending (${pendingAdverts})`}
-              description="Approve waiting adverts"
-              color="amber"
-            />
-            <QuickActionButton
-              icon={<Download className="h-5 w-5" />}
-              title="Export Report"
-              description="Download monthly analytics"
-              color="blue"
-            />
-          </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <QuickActionButton
+            icon={<PlusCircle className="h-5 w-5" />}
+            title="Create Campaign"
+            description="Launch new advertisement"
+            color="red"
+            href="/create-advert"
+          />
+          <QuickActionButton
+            icon={<Clock className="h-5 w-5" />}
+            title={`Review Pending (${pendingAdverts})`}
+            description="Approve waiting adverts"
+            color="amber"
+            href="/pending-approvals"
+          />
+          <QuickActionButton
+            icon={<Download className="h-5 w-5" />}
+            title="Export Report"
+            description="Download monthly analytics"
+            color="blue"
+          />
         </div>
-      )}
+      </div>
 
       {/* Expiring Soon Alert */}
-      {data.expiringSoon?.length > 0 && (
+      {data?.expiringSoon && data.expiringSoon.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-amber-200 overflow-hidden">
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-amber-200">
             <div className="flex items-center justify-between">
@@ -269,7 +263,7 @@ const AdminDashboard = ({ data }) => {
           
           <div className="p-6">
             <div className="space-y-4 max-h-96 overflow-y-auto">
-              {data.salesRepStats?.map((rep) => (
+              {data?.salesRepStats?.map((rep) => (
                 <div key={rep.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:bg-gray-100 transition-colors duration-200">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex-1">
@@ -323,7 +317,7 @@ const AdminDashboard = ({ data }) => {
             
             <div className="p-6">
               <div className="space-y-3">
-                {data.categoryStats?.slice(0, 5).map((cat, index) => (
+                {data?.categoryStats?.slice(0, 5).map((cat, index) => (
                   <div key={cat.category} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
                     <div className="flex-1">
                       <div className="font-medium text-gray-900 capitalize">
@@ -370,50 +364,46 @@ const AdminDashboard = ({ data }) => {
 };
 
 const SalesRepDashboard = ({ data }) => {
-  const commission = parseFloat(data.summary?.total_commission || 0);
-  const sales = parseFloat(data.summary?.total_sales || 0);
-  const pendingCount = data.summary?.pending_count || 0;
-  const activeCount = data.summary?.active_count || 0;
+  const commission = parseFloat(data?.summary?.total_commission || 0);
+  const sales = parseFloat(data?.summary?.total_sales || 0);
+  const pendingCount = data?.summary?.pending_count || 0;
+  const activeCount = data?.summary?.active_count || 0;
 
   return (
     <div className="space-y-8">
       {/* Current Month Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <EnhancedStatCard
+        <StatCard
           title="Monthly Sales"
           value={`$${sales.toLocaleString()}`}
           icon={<TrendingUp className="h-6 w-6" />}
           color="blue"
           trend="This month only"
           change="+12%"
-          delay="100"
         />
-        <EnhancedStatCard
+        <StatCard
           title="Your Commission"
           value={`$${commission.toLocaleString()}`}
           icon={<DollarSign className="h-6 w-6" />}
           color="emerald"
           trend="10% of sales"
           change={`+$${(commission * 0.1).toFixed(2)}`}
-          delay="200"
         />
-        <EnhancedStatCard
+        <StatCard
           title="Active Adverts"
           value={activeCount.toLocaleString()}
           icon={<Activity className="h-6 w-6" />}
           color="green"
           trend="Currently running"
           change="+3 new"
-          delay="300"
         />
-        <EnhancedStatCard
+        <StatCard
           title="Pending"
           value={pendingCount.toLocaleString()}
           icon={<Clock className="h-6 w-6" />}
           color="amber"
           trend="Awaiting approval"
           change="Review soon"
-          delay="400"
         />
       </div>
 
@@ -426,6 +416,7 @@ const SalesRepDashboard = ({ data }) => {
             title="Create New Advert"
             description="Start a new campaign"
             color="red"
+            href="/create-advert"
           />
           <QuickActionButton
             icon={<BarChart3 className="h-5 w-5" />}
@@ -437,7 +428,7 @@ const SalesRepDashboard = ({ data }) => {
       </div>
 
       {/* Active Adverts */}
-      {data.active?.length > 0 && (
+      {data?.active && data.active.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
@@ -497,7 +488,7 @@ const SalesRepDashboard = ({ data }) => {
       )}
 
       {/* Pending Adverts */}
-      {data.pending?.length > 0 && (
+      {data?.pending && data.pending.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
@@ -557,7 +548,7 @@ const SalesRepDashboard = ({ data }) => {
       )}
 
       {/* Empty State */}
-      {data.pending?.length === 0 && data.active?.length === 0 && (
+      {(!data?.pending || data.pending.length === 0) && (!data?.active || data.active.length === 0) && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
           <Radio className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No Adverts This Month</h3>
@@ -574,8 +565,8 @@ const SalesRepDashboard = ({ data }) => {
   );
 };
 
-// Enhanced Utility Components
-const EnhancedStatCard = ({ title, value, icon, color, trend, change, delay }) => {
+// Utility Components
+const StatCard = ({ title, value, icon, color, trend, change }) => {
   const colorClasses = {
     blue: 'bg-blue-50 text-blue-600',
     amber: 'bg-amber-50 text-amber-600',
@@ -593,16 +584,17 @@ const EnhancedStatCard = ({ title, value, icon, color, trend, change, delay }) =
   };
 
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 animate-slide-up opacity-0`} 
-         style={{ animationDelay: `${delay}ms`, animationFillMode: 'forwards' }}>
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
       <div className="flex items-center justify-between mb-4">
         <div className={`p-3 rounded-xl ${colorClasses[color]}`}>
           {icon}
         </div>
-        <div className="text-right">
-          <div className={`text-sm font-semibold ${changeColors[color]}`}>{change}</div>
-          <div className="text-xs text-gray-500">vs last period</div>
-        </div>
+        {change && (
+          <div className="text-right">
+            <div className={`text-sm font-semibold ${changeColors[color]}`}>{change}</div>
+            <div className="text-xs text-gray-500">vs last period</div>
+          </div>
+        )}
       </div>
       <div className="space-y-1">
         <p className="text-sm font-medium text-gray-600">{title}</p>
@@ -615,15 +607,21 @@ const EnhancedStatCard = ({ title, value, icon, color, trend, change, delay }) =
   );
 };
 
-const QuickActionButton = ({ icon, title, description, color }) => {
+const QuickActionButton = ({ icon, title, description, color, href }) => {
   const colorClasses = {
     red: 'bg-red-500 hover:bg-red-600 text-white',
     amber: 'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200',
     blue: 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200',
   };
 
+  const ButtonComponent = href ? 'a' : 'button';
+  const buttonProps = href ? { href } : { type: 'button' };
+
   return (
-    <button className={`w-full flex items-center p-4 text-left rounded-lg transition-all duration-200 ${colorClasses[color]}`}>
+    <ButtonComponent 
+      {...buttonProps}
+      className={`w-full flex items-center p-4 text-left rounded-lg transition-all duration-200 ${colorClasses[color]} no-underline`}
+    >
       <div className="mr-3">
         {icon}
       </div>
@@ -631,7 +629,7 @@ const QuickActionButton = ({ icon, title, description, color }) => {
         <div className="font-medium text-sm">{title}</div>
         <div className="text-xs opacity-75">{description}</div>
       </div>
-    </button>
+    </ButtonComponent>
   );
 };
 
