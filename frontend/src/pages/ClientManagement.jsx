@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { advertAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import {
   Users,
   DollarSign,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 
 const ClientManagement = () => {
+  const { user, isAdmin } = useAuth();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -37,10 +39,15 @@ const ClientManagement = () => {
       const response = await advertAPI.getAll();
       const adverts = response.data.data.adverts || [];
       
+      // Filter adverts by sales rep if not admin
+      const filteredAdverts = isAdmin() 
+        ? adverts 
+        : adverts.filter(advert => advert.sales_rep_id === user?.id);
+      
       // Group adverts by client and calculate metrics
       const clientMap = {};
       
-      adverts.forEach(advert => {
+      filteredAdverts.forEach(advert => {
         const clientName = advert.client_name;
         
         if (!clientMap[clientName]) {
@@ -53,7 +60,9 @@ const ClientManagement = () => {
             lastActivity: null,
             campaigns: [],
             avgAmount: 0,
-            status: 'Active'
+            status: 'Active',
+            salesRepId: advert.sales_rep_id,
+            salesRepName: advert.sales_rep_name || 'Unknown'
           };
         }
         
@@ -130,11 +139,13 @@ const ClientManagement = () => {
       'Average Amount': client.avgAmount.toFixed(2),
       'Categories': client.categoriesArray.join(', '),
       'Tier': client.tier,
-      'Last Activity': client.lastActivity?.toLocaleDateString() || 'N/A'
+      'Last Activity': client.lastActivity?.toLocaleDateString() || 'N/A',
+      ...(isAdmin() ? { 'Sales Rep': client.salesRepName } : {})
     }));
     
     const csv = convertToCSV(csvData);
-    downloadCSV(csv, 'client-analysis.csv');
+    const filename = isAdmin() ? 'all-clients-analysis.csv' : 'my-clients-analysis.csv';
+    downloadCSV(csv, filename);
   };
 
   if (loading) {
@@ -158,9 +169,14 @@ const ClientManagement = () => {
           <div className="max-w-7xl mx-auto px-6 py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Client Management</h1>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {isAdmin() ? 'Client Management' : 'My Clients'}
+                </h1>
                 <p className="mt-1 text-sm text-gray-500">
-                  Track client performance, revenue, and campaign history
+                  {isAdmin() 
+                    ? 'Track all client performance, revenue, and campaign history'
+                    : 'Track your client relationships and campaign performance'
+                  }
                 </p>
               </div>
               <button
@@ -178,7 +194,7 @@ const ClientManagement = () => {
           {/* Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <StatCard
-              title="Total Clients"
+              title={isAdmin() ? "Total Clients" : "My Clients"}
               value={clients.length}
               icon={<Users className="h-6 w-6" />}
               color="blue"
@@ -196,7 +212,7 @@ const ClientManagement = () => {
               color="green"
             />
             <StatCard
-              title="Total Revenue"
+              title={isAdmin() ? "Total Revenue" : "My Revenue"}
               value={`$${clients.reduce((sum, c) => sum + c.totalRevenue, 0).toLocaleString()}`}
               icon={<DollarSign className="h-6 w-6" />}
               color="emerald"
@@ -251,26 +267,42 @@ const ClientManagement = () => {
             <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Client Portfolio ({filteredClients.length})
+                  {isAdmin() ? 'Client Portfolio' : 'My Client Portfolio'} ({filteredClients.length})
                 </h3>
               </div>
               
               <div className="max-h-96 overflow-y-auto">
-                {filteredClients.map((client) => (
-                  <ClientCard
-                    key={client.name}
-                    client={client}
-                    isSelected={selectedClient?.name === client.name}
-                    onClick={() => setSelectedClient(client)}
-                  />
-                ))}
+                {filteredClients.length > 0 ? (
+                  filteredClients.map((client) => (
+                    <ClientCard
+                      key={client.name}
+                      client={client}
+                      isSelected={selectedClient?.name === client.name}
+                      onClick={() => setSelectedClient(client)}
+                      showSalesRep={isAdmin()}
+                    />
+                  ))
+                ) : (
+                  <div className="p-8 text-center">
+                    <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      {isAdmin() ? 'No Clients Found' : 'No Clients Yet'}
+                    </h3>
+                    <p className="text-gray-500">
+                      {isAdmin() 
+                        ? 'No clients match your current filters.'
+                        : 'Create your first advert to start building your client portfolio!'
+                      }
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Client Details */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
               {selectedClient ? (
-                <ClientDetails client={selectedClient} />
+                <ClientDetails client={selectedClient} showSalesRep={isAdmin()} />
               ) : (
                 <div className="p-8 text-center">
                   <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -287,7 +319,7 @@ const ClientManagement = () => {
 };
 
 // Client Card Component
-const ClientCard = ({ client, isSelected, onClick }) => {
+const ClientCard = ({ client, isSelected, onClick, showSalesRep }) => {
   const getTierColor = (tier) => {
     switch (tier) {
       case 'Premium':
@@ -330,18 +362,24 @@ const ClientCard = ({ client, isSelected, onClick }) => {
       
       <div className="mt-2 text-xs text-gray-500">
         Last activity: {client.lastActivity?.toLocaleDateString() || 'N/A'}
+        {showSalesRep && (
+          <span className="ml-2">• Rep: {client.salesRepName}</span>
+        )}
       </div>
     </div>
   );
 };
 
 // Client Details Component
-const ClientDetails = ({ client }) => {
+const ClientDetails = ({ client, showSalesRep }) => {
   return (
     <div>
       <div className="px-6 py-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900">{client.name}</h3>
         <p className="text-sm text-gray-500">{client.tier} Client</p>
+        {showSalesRep && (
+          <p className="text-xs text-gray-400">Managed by: {client.salesRepName}</p>
+        )}
       </div>
       
       <div className="p-6 space-y-6">
@@ -443,6 +481,7 @@ const StatCard = ({ title, value, icon, color }) => {
 
 // Utility Functions
 const convertToCSV = (data) => {
+  if (data.length === 0) return '';
   const headers = Object.keys(data[0]).join(',');
   const rows = data.map(row => Object.values(row).join(','));
   return [headers, ...rows].join('\n');
