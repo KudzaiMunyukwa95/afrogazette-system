@@ -69,7 +69,7 @@ function App() {
             <Route
               path="/clients"
               element={
-                <PrivateRoute adminOnly>
+                <PrivateRoute>
                   <ClientManagement />
                 </PrivateRoute>
               }
