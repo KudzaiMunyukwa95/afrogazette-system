@@ -24,20 +24,20 @@ const Layout = ({ children }) => {
     const currentPath = location.pathname;
     
     if (user && user.role === 'admin') {
-      // Admin sees all pages
+      // Admin sees all pages EXCEPT Create Advert
       return [
         { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
-        { name: 'Create Advert', href: '/create-advert', icon: Plus, current: currentPath === '/create-advert' },
         { name: 'Pending Approvals', href: '/pending-approvals', icon: Clock, current: currentPath === '/pending-approvals' },
         { name: 'Schedule', href: '/schedule', icon: Calendar, current: currentPath === '/schedule' },
         { name: 'Clients', href: '/clients', icon: User, current: currentPath === '/clients' },
         { name: 'Users', href: '/users', icon: Users, current: currentPath === '/users' },
       ];
     } else {
-      // Sales reps only see Dashboard and Create Advert
+      // Sales reps see Dashboard, Create Advert, and My Clients
       return [
         { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
         { name: 'Create Advert', href: '/create-advert', icon: Plus, current: currentPath === '/create-advert' },
+        { name: 'My Clients', href: '/clients', icon: User, current: currentPath === '/clients' },
       ];
     }
   };
@@ -67,23 +67,11 @@ const Layout = ({ children }) => {
                   onClick={() => navigate('/dashboard')}
                   className="flex items-center space-x-3 text-white hover:opacity-80 transition-opacity duration-200"
                 >
-                  {/* Option 1: Logo Only (Larger) - ACTIVE */}
                   <img 
                     src="/logo.svg" 
                     alt="AfroGazette" 
                     className="h-7 w-auto" 
                   />
-                  
-                  {/* Option 2: Logo + Text - DISABLED
-                  <img 
-                    src="/logo.svg" 
-                    alt="AfroGazette" 
-                    className="h-10 w-10" 
-                  />
-                  <span className="text-xl font-bold tracking-tight hover:text-red-500 transition-colors duration-200">
-                    AfroGazette
-                  </span>
-                  */}
                 </button>
               </div>
 
@@ -195,11 +183,10 @@ const Layout = ({ children }) => {
         )}
       </header>
 
-      {/* Main Content - Fixed padding and proper container */}
+      {/* Main Content */}
       <main className="pt-16 min-h-screen">
         <div className="w-full max-w-none mx-auto">
           <div className="px-0 sm:px-0 lg:px-0">
-            {/* Content wrapper with proper overflow handling */}
             <div className="w-full overflow-x-hidden">
               {children}
             </div>
