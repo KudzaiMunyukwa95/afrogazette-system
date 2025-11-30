@@ -5,101 +5,157 @@ const pool = require('../config/database');
  */
 const getDashboard = async (req, res) => {
   try {
-    // Status statistics
-    const statusStats = await pool.query(`
-      SELECT status, COUNT(*) as count
-      FROM adverts
-      GROUP BY status
-    `);
+    const { timeFilter = 'month' } = req.query; // today, week, month, lastMonth
 
-    // Revenue statistics (total sales and commissions)
-    const revenueStats = await pool.query(`
-      SELECT 
-        SUM(amount_paid) as total_revenue,
-        SUM(commission_amount) as total_commission,
-        AVG(amount_paid) as average_revenue,
-        AVG(commission_amount) as average_commission
-      FROM adverts
-      WHERE status = 'active'
-    `);
+    // Calculate date range based on filter
+    let startDate, endDate;
+    const now = new Date();
 
-    // Sales rep performance
-    const salesRepStats = await pool.query(`
+    switch (timeFilter) {
+      case 'today':
+        startDate = new Date(now.setHours(0, 0, 0, 0));
+        endDate = new Date(now.setHours(23, 59, 59, 999));
+        break;
+
+      case 'week':
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+        break;
+
+      case 'lastMonth':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        break;
+
+      case 'month':
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        break;
+    }
+
+    // Summary statistics for date range (Global)
+    const summary = await pool.query(`
       SELECT 
-        u.id,
-        u.full_name,
-        u.email,
         COUNT(*) as total_adverts,
-        SUM(CASE WHEN a.status = 'active' THEN amount_paid ELSE 0 END) as total_revenue,
-        SUM(CASE WHEN a.status = 'active' THEN commission_amount ELSE 0 END) as total_commission,
-        COUNT(CASE WHEN a.status = 'pending' THEN 1 END) as pending_count,
-        COUNT(CASE WHEN a.status = 'active' THEN 1 END) as active_count,
-        COUNT(CASE WHEN a.status = 'expired' THEN 1 END) as expired_count
-      FROM users u
-      LEFT JOIN adverts a ON u.id = a.sales_rep_id
-      WHERE u.role = 'sales_rep'
-      GROUP BY u.id, u.full_name, u.email
-      ORDER BY total_revenue DESC NULLS LAST
-    `);
-
-    // Category statistics
-    const categoryStats = await pool.query(`
-      SELECT 
-        category,
-        COUNT(*) as count,
-        SUM(amount_paid) as revenue,
-        SUM(commission_amount) as commission
+        SUM(amount_paid) as total_sales,
+        SUM(commission_amount) as total_commission,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+        COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
+        COUNT(CASE WHEN status = 'expired' THEN 1 END) as expired_count,
+        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as declined_count
       FROM adverts
-      GROUP BY category
-      ORDER BY revenue DESC
-    `);
+      WHERE payment_date >= $1
+        AND payment_date < $2
+    `, [startDate.toISOString(), endDate.toISOString()]);
 
-    // Expiring soon (within 7 days)
-    const expiringSoon = await pool.query(`
+    // Active adverts (Global)
+    const active = await pool.query(`
       SELECT 
-        a.id,
-        a.client_name,
-        a.category,
-        a.end_date,
-        a.remaining_days,
-        a.destination_type,
+        a.*,
         ts.slot_label,
+        ts.slot_type,
+        ts.slot_time,
         u.full_name as sales_rep_name
       FROM adverts a
       LEFT JOIN time_slots ts ON a.assigned_slot_id = ts.id
       LEFT JOIN users u ON a.sales_rep_id = u.id
       WHERE a.status = 'active'
-        AND a.remaining_days <= 7
-        AND a.remaining_days > 0
-      ORDER BY a.remaining_days ASC
-      LIMIT 20
+      ORDER BY a.end_date ASC
     `);
 
-    // Today's slot utilization by type
-    const today = new Date().toISOString().split('T')[0];
-    const slotUtilization = await pool.query(`
+    // Pending adverts (Global)
+    const pending = await pool.query(`
       SELECT 
-        ts.slot_label,
-        ts.slot_type,
-        ts.max_capacity,
-        COUNT(dsa.id) as occupied
-      FROM time_slots ts
-      LEFT JOIN daily_slot_assignments dsa 
-        ON ts.id = dsa.slot_id 
-        AND dsa.assignment_date = $1
-      GROUP BY ts.id, ts.slot_label, ts.slot_type, ts.max_capacity
-      ORDER BY ts.slot_type, ts.slot_time
-    `, [today]);
+        a.*,
+        u.full_name as sales_rep_name
+      FROM adverts a
+      LEFT JOIN users u ON a.sales_rep_id = u.id
+      WHERE a.status = 'pending'
+      ORDER BY a.created_at DESC
+    `);
+
+    // Expired adverts (Global)
+    const expired = await pool.query(`
+      SELECT 
+        a.*,
+        u.full_name as sales_rep_name
+      FROM adverts a
+      LEFT JOIN users u ON a.sales_rep_id = u.id
+      WHERE a.status = 'expired'
+        AND a.payment_date >= $1
+        AND a.payment_date < $2
+      ORDER BY a.end_date DESC
+      LIMIT 10
+    `, [startDate.toISOString(), endDate.toISOString()]);
+
+    // Advert Type Breakdown (Global)
+    const advertTypes = await pool.query(`
+      SELECT 
+        advert_type as name,
+        COUNT(*) as value
+      FROM adverts
+      WHERE payment_date >= $1
+        AND payment_date < $2
+      GROUP BY advert_type
+      ORDER BY value DESC
+    `, [startDate.toISOString(), endDate.toISOString()]);
+
+    // Payment Method Analytics (Global)
+    const paymentMethods = await pool.query(`
+      SELECT 
+        payment_method as method,
+        SUM(amount_paid) as amount
+      FROM adverts
+      WHERE payment_date >= $1
+        AND payment_date < $2
+      GROUP BY payment_method
+      ORDER BY amount DESC
+    `, [startDate.toISOString(), endDate.toISOString()]);
+
+    // Last 7 Days Sales Trend (Global)
+    const salesTrend = await pool.query(`
+      SELECT 
+        TO_CHAR(payment_date, 'Dy') as day,
+        SUM(amount_paid) as sales
+      FROM adverts
+      WHERE payment_date >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY payment_date, TO_CHAR(payment_date, 'Dy')
+      ORDER BY payment_date ASC
+    `);
+
+    // Top 5 Clients by Spend (Global)
+    const topClients = await pool.query(`
+      SELECT 
+        client_name as name,
+        SUM(amount_paid) as spent
+      FROM adverts
+      WHERE payment_date >= $1
+        AND payment_date < $2
+      GROUP BY client_name
+      ORDER BY spent DESC
+      LIMIT 5
+    `, [startDate.toISOString(), endDate.toISOString()]);
 
     res.json({
       success: true,
       data: {
-        statusStats: statusStats.rows,
-        revenueStats: revenueStats.rows[0],
-        salesRepStats: salesRepStats.rows,
-        categoryStats: categoryStats.rows,
-        expiringSoon: expiringSoon.rows,
-        slotUtilization: slotUtilization.rows
+        summary: summary.rows[0],
+        active: active.rows,
+        pending: pending.rows,
+        expired: expired.rows,
+        advertTypes: advertTypes.rows,
+        paymentMethods: paymentMethods.rows,
+        salesTrend: salesTrend.rows,
+        topClients: topClients.rows,
+        monthRange: {
+          start: startDate.toISOString().split('T')[0],
+          end: endDate.toISOString().split('T')[0]
+        }
       }
     });
   } catch (error) {
