@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { advertAPI } from '../services/api';
 import Layout from '../components/Layout';
+import ClientAutocomplete from '../components/ClientAutocomplete';
 import { useToast } from '../components/Toast';
 import {
   ArrowLeft,
@@ -53,6 +54,7 @@ const CreateAdvert = () => {
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
+    clientId: null,
     clientName: '',
     category: '',
     caption: '',
@@ -87,7 +89,7 @@ const CreateAdvert = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate start date is not in the past
     const today = getTodayDate();
     if (formData.startDate < today) {
@@ -100,9 +102,10 @@ const CreateAdvert = () => {
     try {
       await advertAPI.create(formData);
       toast.success('Advert created successfully and sent for approval!');
-      
+
       // Reset form
       setFormData({
+        clientId: null,
         clientName: '',
         category: '',
         caption: '',
@@ -157,12 +160,12 @@ const CreateAdvert = () => {
                   </span>
                 </label>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className={`
                   flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200
-                  ${formData.destinationType === 'groups' 
-                    ? 'border-red-500 bg-red-50' 
+                  ${formData.destinationType === 'groups'
+                    ? 'border-red-500 bg-red-50'
                     : 'border-gray-200 bg-white hover:border-gray-300'
                   }
                 `}>
@@ -175,18 +178,15 @@ const CreateAdvert = () => {
                     className="sr-only"
                   />
                   <div className="flex items-start space-x-3">
-                    <Smartphone className={`h-5 w-5 mt-1 ${
-                      formData.destinationType === 'groups' ? 'text-red-600' : 'text-gray-400'
-                    }`} />
+                    <Smartphone className={`h-5 w-5 mt-1 ${formData.destinationType === 'groups' ? 'text-red-600' : 'text-gray-400'
+                      }`} />
                     <div>
-                      <div className={`font-semibold text-sm mb-1 ${
-                        formData.destinationType === 'groups' ? 'text-red-900' : 'text-gray-900'
-                      }`}>
+                      <div className={`font-semibold text-sm mb-1 ${formData.destinationType === 'groups' ? 'text-red-900' : 'text-gray-900'
+                        }`}>
                         WhatsApp Groups
                       </div>
-                      <div className={`text-xs mb-2 ${
-                        formData.destinationType === 'groups' ? 'text-red-700' : 'text-gray-600'
-                      }`}>
+                      <div className={`text-xs mb-2 ${formData.destinationType === 'groups' ? 'text-red-700' : 'text-gray-600'
+                        }`}>
                         Posted to multiple groups
                       </div>
                       <div className="text-xs text-green-600 font-medium">
@@ -198,8 +198,8 @@ const CreateAdvert = () => {
 
                 <label className={`
                   flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200
-                  ${formData.destinationType === 'channel' 
-                    ? 'border-red-500 bg-red-50' 
+                  ${formData.destinationType === 'channel'
+                    ? 'border-red-500 bg-red-50'
                     : 'border-gray-200 bg-white hover:border-gray-300'
                   }
                 `}>
@@ -212,18 +212,15 @@ const CreateAdvert = () => {
                     className="sr-only"
                   />
                   <div className="flex items-start space-x-3">
-                    <Radio className={`h-5 w-5 mt-1 ${
-                      formData.destinationType === 'channel' ? 'text-red-600' : 'text-gray-400'
-                    }`} />
+                    <Radio className={`h-5 w-5 mt-1 ${formData.destinationType === 'channel' ? 'text-red-600' : 'text-gray-400'
+                      }`} />
                     <div>
-                      <div className={`font-semibold text-sm mb-1 ${
-                        formData.destinationType === 'channel' ? 'text-red-900' : 'text-gray-900'
-                      }`}>
+                      <div className={`font-semibold text-sm mb-1 ${formData.destinationType === 'channel' ? 'text-red-900' : 'text-gray-900'
+                        }`}>
                         WhatsApp Channel
                       </div>
-                      <div className={`text-xs mb-2 ${
-                        formData.destinationType === 'channel' ? 'text-red-700' : 'text-gray-600'
-                      }`}>
+                      <div className={`text-xs mb-2 ${formData.destinationType === 'channel' ? 'text-red-700' : 'text-gray-600'
+                        }`}>
                         Broadcast to channel
                       </div>
                       <div className="text-xs text-blue-600 font-medium">
@@ -241,18 +238,19 @@ const CreateAdvert = () => {
                 <User className="h-5 w-5 text-gray-600" />
                 <h2 className="text-lg font-semibold text-gray-900">Client Details</h2>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Client Name *</label>
-                  <input
-                    type="text"
-                    name="clientName"
+                  <ClientAutocomplete
                     value={formData.clientName}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter client name"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    onChange={(value) => setFormData(prev => ({ ...prev, clientName: value, clientId: null }))}
+                    onSelect={(client) => setFormData(prev => ({
+                      ...prev,
+                      clientName: client ? client.name : '',
+                      clientId: client ? client.id : null
+                    }))}
+                    error={!formData.clientName && 'Client name is required'}
                   />
                 </div>
 
@@ -282,7 +280,7 @@ const CreateAdvert = () => {
                 <FileText className="h-5 w-5 text-gray-600" />
                 <h2 className="text-lg font-semibold text-gray-900">Advertisement Content</h2>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Advertisement Text *</label>
                 <textarea
@@ -306,7 +304,7 @@ const CreateAdvert = () => {
                 <DollarSign className="h-5 w-5 text-gray-600" />
                 <h2 className="text-lg font-semibold text-gray-900">Payment & Schedule</h2>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Days Paid *</label>
@@ -410,7 +408,7 @@ const CreateAdvert = () => {
               <div className="flex items-start space-x-3">
                 <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-blue-800">
-                  <strong>Note:</strong> Your advert will be sent to admin for review and approval. 
+                  <strong>Note:</strong> Your advert will be sent to admin for review and approval.
                   You'll be notified once it's approved and assigned to a time slot on the{' '}
                   {formData.destinationType === 'groups' ? 'Groups Schedule' : 'Channel Schedule'}.
                 </div>
