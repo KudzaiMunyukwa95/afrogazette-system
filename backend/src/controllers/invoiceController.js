@@ -39,8 +39,8 @@ const generateInvoicePDF = async (invoiceData, filePath) => {
             doc.rect(0, 0, pageWidth, headerHeight).fill(BRAND_BLACK);
 
             // Render Logo (Prioritize PNG, then SVG, then Text)
-            const logoPngPath = path.join(__dirname, '../../public/logo.png');
-            const logoSvgPath = path.join(__dirname, '../../public/logo.svg');
+            const logoPngPath = path.join(__dirname, '../../../frontend/public/logo.png');
+            const logoSvgPath = path.join(__dirname, '../../../frontend/public/logo.svg');
 
             let logoRendered = false;
 
