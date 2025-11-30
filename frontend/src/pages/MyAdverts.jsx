@@ -15,7 +15,7 @@ const MyAdverts = () => {
     const fetchAdverts = async () => {
         try {
             setLoading(true);
-            const response = await advertAPI.getAdverts(statusFilter !== 'all' ? statusFilter : undefined);
+            const response = await advertAPI.getAll(statusFilter !== 'all' ? { status: statusFilter } : undefined);
             setAdverts(response.data.data.adverts);
         } catch (error) {
             console.error('Error fetching adverts:', error);
