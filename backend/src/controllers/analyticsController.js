@@ -141,6 +141,21 @@ const getDashboard = async (req, res) => {
       LIMIT 5
     `, [startDate.toISOString(), endDate.toISOString()]);
 
+    // Sales Rep Performance Leaderboard (Global)
+    const salesRepPerformance = await pool.query(`
+      SELECT 
+        u.full_name as name,
+        COUNT(a.id) as total_adverts,
+        COALESCE(SUM(a.amount_paid), 0) as total_revenue
+      FROM users u
+      LEFT JOIN adverts a ON u.id = a.sales_rep_id 
+        AND COALESCE(a.approved_at, a.created_at) >= $1 
+        AND COALESCE(a.approved_at, a.created_at) < $2
+      WHERE u.role = 'sales_rep'
+      GROUP BY u.id, u.full_name
+      ORDER BY total_revenue DESC
+    `, [startDate.toISOString(), endDate.toISOString()]);
+
     res.json({
       success: true,
       data: {
@@ -152,10 +167,7 @@ const getDashboard = async (req, res) => {
         paymentMethods: paymentMethods.rows,
         salesTrend: salesTrend.rows,
         topClients: topClients.rows,
-        monthRange: {
-          start: startDate.toISOString().split('T')[0],
-          end: endDate.toISOString().split('T')[0]
-        }
+        salesRepPerformance: salesRepPerformance.rows
       }
     });
   } catch (error) {
