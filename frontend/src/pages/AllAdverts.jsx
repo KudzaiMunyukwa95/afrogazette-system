@@ -8,15 +8,41 @@ const AllAdverts = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    useEffect(() => {
+        fetchAdverts();
+    }, [statusFilter]);
+
+    const fetchAdverts = async () => {
+        try {
+            setLoading(true);
+            const response = await advertAPI.getAllAdverts(statusFilter !== 'all' ? statusFilter : undefined);
+            setAdverts(response.data.data.adverts);
+        } catch (error) {
+            console.error('Error fetching adverts:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (window.confirm('Are you sure you want to delete this advert?')) {
+            try {
+                await advertAPI.deleteAdvert(id);
+                fetchAdverts(); // Refresh list
+            } catch (error) {
+                console.error('Error deleting advert:', error);
+                alert('Failed to delete advert');
+            }
+        }
+    };
+
     const filteredAdverts = adverts.filter(ad => {
         const matchesSearch =
             ad.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             ad.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (ad.sales_rep_name && ad.sales_rep_name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-        const matchesStatus = statusFilter === 'all' || ad.status === statusFilter;
-
-        return matchesSearch && matchesStatus;
+        return matchesSearch;
     });
 
     const getStatusBadge = (status) => {
