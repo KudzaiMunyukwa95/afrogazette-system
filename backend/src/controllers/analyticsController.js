@@ -20,7 +20,8 @@ const getDashboard = async (req, res) => {
         AVG(amount_paid) as average_revenue,
         AVG(commission_amount) as average_commission
       FROM adverts
-      WHERE status IN ('active', 'approved')
+      FROM adverts
+      WHERE status = 'active'
     `);
 
     // Sales rep performance
@@ -30,15 +31,14 @@ const getDashboard = async (req, res) => {
         u.full_name,
         u.email,
         COUNT(*) as total_adverts,
-        SUM(amount_paid) as total_revenue,
-        SUM(commission_amount) as total_commission,
+        SUM(CASE WHEN a.status = 'active' THEN amount_paid ELSE 0 END) as total_revenue,
+        SUM(CASE WHEN a.status = 'active' THEN commission_amount ELSE 0 END) as total_commission,
         COUNT(CASE WHEN a.status = 'pending' THEN 1 END) as pending_count,
         COUNT(CASE WHEN a.status = 'active' THEN 1 END) as active_count,
         COUNT(CASE WHEN a.status = 'expired' THEN 1 END) as expired_count
       FROM users u
       LEFT JOIN adverts a ON u.id = a.sales_rep_id
       WHERE u.role = 'sales_rep'
-      AND (a.status IS NULL OR a.status IN ('active', 'approved', 'pending', 'expired', 'rejected')) -- Include all for counts, but filter sums below
       GROUP BY u.id, u.full_name, u.email
       ORDER BY total_revenue DESC NULLS LAST
     `);
