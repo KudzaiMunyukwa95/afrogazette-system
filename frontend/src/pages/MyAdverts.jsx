@@ -8,14 +8,28 @@ const MyAdverts = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    useEffect(() => {
+        fetchAdverts();
+    }, [statusFilter]);
+
+    const fetchAdverts = async () => {
+        try {
+            setLoading(true);
+            const response = await advertAPI.getAdverts(statusFilter !== 'all' ? statusFilter : undefined);
+            setAdverts(response.data.data.adverts);
+        } catch (error) {
+            console.error('Error fetching adverts:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const filteredAdverts = adverts.filter(ad => {
         const matchesSearch =
             ad.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             ad.category.toLowerCase().includes(searchTerm.toLowerCase());
 
-        const matchesStatus = statusFilter === 'all' || ad.status === statusFilter;
-
-        return matchesSearch && matchesStatus;
+        return matchesSearch;
     });
 
     const getStatusBadge = (status) => {
