@@ -13,6 +13,7 @@ const advertRoutes = require('./routes/advertRoutes');
 const slotRoutes = require('./routes/slotRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
+const clientRoutes = require('./routes/clientRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -322,6 +323,13 @@ try {
   console.log('✅ Invoice routes mounted');
 } catch (error) {
   console.error('❌ Failed to mount invoice routes:', error.message);
+}
+
+try {
+  app.use('/api/clients', clientRoutes);
+  console.log('✅ Client routes mounted');
+} catch (error) {
+  console.error('❌ Failed to mount client routes:', error.message);
 }
 
 // Manual update endpoint (for testing)
