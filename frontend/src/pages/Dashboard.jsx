@@ -2,32 +2,32 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { analyticsAPI } from '../services/api';
+import { motion } from 'framer-motion';
+import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import {
-  TrendingUp,
-  Users,
-  Calendar,
-  DollarSign,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  ArrowUpRight,
-  ArrowDownRight,
-  PieChart,
-  BarChart
+  PieChart, Pie, BarChart, Bar, LineChart, Line, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
+import {
+  TrendingUp, TrendingDown, Users, DollarSign, FileText,
+  Clock, CheckCircle, AlertTriangle, Calendar, Target
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+
+const COLORS = ['#E63946', '#457B9D', '#F1FAEE', '#A8DADC', '#1D3557'];
 
 const Dashboard = () => {
   const { user, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [timeFilter, setTimeFilter] = useState('month'); // today, week, month, lastMonth
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [timeFilter]);
 
   const fetchDashboardData = async () => {
     try {
+      setLoading(true);
       const response = isAdmin()
         ? await analyticsAPI.getDashboard()
         : await analyticsAPI.getMyDashboard();
@@ -37,6 +37,16 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    const firstName = user?.full_name?.split(' ')[0] || 'User';
+
+    if (hour >= 5 && hour < 12) return `Good morning, ${firstName} 👋`;
+    if (hour >= 12 && hour < 17) return `Good afternoon, ${firstName} 👋`;
+    if (hour >= 17 && hour < 24) return `Good evening, ${firstName} 👋`;
+    return `Hello, ${firstName} 👋`;
   };
 
   if (loading) {
@@ -74,22 +84,47 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
         <div className="max-w-7xl mx-auto px-6">
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">
-              Welcome back, {user?.full_name?.split(' ')[0] || 'User'}!
+          {/* Personalized Greeting */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              {getGreeting()}
             </h1>
-            <p className="mt-1 text-gray-500">
-              Here's what's happening with your {isAdmin() ? 'platform' : 'campaigns'} today.
+            <p className="text-gray-600">
+              Here's your performance overview.
             </p>
+          </motion.div>
+
+          {/* Time Filter Tabs */}
+          <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
+            {[
+              { id: 'today', label: 'Today' },
+              { id: 'week', label: 'Last 7 Days' },
+              { id: 'month', label: 'This Month' },
+              { id: 'lastMonth', label: 'Last Month' }
+            ].map((filter) => (
+              <button
+                key={filter.id}
+                onClick={() => setTimeFilter(filter.id)}
+                className={`px-6 py-2.5 rounded-lg font-medium transition-all whitespace-nowrap ${timeFilter === filter.id
+                    ? 'bg-red-600 text-white shadow-lg shadow-red-200'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                  }`}
+              >
+                {filter.label}
+              </button>
+            ))}
           </div>
 
           {isAdmin() ? (
-            <AdminDashboard data={data} />
+            <AdminDashboard data={data} timeFilter={timeFilter} />
           ) : (
-            <SalesRepDashboard data={data} />
+            <SalesRepDashboard data={data} timeFilter={timeFilter} />
           )}
         </div>
       </div>
@@ -97,267 +132,281 @@ const Dashboard = () => {
   );
 };
 
-const AdminDashboard = ({ data }) => {
-  const { statusStats, revenueStats, salesRepStats, expiringSoon } = data;
+// Animated Counter Component
+const AnimatedCounter = ({ value, prefix = '', suffix = '' }) => {
+  const [count, setCount] = useState(0);
 
-  const activeCount = statusStats.find(s => s.status === 'active')?.count || 0;
-  const pendingCount = statusStats.find(s => s.status === 'pending')?.count || 0;
+  useEffect(() => {
+    let start = 0;
+    const end = parseInt(value);
+    if (start === end) return;
+
+    const duration = 1000;
+    const increment = end / (duration / 16);
+
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= end) {
+        setCount(end);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(start));
+      }
+    }, 16);
+
+    return () => clearInterval(timer);
+  }, [value]);
+
+  return <span>{prefix}{count.toLocaleString()}{suffix}</span>;
+};
+
+// Modern KPI Card
+const KPICard = ({ title, value, icon: Icon, trend, color = 'red', prefix = '', suffix = '' }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    whileHover={{ scale: 1.02, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}
+    className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all"
+  >
+    <div className="flex items-center justify-between mb-4">
+      <div className={`p-3 rounded-lg bg-${color}-50`}>
+        <Icon className={`h-6 w-6 text-${color}-600`} />
+      </div>
+      {trend && (
+        <div className={`flex items-center text-sm font-medium ${trend > 0 ? 'text-green-600' : 'text-red-600'
+          }`}>
+          {trend > 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
+          {Math.abs(trend)}%
+        </div>
+      )}
+    </div>
+    <h3 className="text-sm font-medium text-gray-600 mb-1">{title}</h3>
+    <p className="text-3xl font-bold text-gray-900">
+      <AnimatedCounter value={value} prefix={prefix} suffix={suffix} />
+    </p>
+  </motion.div>
+);
+
+const SalesRepDashboard = ({ data, timeFilter }) => {
+  // Mock chart data - in production, this would come from the API
+  const advertTypeData = [
+    { name: 'Text Ads', value: 40 },
+    { name: 'Group Links', value: 30 },
+    { name: 'Picture Ads', value: 20 },
+    { name: 'Website Ads', value: 10 }
+  ];
+
+  const paymentMethodData = [
+    { method: 'Cash', amount: 450 },
+    { method: 'Ecocash', amount: 320 },
+    { method: 'Innbucks', amount: 180 },
+    { method: 'Bank Transfer', amount: 150 }
+  ];
+
+  const salesTrendData = [
+    { day: 'Mon', sales: 120 },
+    { day: 'Tue', sales: 180 },
+    { day: 'Wed', sales: 150 },
+    { day: 'Thu', sales: 220 },
+    { day: 'Fri', sales: 190 },
+    { day: 'Sat', sales: 160 },
+    { day: 'Sun', sales: 140 }
+  ];
+
+  const topClients = [
+    { name: 'BuySpot', spent: 500 },
+    { name: 'Best Furniture', spent: 350 },
+    { name: 'Clive Properties', spent: 280 },
+    { name: 'Best Wholesalers', spent: 220 },
+    { name: 'Tech Solutions', spent: 180 }
+  ];
 
   return (
     <div className="space-y-8">
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard
-          title="Total Revenue"
-          value={`$${Number(revenueStats?.total_revenue || 0).toLocaleString()}`}
-          icon={<DollarSign className="h-6 w-6" />}
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <KPICard
+          title="Total Sales"
+          value={data?.revenue?.total || 0}
+          icon={DollarSign}
+          trend={12}
           color="green"
-          trend="+12.5%" // Placeholder trend
-          trendUp={true}
+          prefix="$"
         />
-        <StatCard
-          title="Active Adverts"
-          value={activeCount}
-          icon={<CheckCircle className="h-6 w-6" />}
+        <KPICard
+          title="Commission Earned"
+          value={data?.commission?.total || 0}
+          icon={TrendingUp}
+          trend={8}
           color="blue"
+          prefix="$"
         />
-        <StatCard
-          title="Pending Approvals"
-          value={pendingCount}
-          icon={<Clock className="h-6 w-6" />}
-          color="amber"
-          link="/pending-approvals"
-        />
-        <StatCard
-          title="Total Commission"
-          value={`$${Number(revenueStats?.total_commission || 0).toLocaleString()}`}
-          icon={<PieChart className="h-6 w-6" />}
+        <KPICard
+          title="Total Clients"
+          value={data?.clients?.total || 0}
+          icon={Users}
+          trend={5}
           color="purple"
         />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Top Sales Reps */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Top Sales Representatives</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="text-left py-3 text-xs font-medium text-gray-500 uppercase">Adverts</th>
-                  <th className="text-right py-3 text-xs font-medium text-gray-500 uppercase">Revenue</th>
-                  <th className="text-right py-3 text-xs font-medium text-gray-500 uppercase">Commission</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {salesRepStats.slice(0, 5).map((rep) => (
-                  <tr key={rep.id} className="hover:bg-gray-50">
-                    <td className="py-3 text-sm font-medium text-gray-900">{rep.full_name}</td>
-                    <td className="py-3 text-sm text-gray-500">{rep.total_adverts}</td>
-                    <td className="py-3 text-right text-sm font-medium text-gray-900">
-                      ${Number(rep.total_revenue).toLocaleString()}
-                    </td>
-                    <td className="py-3 text-right text-sm font-medium text-green-600">
-                      ${Number(rep.total_commission).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Expiring Soon */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Expiring Soon</h3>
-          <div className="space-y-4">
-            {expiringSoon.slice(0, 5).map((ad) => (
-              <div key={ad.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                <div className="flex-shrink-0">
-                  <AlertTriangle className="h-5 w-5 text-amber-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {ad.client_name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {ad.remaining_days} days remaining
-                  </p>
-                </div>
-              </div>
-            ))}
-            {expiringSoon.length === 0 && (
-              <p className="text-sm text-gray-500 text-center py-4">No adverts expiring soon.</p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const SalesRepDashboard = ({ data }) => {
-  const { summary, active, pending, expired } = data;
-
-  return (
-    <div className="space-y-8">
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard
-          title="Monthly Sales"
-          value={`$${Number(summary?.total_sales || 0).toLocaleString()}`}
-          icon={<DollarSign className="h-6 w-6" />}
+        <KPICard
+          title="Active Adverts"
+          value={data?.adverts?.active || 0}
+          icon={CheckCircle}
           color="green"
         />
-        <StatCard
-          title="Monthly Commission"
-          value={`$${Number(summary?.total_commission || 0).toLocaleString()}`}
-          icon={<TrendingUp className="h-6 w-6" />}
-          color="emerald"
+        <KPICard
+          title="Pending Approvals"
+          value={data?.adverts?.pending || 0}
+          icon={Clock}
+          color="yellow"
         />
-        <StatCard
-          title="Active Adverts"
-          value={summary?.active_count || 0}
-          icon={<CheckCircle className="h-6 w-6" />}
-          color="blue"
-        />
-        <StatCard
-          title="Pending Adverts"
-          value={summary?.pending_count || 0}
-          icon={<Clock className="h-6 w-6" />}
-          color="amber"
+        <KPICard
+          title="Expiring Soon"
+          value={data?.adverts?.expiring || 0}
+          icon={AlertTriangle}
+          color="red"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Active Adverts List */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-900">Active Campaigns</h3>
-            <Link to="/my-adverts" className="text-sm text-red-600 hover:text-red-700 font-medium">
-              View All
-            </Link>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-3 text-xs font-medium text-gray-500 uppercase">Client</th>
-                  <th className="text-left py-3 text-xs font-medium text-gray-500 uppercase">Category</th>
-                  <th className="text-left py-3 text-xs font-medium text-gray-500 uppercase">End Date</th>
-                  <th className="text-right py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {active.slice(0, 5).map((ad) => (
-                  <tr key={ad.id} className="hover:bg-gray-50">
-                    <td className="py-3 text-sm font-medium text-gray-900">{ad.client_name}</td>
-                    <td className="py-3 text-sm text-gray-500 capitalize">{ad.category}</td>
-                    <td className="py-3 text-sm text-gray-500">
-                      {new Date(ad.end_date).toLocaleDateString()}
-                    </td>
-                    <td className="py-3 text-right">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Active
-                      </span>
-                    </td>
-                  </tr>
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Advert Type Breakdown */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Advert Type Breakdown</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie
+                data={advertTypeData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {advertTypeData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
-                {active.length === 0 && (
-                  <tr>
-                    <td colSpan="4" className="py-4 text-center text-sm text-gray-500">
-                      No active campaigns.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </motion.div>
 
-        {/* Quick Actions / Notifications */}
-        <div className="space-y-6">
-          {/* Pending Approvals Widget */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Pending Approval</h3>
-            <div className="space-y-4">
-              {pending.slice(0, 3).map((ad) => (
-                <div key={ad.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-100">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{ad.client_name}</p>
-                    <p className="text-xs text-gray-500">{new Date(ad.created_at).toLocaleDateString()}</p>
-                  </div>
-                  <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
-                    Pending
-                  </span>
-                </div>
-              ))}
-              {pending.length === 0 && (
-                <p className="text-sm text-gray-500 text-center">No pending adverts.</p>
-              )}
-            </div>
-          </div>
+        {/* Payment Method Analytics */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Methods</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={paymentMethodData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="method" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip />
+              <Bar dataKey="amount" fill="#E63946" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </motion.div>
 
-          {/* Expiring Soon Widget */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Expiring Soon</h3>
-            <div className="space-y-4">
-              {/* Filter active ads that are expiring soon */}
-              {active.filter(ad => ad.remaining_days <= 7).slice(0, 3).map((ad) => (
-                <div key={ad.id} className="flex items-start space-x-3">
-                  <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{ad.client_name}</p>
-                    <p className="text-xs text-gray-500">Expires in {ad.remaining_days} days</p>
+        {/* Sales Trend */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">7-Day Sales Trend</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={salesTrendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip />
+              <Line type="monotone" dataKey="sales" stroke="#E63946" strokeWidth={3} dot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </motion.div>
+
+        {/* Top Clients */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top 5 Clients by Spend</h3>
+          <div className="space-y-3">
+            {topClients.map((client, index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-sm">
+                    {index + 1}
                   </div>
+                  <span className="font-medium text-gray-900">{client.name}</span>
                 </div>
-              ))}
-              {active.filter(ad => ad.remaining_days <= 7).length === 0 && (
-                <p className="text-sm text-gray-500 text-center">No adverts expiring soon.</p>
-              )}
-            </div>
+                <span className="font-bold text-gray-900">${client.spent}</span>
+              </div>
+            ))}
           </div>
-        </div>
+        </motion.div>
       </div>
+
+      {/* Active Adverts Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
+      >
+        <div className="p-6 border-b border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900">Active Advert Slots</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days Left</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {/* Mock data - replace with actual data */}
+              <tr className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">BuySpot</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Group Link</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">7 days</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">3 days</td>
+                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">$50</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Active
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </motion.div>
     </div>
   );
 };
 
-const StatCard = ({ title, value, icon, color, trend, trendUp, link }) => {
-  const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600',
-    amber: 'bg-amber-50 text-amber-600',
-    purple: 'bg-purple-50 text-purple-600',
-    emerald: 'bg-emerald-50 text-emerald-600',
-  };
-
-  const Content = () => (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 rounded-xl ${colorClasses[color]}`}>
-          {icon}
-        </div>
-        {trend && (
-          <div className={`flex items-center text-sm font-medium ${trendUp ? 'text-green-600' : 'text-red-600'}`}>
-            {trendUp ? <ArrowUpRight className="h-4 w-4 mr-1" /> : <ArrowDownRight className="h-4 w-4 mr-1" />}
-            {trend}
-          </div>
-        )}
-      </div>
-      <div className="space-y-1">
-        <p className="text-sm font-medium text-gray-600">{title}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
-      </div>
-    </div>
-  );
-
-  if (link) {
-    return <Link to={link}><Content /></Link>;
-  }
-
-  return <Content />;
+const AdminDashboard = ({ data, timeFilter }) => {
+  // Similar structure to SalesRepDashboard but with global data
+  return <SalesRepDashboard data={data} timeFilter={timeFilter} />;
 };
 
 export default Dashboard;
