@@ -20,7 +20,6 @@ const getDashboard = async (req, res) => {
         AVG(amount_paid) as average_revenue,
         AVG(commission_amount) as average_commission
       FROM adverts
-      FROM adverts
       WHERE status = 'active'
     `);
 
