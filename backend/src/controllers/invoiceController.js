@@ -181,35 +181,6 @@ const generateInvoicePDF = async (invoiceData, filePath) => {
             doc.image(qrCodeDataUrl, marginX, footerY, { width: 60 });
             doc.font('Helvetica').fontSize(7).fillColor(TEXT_GRAY);
             doc.text('Scan to Follow Us', marginX, footerY + 65, { width: 60, align: 'center' });
-
-            // Social Icons Helper
-            const drawIcon = (pathStr, x, y, scale = 0.7) => {
-                try {
-                    if (isNaN(x) || isNaN(y)) {
-                        console.error('Invalid coordinates for icon:', { x, y });
-                        return;
-                    }
-                    doc.save();
-                    doc.translate(x, y);
-                    doc.scale(scale);
-                    doc.path(pathStr).fill(BRAND_BLACK);
-                    doc.restore();
-                } catch (err) {
-                    console.error('Error drawing icon:', err);
-                }
-            };
-
-            const iconY = footerY + 20;
-            const colWidth = 140;
-            const rowGap = 18;
-
-            doc.font('Helvetica').fontSize(8).fillColor(TEXT_DARK);
-
-            // Social Icons Section
-            const socialX = marginX + 100;
-            doc.text('+263 77 8826661', socialX + 20, iconY + 4);
-
-            // Facebook
             drawIcon('M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z', socialX, iconY + rowGap);
             doc.text('@AfroGazette', socialX + 20, iconY + rowGap + 4);
 
