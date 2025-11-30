@@ -230,9 +230,11 @@ const Layout = ({ children }) => {
             {/* Brand */}
             <div className="text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start space-x-2 mb-2">
-                <span className="text-xl font-bold tracking-tight">
-                  <span className="text-red-600">afro</span>gazette
-                </span>
+                <img
+                  src="/logo.svg"
+                  alt="AfroGazette"
+                  className="h-6 w-auto"
+                />
               </div>
               <p className="text-gray-400 text-sm">
                 Premium Advertising Platform
