@@ -235,7 +235,6 @@ const SalesRepDashboard = ({ data, timeFilter }) => {
           title="Total Sales"
           value={data?.summary?.total_sales || 0}
           icon={DollarSign}
-          trend={12}
           color="green"
           prefix="$"
         />
@@ -243,7 +242,6 @@ const SalesRepDashboard = ({ data, timeFilter }) => {
           title="Commission Earned"
           value={data?.summary?.total_commission || 0}
           icon={TrendingUp}
-          trend={8}
           color="blue"
           prefix="$"
         />
@@ -251,7 +249,6 @@ const SalesRepDashboard = ({ data, timeFilter }) => {
           title="Total Clients"
           value={data?.summary?.total_adverts || 0}
           icon={Users}
-          trend={5}
           color="purple"
         />
         <KPICard
