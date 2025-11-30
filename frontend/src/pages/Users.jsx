@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ConfirmModal from '../components/ConfirmModal';
 import { userAPI } from '../services/api';
 import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
@@ -29,6 +30,7 @@ const Users = () => {
     role: 'sales_rep'
   });
   const [submitting, setSubmitting] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, userId: null, userName: '' });
 
   useEffect(() => {
     fetchUsers();
@@ -68,13 +70,13 @@ const Users = () => {
     }
   };
 
-  const handleDeleteUser = async (id, userName) => {
-    if (!window.confirm(`Are you sure you want to delete ${userName}? All their adverts will also be deleted.`)) {
-      return;
-    }
+  const handleDeleteUser = (id, userName) => {
+    setDeleteModal({ isOpen: true, userId: id, userName });
+  };
 
+  const confirmDelete = async () => {
     try {
-      await userAPI.delete(id);
+      await userAPI.delete(deleteModal.userId);
       toast.success('User deleted successfully!');
       fetchUsers();
     } catch (err) {
@@ -113,7 +115,7 @@ const Users = () => {
                   <p className="text-sm text-gray-600">Manage administrators and sales representatives</p>
                 </div>
               </div>
-              
+
               <button
                 onClick={() => setShowModal(true)}
                 className="bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors flex items-center space-x-2"
@@ -165,7 +167,7 @@ const Users = () => {
             <div className="space-y-6">
               {/* Administrators */}
               {admins.length > 0 && (
-                <UserSection 
+                <UserSection
                   title="Administrators"
                   users={admins}
                   icon={<Shield className="h-5 w-5 text-blue-600" />}
@@ -176,7 +178,7 @@ const Users = () => {
 
               {/* Sales Representatives */}
               {salesReps.length > 0 && (
-                <UserSection 
+                <UserSection
                   title="Sales Representatives"
                   users={salesReps}
                   icon={<Briefcase className="h-5 w-5 text-green-600" />}
@@ -274,7 +276,7 @@ const Users = () => {
                     <option value="admin">Administrator</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    {formData.role === 'admin' 
+                    {formData.role === 'admin'
                       ? 'Full access: approve adverts, manage users, view all data'
                       : 'Limited access: create adverts, view own data only'
                     }
@@ -282,8 +284,8 @@ const Users = () => {
                 </div>
 
                 <div className="flex space-x-3 pt-4">
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={submitting}
                     className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 disabled:opacity-50 transition-colors"
                   >
@@ -302,6 +304,16 @@ const Users = () => {
             </div>
           </div>
         )}
+
+        <ConfirmModal
+          isOpen={deleteModal.isOpen}
+          onClose={() => setDeleteModal({ isOpen: false, userId: null, userName: '' })}
+          onConfirm={confirmDelete}
+          title="Delete User"
+          message={`Are you sure you want to delete ${deleteModal.userName}? All their adverts will also be deleted. This action cannot be undone.`}
+          confirmText="Delete"
+          type="danger"
+        />
       </div>
     </Layout>
   );
@@ -336,7 +348,7 @@ const UserSection = ({ title, users, icon, badgeColor, onDeleteUser }) => (
         </span>
       </div>
     </div>
-    
+
     <div className="p-4">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {users.map(user => (
@@ -350,8 +362,8 @@ const UserSection = ({ title, users, icon, badgeColor, onDeleteUser }) => (
 // User Card Component - Much more compact and professional
 const UserCard = ({ user, onDelete }) => {
   const getAvatarColor = () => {
-    return user.role === 'admin' 
-      ? 'bg-gradient-to-br from-blue-500 to-blue-600' 
+    return user.role === 'admin'
+      ? 'bg-gradient-to-br from-blue-500 to-blue-600'
       : 'bg-gradient-to-br from-green-500 to-green-600';
   };
 
@@ -362,7 +374,7 @@ const UserCard = ({ user, onDelete }) => {
         <div className={`w-10 h-10 ${getAvatarColor()} rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm`}>
           {user.fullName.charAt(0).toUpperCase()}
         </div>
-        
+
         {/* User Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
@@ -374,21 +386,20 @@ const UserCard = ({ user, onDelete }) => {
               <Trash2 className="h-3 w-3" />
             </button>
           </div>
-          
+
           <div className="space-y-1">
             <div className="flex items-center space-x-1 text-xs text-gray-600">
               <Mail className="h-3 w-3 flex-shrink-0" />
               <span className="truncate">{user.email}</span>
             </div>
-            
+
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1 text-xs text-gray-500">
                 <Calendar className="h-3 w-3" />
                 <span>{new Date(user.createdAt).toLocaleDateString()}</span>
               </div>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                user.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-              }`}>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded ${user.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                }`}>
                 {user.role === 'admin' ? 'Admin' : 'Sales'}
               </span>
             </div>
