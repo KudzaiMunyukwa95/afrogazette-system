@@ -177,6 +177,58 @@ const getMyDashboard = async (req, res) => {
       LIMIT 10
     `, [salesRepId, startOfMonth.toISOString(), endOfMonth.toISOString()]);
 
+    // Advert Type Breakdown
+    const advertTypes = await pool.query(`
+      SELECT 
+        advert_type as name,
+        COUNT(*) as value
+      FROM adverts
+      WHERE sales_rep_id = $1
+        AND payment_date >= $2
+        AND payment_date < $3
+      GROUP BY advert_type
+      ORDER BY value DESC
+    `, [salesRepId, startOfMonth.toISOString(), endOfMonth.toISOString()]);
+
+    // Payment Method Analytics
+    const paymentMethods = await pool.query(`
+      SELECT 
+        payment_method as method,
+        SUM(amount_paid) as amount
+      FROM adverts
+      WHERE sales_rep_id = $1
+        AND payment_date >= $2
+        AND payment_date < $3
+      GROUP BY payment_method
+      ORDER BY amount DESC
+    `, [salesRepId, startOfMonth.toISOString(), endOfMonth.toISOString()]);
+
+    // Last 7 Days Sales Trend
+    const salesTrend = await pool.query(`
+      SELECT 
+        TO_CHAR(payment_date, 'Dy') as day,
+        SUM(amount_paid) as sales
+      FROM adverts
+      WHERE sales_rep_id = $1
+        AND payment_date >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY payment_date, TO_CHAR(payment_date, 'Dy')
+      ORDER BY payment_date ASC
+    `, [salesRepId]);
+
+    // Top 5 Clients by Spend
+    const topClients = await pool.query(`
+      SELECT 
+        client_name as name,
+        SUM(amount_paid) as spent
+      FROM adverts
+      WHERE sales_rep_id = $1
+        AND payment_date >= $2
+        AND payment_date < $3
+      GROUP BY client_name
+      ORDER BY spent DESC
+      LIMIT 5
+    `, [salesRepId, startOfMonth.toISOString(), endOfMonth.toISOString()]);
+
     res.json({
       success: true,
       data: {
@@ -184,6 +236,10 @@ const getMyDashboard = async (req, res) => {
         active: active.rows,
         pending: pending.rows,
         expired: expired.rows,
+        advertTypes: advertTypes.rows,
+        paymentMethods: paymentMethods.rows,
+        salesTrend: salesTrend.rows,
+        topClients: topClients.rows,
         monthRange: {
           start: startOfMonth.toISOString().split('T')[0],
           end: endOfMonth.toISOString().split('T')[0]
