@@ -117,16 +117,40 @@ const getDashboard = async (req, res) => {
 const getMyDashboard = async (req, res) => {
   try {
     const salesRepId = req.user.id;
+    const { timeFilter = 'month' } = req.query; // today, week, month, lastMonth
 
-    // Current month date range
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    // Calculate date range based on filter
+    let startDate, endDate;
+    const now = new Date();
 
-    const endOfMonth = new Date(startOfMonth);
-    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    switch (timeFilter) {
+      case 'today':
+        startDate = new Date(now.setHours(0, 0, 0, 0));
+        endDate = new Date(now.setHours(23, 59, 59, 999));
+        break;
 
-    // Summary statistics for current month
+      case 'week':
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+        break;
+
+      case 'lastMonth':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        break;
+
+      case 'month':
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        break;
+    }
+
+    // Summary statistics for date range
     const summary = await pool.query(`
       SELECT 
         COUNT(*) as total_adverts,
@@ -140,7 +164,7 @@ const getMyDashboard = async (req, res) => {
       WHERE sales_rep_id = $1
         AND payment_date >= $2
         AND payment_date < $3
-    `, [salesRepId, startOfMonth.toISOString(), endOfMonth.toISOString()]);
+    `, [salesRepId, startDate.toISOString(), endDate.toISOString()]);
 
     // Active adverts
     const active = await pool.query(`
@@ -175,7 +199,7 @@ const getMyDashboard = async (req, res) => {
         AND payment_date < $3
       ORDER BY end_date DESC
       LIMIT 10
-    `, [salesRepId, startOfMonth.toISOString(), endOfMonth.toISOString()]);
+    `, [salesRepId, startDate.toISOString(), endDate.toISOString()]);
 
     // Advert Type Breakdown
     const advertTypes = await pool.query(`
@@ -188,7 +212,7 @@ const getMyDashboard = async (req, res) => {
         AND payment_date < $3
       GROUP BY advert_type
       ORDER BY value DESC
-    `, [salesRepId, startOfMonth.toISOString(), endOfMonth.toISOString()]);
+    `, [salesRepId, startDate.toISOString(), endDate.toISOString()]);
 
     // Payment Method Analytics
     const paymentMethods = await pool.query(`
@@ -201,7 +225,7 @@ const getMyDashboard = async (req, res) => {
         AND payment_date < $3
       GROUP BY payment_method
       ORDER BY amount DESC
-    `, [salesRepId, startOfMonth.toISOString(), endOfMonth.toISOString()]);
+    `, [salesRepId, startDate.toISOString(), endDate.toISOString()]);
 
     // Last 7 Days Sales Trend
     const salesTrend = await pool.query(`
@@ -227,7 +251,7 @@ const getMyDashboard = async (req, res) => {
       GROUP BY client_name
       ORDER BY spent DESC
       LIMIT 5
-    `, [salesRepId, startOfMonth.toISOString(), endOfMonth.toISOString()]);
+    `, [salesRepId, startDate.toISOString(), endDate.toISOString()]);
 
     res.json({
       success: true,
@@ -241,8 +265,8 @@ const getMyDashboard = async (req, res) => {
         salesTrend: salesTrend.rows,
         topClients: topClients.rows,
         monthRange: {
-          start: startOfMonth.toISOString().split('T')[0],
-          end: endOfMonth.toISOString().split('T')[0]
+          start: startDate.toISOString().split('T')[0],
+          end: endDate.toISOString().split('T')[0]
         }
       }
     });
