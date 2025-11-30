@@ -202,7 +202,7 @@ const KPICard = ({ title, value, icon: Icon, trend, color = 'red', prefix = '', 
   </motion.div>
 );
 
-const SalesRepDashboard = ({ data, timeFilter }) => {
+const SalesRepDashboard = ({ data, timeFilter, extraContent }) => {
   // Format advert types for chart
   const advertTypeData = data?.advertTypes?.map(item => ({
     name: (item.name || 'text_ad').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
@@ -226,6 +226,8 @@ const SalesRepDashboard = ({ data, timeFilter }) => {
     name: item.name,
     spent: parseFloat(item.spent || 0)
   })) || [];
+
+  const isMobile = window.innerWidth < 768;
 
   return (
     <div className="space-y-8">
@@ -287,9 +289,9 @@ const SalesRepDashboard = ({ data, timeFilter }) => {
                   data={advertTypeData}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={window.innerWidth < 768 ? 60 : 80}
+                  labelLine={!isMobile}
+                  label={isMobile ? null : ({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={isMobile ? 60 : 80}
                   fill="#8884d8"
                   dataKey="value"
                 >
@@ -298,6 +300,7 @@ const SalesRepDashboard = ({ data, timeFilter }) => {
                   ))}
                 </Pie>
                 <Tooltip />
+                <Legend />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -366,6 +369,8 @@ const SalesRepDashboard = ({ data, timeFilter }) => {
           </div>
         </motion.div>
       </div>
+
+      {extraContent}
 
       {/* Active Adverts Section - Mobile Optimized */}
       <motion.div
@@ -475,8 +480,75 @@ const SalesRepDashboard = ({ data, timeFilter }) => {
 };
 
 const AdminDashboard = ({ data, timeFilter }) => {
-  // Similar structure to SalesRepDashboard but with global data
-  return <SalesRepDashboard data={data} timeFilter={timeFilter} />;
+  const salesRepPerformance = data?.salesRepPerformance || [];
+
+  const leaderboard = (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.35 }}
+      className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
+    >
+      <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center">
+        <h3 className="text-base md:text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <Target className="h-5 w-5 text-red-600" />
+          Sales Rep Leaderboard
+        </h3>
+        <span className="text-xs font-medium px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
+          {timeFilter === 'today' ? 'Today' :
+            timeFilter === 'week' ? 'Last 7 Days' :
+              timeFilter === 'month' ? 'This Month' : 'Last Month'}
+        </span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales Rep</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adverts Sold</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Revenue</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {salesRepPerformance.length > 0 ? (
+              salesRepPerformance.map((rep, index) => (
+                <tr key={index} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                      index === 1 ? 'bg-gray-100 text-gray-700' :
+                        index === 2 ? 'bg-orange-100 text-orange-700' :
+                          'bg-white text-gray-500 border border-gray-200'
+                      }`}>
+                      {index + 1}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="font-medium text-gray-900">{rep.name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {rep.total_adverts}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900">
+                    ${Number(rep.total_revenue).toFixed(2)}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
+                  No sales data available for this period
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </motion.div>
+  );
+
+  return <SalesRepDashboard data={data} timeFilter={timeFilter} extraContent={leaderboard} />;
 };
 
 export default Dashboard;
