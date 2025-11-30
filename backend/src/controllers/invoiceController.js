@@ -38,22 +38,14 @@ const generateInvoicePDF = async (invoiceData, filePath) => {
             const headerHeight = 100;
             doc.rect(0, 0, pageWidth, headerHeight).fill(BRAND_BLACK);
 
-            // Render Logo (Prioritize PNG, then SVG, then Text)
-            const logoPngPath = path.join(__dirname, '../../../frontend/public/logo.png');
+            // Render Logo (Prioritize SVG for quality, then PNG, then Text)
             const logoSvgPath = path.join(__dirname, '../../../frontend/public/logo.svg');
+            const logoPngPath = path.join(__dirname, '../../../frontend/public/logo.png');
 
             let logoRendered = false;
 
-            if (fs.existsSync(logoPngPath)) {
-                try {
-                    doc.image(logoPngPath, marginX, 25, { width: 150 });
-                    logoRendered = true;
-                } catch (err) {
-                    console.error('Error rendering PNG logo:', err);
-                }
-            }
-
-            if (!logoRendered && fs.existsSync(logoSvgPath)) {
+            // Try SVG first for best quality
+            if (fs.existsSync(logoSvgPath)) {
                 try {
                     let svgContent = fs.readFileSync(logoSvgPath, 'utf8');
                     // Remove <image> tags which might reference missing files
@@ -70,8 +62,18 @@ const generateInvoicePDF = async (invoiceData, filePath) => {
                 }
             }
 
+            // Fallback to PNG if SVG fails
+            if (!logoRendered && fs.existsSync(logoPngPath)) {
+                try {
+                    doc.image(logoPngPath, marginX, 25, { width: 150 });
+                    logoRendered = true;
+                } catch (err) {
+                    console.error('Error rendering PNG logo:', err);
+                }
+            }
+
+            // Final fallback to text
             if (!logoRendered) {
-                // Fallback to text logo
                 doc.font('Helvetica-Bold').fontSize(24).fillColor(BRAND_RED).text('afro', marginX, 35, { continued: true });
                 doc.fillColor(WHITE).text('gazette');
             }
