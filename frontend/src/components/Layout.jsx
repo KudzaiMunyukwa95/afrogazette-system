@@ -103,11 +103,11 @@ const Layout = ({ children }) => {
               </nav>
             </div>
 
-            {/* User Profile */}
-            <div className="flex items-center space-x-4">
+            {/* User Profile - Mobile Optimized */}
+            <div className="flex items-center space-x-2 md:space-x-4">
               {/* User Info */}
               <div className="hidden sm:flex items-center space-x-3">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-600 text-white font-bold text-sm">
+                <div className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full bg-red-600 text-white font-bold text-sm">
                   {(user?.full_name || user?.fullName || user?.name || user?.email || 'U').charAt(0).toUpperCase()}
                 </div>
                 <div className="text-left">
@@ -124,19 +124,20 @@ const Layout = ({ children }) => {
                 </div>
               </div>
 
-              {/* Logout Button */}
+              {/* Logout Button - Mobile Optimized */}
               <button
                 onClick={handleLogout}
-                className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors duration-200"
+                className="hidden sm:flex items-center px-3 md:px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors duration-200 tap-target"
               >
                 <LogOut className="h-4 w-4 mr-2" />
-                <span className="hidden sm:block">Logout</span>
+                <span>Logout</span>
               </button>
 
-              {/* Mobile Menu Button */}
+              {/* Mobile Menu Button - Larger Tap Target */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden p-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors duration-200"
+                className="md:hidden tap-target-lg rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors duration-200"
+                aria-label="Toggle menu"
               >
                 {isMobileMenuOpen ? (
                   <X className="h-5 w-5" />
@@ -148,10 +149,10 @@ const Layout = ({ children }) => {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation - Improved Spacing & Tap Targets */}
         {isMobileMenuOpen && (
           <div className="md:hidden bg-gray-900 border-t border-gray-800">
-            <div className="px-4 py-3 space-y-1">
+            <div className="mobile-container py-4 space-y-2">
               {navigation.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -162,26 +163,32 @@ const Layout = ({ children }) => {
                       setIsMobileMenuOpen(false);
                     }}
                     className={`
-                      w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 text-left
+                      w-full flex items-center px-4 py-3.5 text-sm font-medium rounded-lg transition-colors duration-200 text-left tap-target-lg
                       ${item.current
-                        ? 'bg-red-500 text-white'
+                        ? 'bg-red-500 text-white font-semibold'
                         : 'text-gray-300 hover:text-white hover:bg-gray-800'
                       }
                     `}
                   >
-                    <Icon className="h-4 w-4 mr-3" />
+                    <Icon className="icon-md mr-3 flex-shrink-0" />
                     {item.name}
                   </button>
                 );
               })}
 
-              {/* Mobile User Info */}
+              {/* Mobile User Info - Show First Name */}
               <div className="pt-4 border-t border-gray-800 mt-4">
-                <div className="flex items-center px-4 py-2">
-                  <User className="h-5 w-5 text-gray-400 mr-3" />
+                <div className="flex items-center px-4 py-3">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-600 text-white font-bold text-sm mr-3 flex-shrink-0">
+                    {(user?.full_name || user?.fullName || user?.name || user?.email || 'U').charAt(0).toUpperCase()}
+                  </div>
                   <div>
-                    <div className="text-sm font-medium text-white">
-                      {user?.full_name || user?.name || 'User'}
+                    <div className="text-sm font-semibold text-white">
+                      {user?.full_name?.split(' ')[0] ||
+                        user?.fullName?.split(' ')[0] ||
+                        user?.name?.split(' ')[0] ||
+                        user?.email?.split('@')[0] ||
+                        'User'}
                     </div>
                     <div className="text-xs text-gray-400">
                       {user?.role === 'admin' ? 'Administrator' : 'Sales Rep'}
