@@ -49,4 +49,11 @@ router.post(
  */
 router.get('/profile', authenticate, authController.getProfile);
 
+/**
+ * @route   POST /api/auth/logout
+ * @desc    Logout user and clear session
+ * @access  Private
+ */
+router.post('/logout', authenticate, authController.logout);
+
 module.exports = router;
