@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import Pagination from '../components/Pagination';
 import { advertAPI } from '../services/api';
 import { Search, Filter, Calendar, CheckCircle, XCircle, Clock, Trash2, Edit, MoreVertical } from 'lucide-react';
 
@@ -8,15 +9,21 @@ const AllAdverts = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pagination, setPagination] = useState({ total: 0, totalPages: 0, limit: 15 });
     useEffect(() => {
         fetchAdverts();
-    }, [statusFilter]);
+    }, [statusFilter, currentPage]);
 
     const fetchAdverts = async () => {
         try {
             setLoading(true);
-            const response = await advertAPI.getAll(statusFilter !== 'all' ? { status: statusFilter } : undefined);
+            const params = { page: currentPage, limit: 15 };
+            if (statusFilter !== 'all') params.status = statusFilter;
+
+            const response = await advertAPI.getAll(params);
             setAdverts(response.data.data.adverts);
+            setPagination(response.data.data.pagination);
         } catch (error) {
             console.error('Error fetching adverts:', error);
         } finally {
