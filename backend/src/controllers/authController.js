@@ -3,15 +3,16 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
 
 /**
- * Login user and return JWT token
+ * Login user with 24-hour session lock
  */
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user by email
+    // Find user by email with session info
     const result = await pool.query(
-      'SELECT id, email, password, full_name, role FROM users WHERE email = $1',
+      `SELECT id, email, password, full_name, role, session_active, session_expires_at 
+       FROM users WHERE email = $1`,
       [email]
     );
 
@@ -24,6 +25,21 @@ const login = async (req, res) => {
 
     const user = result.rows[0];
 
+    // Check for active session within 24 hours
+    if (user.session_active && user.session_expires_at) {
+      const now = new Date();
+      const expiresAt = new Date(user.session_expires_at);
+
+      if (expiresAt > now) {
+        const hoursRemaining = Math.ceil((expiresAt - now) / (1000 * 60 * 60));
+        return res.status(403).json({
+          success: false,
+          message: `You are already logged in. You can log in again after ${hoursRemaining} hour(s).`,
+          sessionExpiresAt: expiresAt
+        });
+      }
+    }
+
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
 
@@ -33,6 +49,20 @@ const login = async (req, res) => {
         message: 'Invalid email or password'
       });
     }
+
+    // Set session expiration to 24 hours from now
+    const sessionExpiresAt = new Date();
+    sessionExpiresAt.setHours(sessionExpiresAt.getHours() + 24);
+
+    // Update session tracking
+    await pool.query(
+      `UPDATE users 
+       SET last_login_at = NOW(), 
+           session_active = true, 
+           session_expires_at = $1
+       WHERE id = $2`,
+      [sessionExpiresAt, user.id]
+    );
 
     // Generate JWT token
     const token = jwt.sign(
@@ -55,7 +85,8 @@ const login = async (req, res) => {
           email: user.email,
           fullName: user.full_name,
           role: user.role
-        }
+        },
+        sessionExpiresAt
       }
     });
   } catch (error) {
@@ -162,8 +193,36 @@ const getProfile = async (req, res) => {
   }
 };
 
+/**
+ * Logout user and clear session
+ */
+const logout = async (req, res) => {
+  try {
+    // Clear session tracking
+    await pool.query(
+      `UPDATE users 
+       SET session_active = false, 
+           session_expires_at = NULL
+       WHERE id = $1`,
+      [req.user.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Logout successful'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during logout'
+    });
+  }
+};
+
 module.exports = {
   login,
   register,
-  getProfile
+  getProfile,
+  logout
 };
