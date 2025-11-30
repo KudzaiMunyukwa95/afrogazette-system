@@ -57,6 +57,7 @@ const CreateAdvert = () => {
     clientId: null,
     clientName: '',
     category: '',
+    advertType: 'text_ad',
     caption: '',
     destinationType: 'groups', // default to groups
     daysPaid: '',
@@ -229,6 +230,55 @@ const CreateAdvert = () => {
                     </div>
                   </div>
                 </label>
+              </div>
+            </div>
+
+            {/* Advert Type */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-2 mb-6">
+                <Tag className="h-5 w-5 text-gray-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Advert Type</h2>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {[
+                  { id: 'text_ad', label: 'Text Ad', desc: 'Simple text message' },
+                  { id: 'group_link_ad', label: 'Group Link Ad', desc: 'Promote a WhatsApp group' },
+                  { id: 'picture_ad', label: 'Picture Ad', desc: 'Image with caption' },
+                  { id: 'website_ad', label: 'Website Ad', desc: 'Link to external site' },
+                  { id: 'feature', label: 'Feature', desc: 'Premium placement' }
+                ].map((type) => (
+                  <label
+                    key={type.id}
+                    className={`
+                      relative flex flex-col p-4 border-2 rounded-xl cursor-pointer transition-all duration-200
+                      ${formData.advertType === type.id
+                        ? 'border-red-500 bg-red-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                      }
+                    `}
+                  >
+                    <input
+                      type="radio"
+                      name="advertType"
+                      value={type.id}
+                      checked={formData.advertType === type.id}
+                      onChange={handleChange}
+                      className="sr-only"
+                    />
+                    <span className={`font-semibold text-sm mb-1 ${formData.advertType === type.id ? 'text-red-900' : 'text-gray-900'
+                      }`}>
+                      {type.label}
+                    </span>
+                    <span className={`text-xs ${formData.advertType === type.id ? 'text-red-700' : 'text-gray-500'
+                      }`}>
+                      {type.desc}
+                    </span>
+                    {formData.advertType === type.id && (
+                      <CheckCircle className="absolute top-3 right-3 h-4 w-4 text-red-600" />
+                    )}
+                  </label>
+                ))}
               </div>
             </div>
 
