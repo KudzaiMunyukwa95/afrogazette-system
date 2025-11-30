@@ -240,7 +240,7 @@ const SalesRepDashboard = ({ data, timeFilter }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <KPICard
           title="Total Sales"
-          value={data?.revenue?.total || 0}
+          value={data?.summary?.total_sales || 0}
           icon={DollarSign}
           trend={12}
           color="green"
@@ -248,7 +248,7 @@ const SalesRepDashboard = ({ data, timeFilter }) => {
         />
         <KPICard
           title="Commission Earned"
-          value={data?.commission?.total || 0}
+          value={data?.summary?.total_commission || 0}
           icon={TrendingUp}
           trend={8}
           color="blue"
@@ -256,26 +256,26 @@ const SalesRepDashboard = ({ data, timeFilter }) => {
         />
         <KPICard
           title="Total Clients"
-          value={data?.clients?.total || 0}
+          value={data?.summary?.total_adverts || 0}
           icon={Users}
           trend={5}
           color="purple"
         />
         <KPICard
           title="Active Adverts"
-          value={data?.adverts?.active || 0}
+          value={data?.summary?.active_count || 0}
           icon={CheckCircle}
           color="green"
         />
         <KPICard
           title="Pending Approvals"
-          value={data?.adverts?.pending || 0}
+          value={data?.summary?.pending_count || 0}
           icon={Clock}
           color="yellow"
         />
         <KPICard
           title="Expiring Soon"
-          value={data?.adverts?.expiring || 0}
+          value={data?.expiringSoon?.length || 0}
           icon={AlertTriangle}
           color="red"
         />
@@ -396,19 +396,38 @@ const SalesRepDashboard = ({ data, timeFilter }) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {/* Mock data - replace with actual data */}
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">BuySpot</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Group Link</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">7 days</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">3 days</td>
-                <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">$50</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    Active
-                  </span>
-                </td>
-              </tr>
+              {data?.active && data.active.length > 0 ? (
+                data.active.slice(0, 10).map((advert, index) => (
+                  <tr key={advert.id || index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                      {advert.client_name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {(advert.advert_type || 'text_ad').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {advert.days_paid} days
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {advert.remaining_days || 'N/A'} days
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                      ${Number(advert.amount_paid || 0).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Active
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                    No active adverts at the moment
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
