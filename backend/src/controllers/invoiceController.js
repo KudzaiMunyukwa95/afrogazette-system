@@ -40,23 +40,6 @@ const generateInvoicePDF = async (invoiceData, filePath) => {
 
             // Render SVG Logo
             const logoPath = path.join(__dirname, '../../public/logo.svg'); // Assuming frontend/public is mapped or copied
-            // In this environment, frontend/public is at ../../frontend/public relative to controller?
-            // Let's try the absolute path structure based on previous file views
-            // c:\Users\kmunyukwa.AONZWARSHRE\Downloads\afrogazette-system-main (3)\afrogazette-system-main\frontend\public\logo.svg
-            const logoAbsPath = path.join(__dirname, '../../../frontend/public/logo.svg');
-
-            if (fs.existsSync(logoAbsPath)) {
-                const svgContent = fs.readFileSync(logoAbsPath, 'utf8');
-                SVGtoPDF(doc, svgContent, marginX, 25, {
-                    width: 150,
-                    height: 50,
-                    preserveAspectRatio: 'xMinYMid meet'
-                });
-            } else {
-                // Fallback if SVG not found
-                doc.font('Helvetica-Bold').fontSize(24).fillColor(BRAND_RED).text('afro', marginX, 35, { continued: true });
-                doc.fillColor(WHITE).text('gazette');
-            }
 
             // Company Details (Right-aligned, White)
             doc.font('Helvetica').fontSize(9).fillColor(WHITE);
