@@ -15,7 +15,8 @@ const createAdvert = async (req, res) => {
       daysPaid,
       paymentDate,
       amountPaid,
-      startDate
+      startDate,
+      advertType = 'text_ad'
     } = req.body;
 
     const salesRepId = req.user.id;
@@ -42,11 +43,11 @@ const createAdvert = async (req, res) => {
     const result = await pool.query(
       `INSERT INTO adverts (
         client_id, client_name, category, caption, media_url, days_paid,
-        payment_date, amount_paid, start_date, sales_rep_id, status
+        payment_date, amount_paid, start_date, sales_rep_id, status, advert_type
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11)
       RETURNING *`,
-      [clientId || null, finalClientName, category, caption, mediaUrl, daysPaid, paymentDate, parseFloat(amountPaid).toFixed(2), startDate, salesRepId]
+      [clientId || null, finalClientName, category, caption, mediaUrl, daysPaid, paymentDate, parseFloat(amountPaid).toFixed(2), startDate, salesRepId, advertType]
     );
 
     const advert = result.rows[0];
