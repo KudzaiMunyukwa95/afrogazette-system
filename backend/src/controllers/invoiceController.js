@@ -182,6 +182,29 @@ const generateInvoicePDF = async (invoiceData, filePath) => {
             doc.font('Helvetica').fontSize(7).fillColor(TEXT_GRAY);
             doc.text('Scan to Follow Us', marginX, footerY + 65, { width: 60, align: 'center' });
 
+            // Social Icons Helper
+            const drawIcon = (pathStr, x, y, scale = 0.7) => {
+                try {
+                    if (isNaN(x) || isNaN(y)) {
+                        console.error('Invalid coordinates for icon:', { x, y });
+                        return;
+                    }
+                    doc.save();
+                    doc.translate(x, y);
+                    doc.scale(scale);
+                    doc.path(pathStr).fill(BRAND_BLACK);
+                    doc.restore();
+                } catch (err) {
+                    console.error('Error drawing icon:', err);
+                }
+            };
+
+            const iconY = footerY + 20;
+            const colWidth = 140;
+            const rowGap = 18;
+
+            doc.font('Helvetica').fontSize(8).fillColor(TEXT_DARK);
+
             // Social Icons Section
             const socialX = marginX + 100;
             doc.text('+263 77 8826661', socialX + 20, iconY + 4);
