@@ -140,6 +140,17 @@ export const invoiceAPI = {
   download: (id) => api.get(`/invoices/${id}/download`, { responseType: 'blob' })
 };
 
+// Client APIs
+export const clientAPI = {
+  getAll: (params) => api.get('/clients', { params }),
+  search: (query) => api.get('/clients/search', { params: { q: query } }),
+  getById: (id) => api.get(`/clients/${id}`),
+  create: (data) => api.post('/clients', data),
+  update: (id, data) => api.patch(`/clients/${id}`, data),
+  delete: (id) => api.delete(`/clients/${id}`),
+  merge: (keepId, mergeIds) => api.post('/clients/merge', { keepId, mergeIds })
+};
+
 // Health check function
 export const healthCheck = async () => {
   try {
