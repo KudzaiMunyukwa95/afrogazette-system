@@ -108,11 +108,15 @@ const Layout = ({ children }) => {
               {/* User Info */}
               <div className="hidden sm:flex items-center space-x-3">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-600 text-white font-bold text-sm">
-                  {user?.full_name?.charAt(0) || 'U'}
+                  {(user?.full_name || user?.fullName || user?.name || user?.email || 'U').charAt(0).toUpperCase()}
                 </div>
                 <div className="text-left">
                   <div className="text-sm font-semibold text-white">
-                    {user?.full_name?.split(' ')[0] || 'User'}
+                    {user?.full_name?.split(' ')[0] ||
+                      user?.fullName?.split(' ')[0] ||
+                      user?.name?.split(' ')[0] ||
+                      user?.email?.split('@')[0] ||
+                      'User'}
                   </div>
                   <div className="text-xs text-gray-400">
                     {user?.role === 'admin' ? 'Administrator' : 'Sales Rep'}
