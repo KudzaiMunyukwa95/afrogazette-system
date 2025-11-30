@@ -62,6 +62,7 @@ const CreateAdvert = () => {
     destinationType: 'groups', // default to groups
     daysPaid: '',
     paymentDate: '',
+    paymentMethod: 'cash',
     amountPaid: '',
     startDate: ''
   });
@@ -111,8 +112,10 @@ const CreateAdvert = () => {
         category: '',
         caption: '',
         destinationType: 'groups',
+        advertType: 'text_ad',
         daysPaid: '',
         paymentDate: '',
+        paymentMethod: 'cash',
         amountPaid: '',
         startDate: ''
       });
@@ -400,6 +403,24 @@ const CreateAdvert = () => {
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
+                  <select
+                    name="paymentMethod"
+                    value={formData.paymentMethod}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="innbucks">Innbucks</option>
+                    <option value="ecocash">Ecocash</option>
+                    <option value="omarimoney">Omari Money</option>
+                    <option value="zwg">ZWG</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                  </select>
                 </div>
 
                 <div>
