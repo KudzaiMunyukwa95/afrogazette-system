@@ -48,6 +48,7 @@ const generateInvoicePDF = async (invoiceData, filePath) => {
             if (fs.existsSync(logoSvgPath)) {
                 try {
                     let svgContent = fs.readFileSync(logoSvgPath, 'utf8');
+                    // Remove image tags from SVG to prevent errors
                     svgContent = svgContent.replace(/<image[^>]*>/g, '');
                     SVGtoPDF(doc, svgContent, marginX, 20, {
                         width: 150,
@@ -86,117 +87,109 @@ const generateInvoicePDF = async (invoiceData, filePath) => {
             doc.text('support@afrogazette.co.zw | +263 77 8826661', marginX, headerY, { align: 'right', width: pageWidth - 2 * marginX });
 
             // --- INVOICE TITLE & METADATA (16px spacing from header) ---
-            const contentTop = headerHeight + 16;
+            const contentTop = headerHeight + 24;
             doc.font('Helvetica-Bold').fontSize(28).fillColor(TEXT_DARK);
             doc.text('INVOICE', marginX, contentTop);
 
             // Metadata Box (aligned with title baseline)
             const metaX = pageWidth - 220;
-            const metaY = contentTop + 2;
+            const metaY = contentTop + 4;
             doc.font('Helvetica').fontSize(9).fillColor(TEXT_GRAY);
             doc.text('Invoice #:', metaX, metaY);
             doc.font('Helvetica-Bold').fontSize(9).fillColor(TEXT_DARK).text(invoiceData.invoice_number, metaX + 60, metaY, { align: 'right', width: 120 });
 
             doc.font('Helvetica').fontSize(9).fillColor(TEXT_GRAY).text('Date:', metaX, metaY + 16);
-            doc.font('Helvetica-Bold').fontSize(9).fillColor(TEXT_DARK).text(new Date(invoiceData.generated_at).toLocaleDateString('en-US'), metaX + 60, metaY + 16, { align: 'right', width: 120 });
+            doc.font('Helvetica-Bold').fontSize(9).fillColor(TEXT_DARK).text(new Date(invoiceData.generated_at).toLocaleDateString(), metaX + 60, metaY + 16, { align: 'right', width: 120 });
 
             doc.font('Helvetica').fontSize(9).fillColor(TEXT_GRAY).text('Status:', metaX, metaY + 32);
-            const statusColor = invoiceData.status === 'PAID' ? '#10B981' : BRAND_RED;
-            doc.font('Helvetica-Bold').fontSize(9).fillColor(statusColor).text(invoiceData.status, metaX + 60, metaY + 32, { align: 'right', width: 120 });
+            doc.font('Helvetica-Bold').fontSize(9).fillColor(BRAND_RED).text(invoiceData.status.toUpperCase(), metaX + 60, metaY + 32, { align: 'right', width: 120 });
 
-            // --- BILL TO & PREPARED BY ---
-            const billToY = contentTop + 64; // Reduced spacing
-            doc.font('Helvetica-Bold').fontSize(10).fillColor(TEXT_MEDIUM).text('BILL TO', marginX, billToY);
-            doc.rect(marginX, billToY + 14, 40, 2).fill(BRAND_RED);
-            doc.font('Helvetica-Bold').fontSize(11).fillColor(TEXT_DARK).text(invoiceData.client_name, marginX, billToY + 22);
+            // --- BILL TO & FROM (Grid Layout) ---
+            const sectionY = contentTop + 60;
+            const colWidth = (pageWidth - 2 * marginX) / 2;
+
+            // Bill To
+            doc.font('Helvetica-Bold').fontSize(10).fillColor(TEXT_GRAY).text('BILL TO', marginX, sectionY);
+            doc.rect(marginX, sectionY + 14, 30, 2).fill(BRAND_RED);
+
+            doc.font('Helvetica-Bold').fontSize(12).fillColor(TEXT_DARK).text(invoiceData.client_name, marginX, sectionY + 24);
             if (invoiceData.client_company) {
-                doc.font('Helvetica').fontSize(10).fillColor(TEXT_GRAY).text(invoiceData.client_company, marginX, billToY + 36);
+                doc.font('Helvetica').fontSize(10).fillColor(TEXT_MEDIUM).text(invoiceData.client_company, marginX, sectionY + 40);
             }
 
-            const prepX = pageWidth / 2;
-            doc.font('Helvetica-Bold').fontSize(10).fillColor(TEXT_MEDIUM).text('PREPARED BY', prepX, billToY);
-            doc.rect(prepX, billToY + 14, 40, 2).fill(BRAND_RED);
-            doc.font('Helvetica-Bold').fontSize(11).fillColor(TEXT_DARK).text(invoiceData.sales_rep_name || 'AfroGazette Team', prepX, billToY + 22);
+            // Sales Rep (From)
+            doc.font('Helvetica-Bold').fontSize(10).fillColor(TEXT_GRAY).text('ISSUED BY', marginX + colWidth, sectionY);
+            doc.rect(marginX + colWidth, sectionY + 14, 30, 2).fill(BRAND_RED);
 
-            // --- REFINED TABLE ---
-            const tableTop = billToY + 68; // Reduced spacing
-            const tableWidth = pageWidth - 2 * marginX;
+            doc.font('Helvetica-Bold').fontSize(12).fillColor(TEXT_DARK).text(invoiceData.sales_rep_name, marginX + colWidth, sectionY + 24);
+            doc.font('Helvetica').fontSize(10).fillColor(TEXT_MEDIUM).text('Sales Representative', marginX + colWidth, sectionY + 40);
 
-            // Table Header (24px height, softer black, rounded corners)
-            doc.save();
-            doc.roundedRect(marginX, tableTop, tableWidth, 24, 2).fill(TABLE_BLACK);
-            doc.restore();
+            // --- TABLE (Clean, Modern) ---
+            const tableTop = sectionY + 80;
+            const tableHeaderHeight = 30;
 
-            doc.font('Helvetica-Bold').fontSize(9).fillColor(WHITE);
-            const col1 = marginX + 15;
-            const col2 = marginX + 220;
+            // Table Header Background
+            doc.rect(marginX, tableTop, pageWidth - 2 * marginX, tableHeaderHeight).fill('#F3F4F6');
+
+            // Table Header Text
+            const col1 = marginX + 10;
+            const col2 = marginX + 200;
             const col3 = marginX + 300;
-            const col4 = marginX + 380;
-            const col5 = pageWidth - marginX - 15;
+            const col4 = pageWidth - marginX - 10; // Right aligned
 
-            doc.text('DESCRIPTION', col1, tableTop + 8);
-            doc.text('TYPE', col2, tableTop + 8);
-            doc.text('DURATION', col3, tableTop + 8);
-            doc.text('UNIT PRICE', col4, tableTop + 8, { align: 'right', width: 60 });
-            doc.text('TOTAL', col5 - 60, tableTop + 8, { align: 'right', width: 60 });
+            doc.font('Helvetica-Bold').fontSize(9).fillColor(TEXT_DARK);
+            doc.text('DESCRIPTION', col1, tableTop + 10);
+            doc.text('CATEGORY', col2, tableTop + 10);
+            doc.text('DURATION', col3, tableTop + 10);
+            doc.text('AMOUNT', col4 - 50, tableTop + 10, { align: 'right', width: 50 });
 
             // Table Row
-            const rowY = tableTop + 24;
-            const rowHeight = 36; // Slightly reduced
-            doc.font('Helvetica').fontSize(9).fillColor(TEXT_DARK);
-            doc.text(invoiceData.caption || 'Advertisement Campaign', col1, rowY + 12, { width: 200 });
+            const rowY = tableTop + tableHeaderHeight + 10;
+            doc.font('Helvetica').fontSize(10).fillColor(TABLE_BLACK);
 
-            const advertType = (invoiceData.advert_type || 'text_ad').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            doc.text(advertType, col2, rowY + 12);
-            doc.text(`${invoiceData.days_paid} Days`, col3, rowY + 12);
-            doc.text(`$${Number(invoiceData.amount).toFixed(2)}`, col4, rowY + 12, { align: 'right', width: 60 });
-            doc.font('Helvetica-Bold').text(`$${Number(invoiceData.amount).toFixed(2)}`, col5 - 60, rowY + 12, { align: 'right', width: 60 });
+            // Description (Truncate if too long)
+            const caption = invoiceData.caption.length > 60 ? invoiceData.caption.substring(0, 60) + '...' : invoiceData.caption;
+            doc.text(caption, col1, rowY);
 
-            // Subtle bottom border
-            doc.moveTo(marginX, rowY + rowHeight).lineTo(pageWidth - marginX, rowY + rowHeight).strokeColor(BORDER_COLOR).lineWidth(0.5).stroke();
+            // Category
+            doc.text(invoiceData.category.replace(/_/g, ' ').toUpperCase(), col2, rowY);
 
-            // Payment Method (balanced padding)
-            doc.font('Helvetica').fontSize(9).fillColor(TEXT_MEDIUM);
-            doc.text('Payment Method:', marginX, rowY + rowHeight + 12);
-            doc.font('Helvetica-Bold').fillColor(TEXT_DARK);
-            const paymentMethod = (invoiceData.payment_method || 'cash').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            doc.text(paymentMethod, marginX + 85, rowY + rowHeight + 12);
+            // Duration
+            doc.text(`${invoiceData.days_paid} Days`, col3, rowY);
 
-            // --- REFINED TOTALS ---
-            const totalsY = rowY + rowHeight + 32; // Reduced spacing
+            // Amount
+            doc.font('Helvetica-Bold').text(`$${Number(invoiceData.amount).toFixed(2)}`, col4 - 80, rowY, { align: 'right', width: 80 });
+
+            // Line under row
+            doc.moveTo(marginX, rowY + 20).lineTo(pageWidth - marginX, rowY + 20).strokeColor(BORDER_COLOR).stroke();
+
+            // --- TOTALS SECTION (Right Aligned) ---
+            const totalsY = rowY + 40;
             const totalsWidth = 200;
             const totalsX = pageWidth - marginX - totalsWidth;
 
-            doc.font('Helvetica').fontSize(10).fillColor(TEXT_MEDIUM);
-            doc.text('Subtotal', totalsX, totalsY);
-            doc.font('Helvetica-Bold').fillColor(TEXT_DARK);
-            doc.text(`$${Number(invoiceData.amount).toFixed(2)}`, pageWidth - marginX - 80, totalsY, { align: 'right', width: 80 });
+            // Subtotal
+            doc.font('Helvetica').fontSize(10).fillColor(TEXT_GRAY).text('Subtotal', totalsX, totalsY);
+            doc.font('Helvetica-Bold').fontSize(10).fillColor(TEXT_DARK).text(`$${Number(invoiceData.amount).toFixed(2)}`, pageWidth - marginX - 80, totalsY, { align: 'right', width: 80 });
 
-            // Premium Total Box (36px height, 4px radius, perfect alignment)
-            const totalBarY = totalsY + 20;
-            doc.save();
-            doc.roundedRect(totalsX, totalBarY, totalsWidth, 36, 4).fill(BRAND_RED);
-            doc.restore();
+            // Commission
+            doc.font('Helvetica').fontSize(10).fillColor(TEXT_GRAY).text('Commission (10%)', totalsX, totalsY + 20);
+            doc.font('Helvetica-Bold').fontSize(10).fillColor(TEXT_DARK).text(`$${Number(invoiceData.commission_amount).toFixed(2)}`, pageWidth - marginX - 80, totalsY + 20, { align: 'right', width: 80 });
 
-            doc.font('Helvetica-Bold').fontSize(12).fillColor(WHITE);
-            doc.text('TOTAL', totalsX + 15, totalBarY + 11);
-            doc.fontSize(14);
-            doc.text(`$${Number(invoiceData.amount).toFixed(2)}`, pageWidth - marginX - 100, totalBarY + 10, { align: 'right', width: 85 });
+            // Total Box
+            const totalBoxY = totalsY + 45;
+            doc.rect(totalsX - 10, totalBoxY, totalsWidth + 10, 40).fill(BRAND_RED);
+            doc.font('Helvetica-Bold').fontSize(12).fillColor(WHITE).text('TOTAL DUE', totalsX, totalBoxY + 12);
+            doc.font('Helvetica-Bold').fontSize(16).fillColor(WHITE).text(`$${Number(invoiceData.amount).toFixed(2)}`, pageWidth - marginX - 100, totalBoxY + 10, { align: 'right', width: 100 });
 
-            // --- POLISHED FOOTER (increased spacing from content) ---
-            const footerHeight = 80;
-            const footerY = pageHeight - footerHeight - 24; // Increased buffer
+            // --- FOOTER (Fixed at bottom) ---
+            const footerHeight = 130;
+            const footerY = pageHeight - footerHeight;
 
-            // QR Code (tighter spacing)
-            const channelUrl = 'https://whatsapp.com/channel/0029VaCpFg0ICVfdASZ22l39';
-            const qrCodeDataUrl = await QRCode.toDataURL(channelUrl, {
-                color: { dark: '#000000', light: '#FFFFFF' },
-                width: 70,
-                margin: 0
-            });
-            doc.image(qrCodeDataUrl, marginX, footerY, { width: 60 });
-            doc.font('Helvetica').fontSize(7).fillColor(TEXT_GRAY);
-            doc.text('Scan to Follow Us', marginX, footerY + 62, { width: 60, align: 'center' }); // Reduced spacing
+            // QR Code (Sharp, High Res)
+            const qrCodeData = `INV:${invoiceData.invoice_number}|AMT:${invoiceData.amount}|DATE:${new Date(invoiceData.generated_at).toISOString().split('T')[0]}`;
+            const qrCodeDataUrl = await QRCode.toDataURL(qrCodeData, { margin: 1, width: 150 });
+            doc.image(qrCodeDataUrl, marginX, footerY + 10, { width: 80, height: 80 });
 
             // Social Icons
             const drawIcon = (pathStr, x, y, scale = 0.7) => {
@@ -213,16 +206,16 @@ const generateInvoicePDF = async (invoiceData, filePath) => {
             };
 
             const iconY = footerY + 18;
-            const colWidth = 140;
+            const colWidthSocial = 140;
             const rowGap = 16; // Tighter row spacing
             const socialX = marginX + 100;
 
-            doc.font('Helvetica').fontSize(8).fillColor(TEXT_DARK);
+            doc.font('Helvetica-Bold').fontSize(9).fillColor(TEXT_DARK);
             doc.text('Connect With Us', socialX, footerY);
 
             // Column 1
             drawIcon('M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23-1.48 0-2.93-.39-4.19-1.15l-.3-.18-3.12.82.83-3.04-.19-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24M8.53 7.33c-.19-.43-.43-.43-.63-.44-.18 0-.38 0-.58 0-.2 0-.52.08-.79.38-.27.29-1.04 1.01-1.04 2.47s1.06 2.86 1.21 3.07c.15.21 2.09 3.2 5.06 4.49.71.31 1.26.49 1.69.63.72.23 1.37.19 1.88.11.58-.09 1.76-.72 2.01-1.42.25-.7.25-1.29.17-1.42-.08-.14-.28-.21-.58-.36-.3-.15-1.76-.87-2.03-1.01-.27-.13-.46-.19-.66.14-.2.32-.77.97-.94 1.17-.17.2-.34.23-.64.08-.3-.15-1.26-.46-2.4-1.47-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.29-.34.44-.51.15-.17.2-.29.3-.49.1-.19.05-.36-.02-.51-.08-.15-.7-1.69-.96-2.31Z', socialX, iconY);
-            doc.text('+263 77 8826661', socialX + 20, iconY + 4);
+            doc.font('Helvetica').fontSize(8).text('+263 77 8826661', socialX + 20, iconY + 4);
 
             drawIcon('M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.89 3.78-3.89 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 0 0 8.44-9.9c0-5.53-4.5-10.02-10-10.02Z', socialX, iconY + rowGap);
             doc.text('AfroGazette News', socialX + 20, iconY + rowGap + 4);
@@ -231,7 +224,7 @@ const generateInvoicePDF = async (invoiceData, filePath) => {
             doc.text('AfroGazette News', socialX + 20, iconY + rowGap * 2 + 4);
 
             // Column 2
-            const col2X = socialX + colWidth;
+            const col2X = socialX + colWidthSocial;
             drawIcon('M12.5 3a.5.5 0 0 0-.5.5v3.5a.5.5 0 0 0 .5.5 4 4 0 0 1 4 4 .5.5 0 0 0 .5.5h3.5a.5.5 0 0 0 .5-.5v-3.5a.5.5 0 0 0-.5-.5 7 7 0 0 0-7-7zM8 13a5 5 0 1 0 5 5V6a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v7.5A1.5 1.5 0 1 1 8 13z', col2X, iconY);
             doc.text('AfroGazette News', col2X + 20, iconY + 4);
 
