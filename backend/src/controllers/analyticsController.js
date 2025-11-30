@@ -49,8 +49,8 @@ const getDashboard = async (req, res) => {
         COUNT(CASE WHEN status = 'expired' THEN 1 END) as expired_count,
         COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as declined_count
       FROM adverts
-      WHERE payment_date >= $1
-        AND payment_date < $2
+      WHERE COALESCE(approved_at, created_at) >= $1
+        AND COALESCE(approved_at, created_at) < $2
     `, [startDate.toISOString(), endDate.toISOString()]);
 
     // Active adverts (Global)
@@ -87,8 +87,8 @@ const getDashboard = async (req, res) => {
       FROM adverts a
       LEFT JOIN users u ON a.sales_rep_id = u.id
       WHERE a.status = 'expired'
-        AND a.payment_date >= $1
-        AND a.payment_date < $2
+        AND COALESCE(a.approved_at, a.created_at) >= $1
+        AND COALESCE(a.approved_at, a.created_at) < $2
       ORDER BY a.end_date DESC
       LIMIT 10
     `, [startDate.toISOString(), endDate.toISOString()]);
@@ -99,8 +99,8 @@ const getDashboard = async (req, res) => {
         advert_type as name,
         COUNT(*) as value
       FROM adverts
-      WHERE payment_date >= $1
-        AND payment_date < $2
+      WHERE COALESCE(approved_at, created_at) >= $1
+        AND COALESCE(approved_at, created_at) < $2
       GROUP BY advert_type
       ORDER BY value DESC
     `, [startDate.toISOString(), endDate.toISOString()]);
@@ -111,8 +111,8 @@ const getDashboard = async (req, res) => {
         payment_method as method,
         SUM(amount_paid) as amount
       FROM adverts
-      WHERE payment_date >= $1
-        AND payment_date < $2
+      WHERE COALESCE(approved_at, created_at) >= $1
+        AND COALESCE(approved_at, created_at) < $2
       GROUP BY payment_method
       ORDER BY amount DESC
     `, [startDate.toISOString(), endDate.toISOString()]);
@@ -120,12 +120,12 @@ const getDashboard = async (req, res) => {
     // Last 7 Days Sales Trend (Global)
     const salesTrend = await pool.query(`
       SELECT 
-        TO_CHAR(payment_date, 'Dy') as day,
+        TO_CHAR(COALESCE(approved_at, created_at)::date, 'Dy') as day,
         SUM(amount_paid) as sales
       FROM adverts
-      WHERE payment_date >= CURRENT_DATE - INTERVAL '7 days'
-      GROUP BY payment_date, TO_CHAR(payment_date, 'Dy')
-      ORDER BY payment_date ASC
+      WHERE COALESCE(approved_at, created_at) >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY COALESCE(approved_at, created_at)::date, TO_CHAR(COALESCE(approved_at, created_at)::date, 'Dy')
+      ORDER BY COALESCE(approved_at, created_at)::date ASC
     `);
 
     // Top 5 Clients by Spend (Global)
@@ -134,8 +134,8 @@ const getDashboard = async (req, res) => {
         client_name as name,
         SUM(amount_paid) as spent
       FROM adverts
-      WHERE payment_date >= $1
-        AND payment_date < $2
+      WHERE COALESCE(approved_at, created_at) >= $1
+        AND COALESCE(approved_at, created_at) < $2
       GROUP BY client_name
       ORDER BY spent DESC
       LIMIT 5
@@ -218,8 +218,8 @@ const getMyDashboard = async (req, res) => {
         COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as declined_count
       FROM adverts
       WHERE sales_rep_id = $1
-        AND payment_date >= $2
-        AND payment_date < $3
+        AND COALESCE(approved_at, created_at) >= $2
+        AND COALESCE(approved_at, created_at) < $3
     `, [salesRepId, startDate.toISOString(), endDate.toISOString()]);
 
     // Active adverts
@@ -251,8 +251,8 @@ const getMyDashboard = async (req, res) => {
       FROM adverts
       WHERE sales_rep_id = $1
         AND status = 'expired'
-        AND payment_date >= $2
-        AND payment_date < $3
+        AND COALESCE(approved_at, created_at) >= $2
+        AND COALESCE(approved_at, created_at) < $3
       ORDER BY end_date DESC
       LIMIT 10
     `, [salesRepId, startDate.toISOString(), endDate.toISOString()]);
@@ -264,8 +264,8 @@ const getMyDashboard = async (req, res) => {
         COUNT(*) as value
       FROM adverts
       WHERE sales_rep_id = $1
-        AND payment_date >= $2
-        AND payment_date < $3
+        AND COALESCE(approved_at, created_at) >= $2
+        AND COALESCE(approved_at, created_at) < $3
       GROUP BY advert_type
       ORDER BY value DESC
     `, [salesRepId, startDate.toISOString(), endDate.toISOString()]);
@@ -277,8 +277,8 @@ const getMyDashboard = async (req, res) => {
         SUM(amount_paid) as amount
       FROM adverts
       WHERE sales_rep_id = $1
-        AND payment_date >= $2
-        AND payment_date < $3
+        AND COALESCE(approved_at, created_at) >= $2
+        AND COALESCE(approved_at, created_at) < $3
       GROUP BY payment_method
       ORDER BY amount DESC
     `, [salesRepId, startDate.toISOString(), endDate.toISOString()]);
@@ -286,13 +286,13 @@ const getMyDashboard = async (req, res) => {
     // Last 7 Days Sales Trend
     const salesTrend = await pool.query(`
       SELECT 
-        TO_CHAR(payment_date, 'Dy') as day,
+        TO_CHAR(COALESCE(approved_at, created_at)::date, 'Dy') as day,
         SUM(amount_paid) as sales
       FROM adverts
       WHERE sales_rep_id = $1
-        AND payment_date >= CURRENT_DATE - INTERVAL '7 days'
-      GROUP BY payment_date, TO_CHAR(payment_date, 'Dy')
-      ORDER BY payment_date ASC
+        AND COALESCE(approved_at, created_at) >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY COALESCE(approved_at, created_at)::date, TO_CHAR(COALESCE(approved_at, created_at)::date, 'Dy')
+      ORDER BY COALESCE(approved_at, created_at)::date ASC
     `, [salesRepId]);
 
     // Top 5 Clients by Spend
@@ -302,8 +302,8 @@ const getMyDashboard = async (req, res) => {
         SUM(amount_paid) as spent
       FROM adverts
       WHERE sales_rep_id = $1
-        AND payment_date >= $2
-        AND payment_date < $3
+        AND COALESCE(approved_at, created_at) >= $2
+        AND COALESCE(approved_at, created_at) < $3
       GROUP BY client_name
       ORDER BY spent DESC
       LIMIT 5
