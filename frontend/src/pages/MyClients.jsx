@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
 import { clientAPI } from '../services/api';
 import { useToast } from '../components/Toast';
+import ConfirmModal from '../components/ConfirmModal';
 import {
     Users, Search, Plus, Edit2, Trash2, Merge,
     X, Check, AlertTriangle, Phone, Mail, Building
@@ -24,6 +25,7 @@ const MyClients = () => {
     const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'merge'
     const [currentClient, setCurrentClient] = useState(null);
     const [mergeKeepId, setMergeKeepId] = useState(null);
+    const [deleteModal, setDeleteModal] = useState({ isOpen: false, clientId: null, clientName: '' });
 
     // Form state
     const [formData, setFormData] = useState({
@@ -122,11 +124,13 @@ const MyClients = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this client?')) return;
+    const handleDelete = async (id, name) => {
+        setDeleteModal({ isOpen: true, clientId: id, clientName: name });
+    };
 
+    const confirmDelete = async () => {
         try {
-            await clientAPI.delete(id);
+            await clientAPI.delete(deleteModal.clientId);
             toast.success('Client deleted successfully');
             fetchClients();
         } catch (error) {
@@ -263,7 +267,7 @@ const MyClients = () => {
                                                             <Edit2 className="h-4 w-4" />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDelete(client.id)}
+                                                            onClick={() => handleDelete(client.id, client.name)}
                                                             className="text-red-600 hover:text-red-900"
                                                         >
                                                             <Trash2 className="h-4 w-4" />
@@ -353,7 +357,7 @@ const MyClients = () => {
                                                 Edit
                                             </button>
                                             <button
-                                                onClick={() => handleDelete(client.id)}
+                                                onClick={() => handleDelete(client.id, client.name)}
                                                 className="text-sm text-red-600 font-medium"
                                             >
                                                 Delete
@@ -516,6 +520,16 @@ const MyClients = () => {
                     )}
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, clientId: null, clientName: '' })}
+                onConfirm={confirmDelete}
+                title="Delete Client"
+                message={`Are you sure you want to delete "${deleteModal.clientName}"? This action cannot be undone.`}
+                confirmText="Delete"
+                type="danger"
+            />
         </Layout>
     );
 };
