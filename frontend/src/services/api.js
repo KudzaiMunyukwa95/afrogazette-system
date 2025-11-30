@@ -129,9 +129,10 @@ export const slotAPI = {
 };
 
 // Analytics APIs
+// Analytics APIs
 export const analyticsAPI = {
-  getDashboard: () => api.get('/analytics/dashboard'),
-  getMyDashboard: () => api.get('/analytics/my-dashboard')
+  getDashboard: (params) => api.get('/analytics/dashboard', { params }),
+  getMyDashboard: (params) => api.get('/analytics/my-dashboard', { params })
 };
 
 // Invoice APIs
