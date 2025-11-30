@@ -31,6 +31,10 @@ const Dashboard = () => {
       const response = isAdmin()
         ? await analyticsAPI.getDashboard()
         : await analyticsAPI.getMyDashboard();
+
+      // Debug: Log the response to see data structure
+      console.log('Dashboard API Response:', response.data.data);
+
       setData(response.data.data);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -41,7 +45,16 @@ const Dashboard = () => {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    const firstName = user?.full_name?.split(' ')[0] || 'User';
+
+    // Debug: Log user object to see what's available
+    console.log('User object:', user);
+
+    // Try multiple possible field names
+    const firstName = user?.full_name?.split(' ')[0] ||
+      user?.fullName?.split(' ')[0] ||
+      user?.name?.split(' ')[0] ||
+      user?.email?.split('@')[0] ||
+      'User';
 
     if (hour >= 5 && hour < 12) return `Good morning, ${firstName} 👋`;
     if (hour >= 12 && hour < 17) return `Good afternoon, ${firstName} 👋`;
@@ -112,8 +125,8 @@ const Dashboard = () => {
                 key={filter.id}
                 onClick={() => setTimeFilter(filter.id)}
                 className={`px-6 py-2.5 rounded-lg font-medium transition-all whitespace-nowrap ${timeFilter === filter.id
-                    ? 'bg-red-600 text-white shadow-lg shadow-red-200'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                  ? 'bg-red-600 text-white shadow-lg shadow-red-200'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
                   }`}
               >
                 {filter.label}
