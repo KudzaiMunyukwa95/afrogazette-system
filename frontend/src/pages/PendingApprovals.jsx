@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ConfirmModal from '../components/ConfirmModal';
 import { advertAPI, slotAPI } from '../services/api';
 import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
@@ -34,6 +35,7 @@ const PendingApprovals = () => {
   const [declineReason, setDeclineReason] = useState('');
   const [declineNotes, setDeclineNotes] = useState('');
   const [declining, setDeclining] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, advertId: null });
 
   useEffect(() => {
     fetchData();
@@ -121,16 +123,16 @@ const PendingApprovals = () => {
     }
   };
 
-  const handleDelete = async (advertId) => {
-    if (!window.confirm('Are you sure you want to permanently delete this advert? This action cannot be undone.')) {
-      return;
-    }
+  const handleDelete = (advertId) => {
+    setDeleteModal({ isOpen: true, advertId });
+  };
 
+  const confirmDelete = async () => {
     try {
-      await advertAPI.delete(advertId);
+      await advertAPI.delete(deleteModal.advertId);
       toast.success('Advert deleted successfully');
       fetchData();
-      if (selectedAdvert?.id === advertId) {
+      if (selectedAdvert?.id === deleteModal.advertId) {
         setSelectedAdvert(null);
       }
     } catch (err) {
@@ -318,8 +320,8 @@ const PendingApprovals = () => {
                       key={advert.id}
                       onClick={() => handleSelectAdvert(advert)}
                       className={`p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md ${selectedAdvert?.id === advert.id
-                          ? 'border-red-500 bg-red-50 ring-1 ring-red-500'
-                          : 'border-gray-200 bg-white hover:border-red-200'
+                        ? 'border-red-500 bg-red-50 ring-1 ring-red-500'
+                        : 'border-gray-200 bg-white hover:border-red-200'
                         }`}
                     >
                       <div className="flex justify-between items-start mb-2">
@@ -415,6 +417,16 @@ const PendingApprovals = () => {
             </div>
           </div>
         )}
+
+        <ConfirmModal
+          isOpen={deleteModal.isOpen}
+          onClose={() => setDeleteModal({ isOpen: false, advertId: null })}
+          onConfirm={confirmDelete}
+          title="Delete Advert"
+          message="Are you sure you want to permanently delete this advert? This action cannot be undone."
+          confirmText="Delete"
+          type="danger"
+        />
       </div>
     </Layout>
   );
