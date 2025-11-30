@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
 import { advertAPI } from '../services/api';
 import { Search, Filter, Calendar, CheckCircle, XCircle, Clock, Trash2, Edit, MoreVertical, User } from 'lucide-react';
+import ConfirmModal from '../components/ConfirmModal';
 
 const AllAdverts = () => {
     const [adverts, setAdverts] = useState([]);
@@ -11,6 +12,7 @@ const AllAdverts = () => {
     const [statusFilter, setStatusFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [pagination, setPagination] = useState({ total: 0, totalPages: 0, limit: 15 });
+    const [deleteModal, setDeleteModal] = useState({ isOpen: false, advertId: null, advertName: '' });
 
     useEffect(() => {
         fetchAdverts();
@@ -32,15 +34,17 @@ const AllAdverts = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this advert?')) {
-            try {
-                await advertAPI.delete(id);
-                fetchAdverts(); // Refresh list
-            } catch (error) {
-                console.error('Error deleting advert:', error);
-                alert('Failed to delete advert');
-            }
+    const handleDelete = async (id, clientName) => {
+        setDeleteModal({ isOpen: true, advertId: id, advertName: clientName });
+    };
+
+    const confirmDelete = async () => {
+        try {
+            await advertAPI.delete(deleteModal.advertId);
+            fetchAdverts(); // Refresh list
+        } catch (error) {
+            console.error('Error deleting advert:', error);
+            alert('Failed to delete advert');
         }
     };
 
@@ -153,83 +157,75 @@ const AllAdverts = () => {
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                         <div>Start: {new Date(ad.start_date).toLocaleDateString()}</div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                        ${Number(ad.amount_paid).toFixed(2)}
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                        <button
-                                                            onClick={() => handleDelete(ad.id)}
-                                                            className="text-red-600 hover:text-red-900"
-                                                            title="Delete Advert"
-                                                        >
-                                                            <Trash2 className="h-5 w-5" />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                                    </div>
+
+                                                    {/* Mobile Card View */}
+                                                    <div className="md:hidden space-y-4">
+                                                        {filteredAdverts.map((ad) => (
+                                                            <div key={ad.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 card-mobile">
+                                                                <div className="flex justify-between items-start mb-3">
+                                                                    <div>
+                                                                        <h3 className="font-bold text-gray-900">{ad.client_name}</h3>
+                                                                        <div className="flex items-center text-xs text-gray-500 mt-1">
+                                                                            <User className="h-3 w-3 mr-1" />
+                                                                            {ad.sales_rep_name}
+                                                                        </div>
+                                                                    </div>
+                                                                    {getStatusBadge(ad.status)}
+                                                                </div>
+
+                                                                <div className="grid grid-cols-2 gap-2 mb-3">
+                                                                    <div className="bg-gray-50 p-2 rounded-lg">
+                                                                        <span className="text-xs text-gray-500 block">Category</span>
+                                                                        <span className="text-sm font-medium text-gray-900 capitalize">{ad.category.replace(/_/g, ' ')}</span>
+                                                                    </div>
+                                                                    <div className="bg-gray-50 p-2 rounded-lg">
+                                                                        <span className="text-xs text-gray-500 block">Type</span>
+                                                                        <span className="text-sm font-medium text-gray-900 capitalize">{(ad.advert_type || 'text_ad').replace(/_/g, ' ')}</span>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex justify-between items-center py-3 border-t border-b border-gray-50 mb-3">
+                                                                    <div className="flex items-center text-sm text-gray-600">
+                                                                        <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+                                                                        {new Date(ad.start_date).toLocaleDateString()}
+                                                                    </div>
+                                                                    <span className="text-lg font-bold text-gray-900">${Number(ad.amount_paid).toFixed(2)}</span>
+                                                                </div>
+
+                                                                <button
+                                                                    onClick={() => handleDelete(ad.id, ad.client_name)}
+                                                                    className="w-full flex justify-center items-center px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 btn-touch"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                                    Delete Advert
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    {filteredAdverts.length === 0 && (
+                                                        <div className="text-center py-12">
+                                                            <Search className="mx-auto h-12 w-12 text-gray-300" />
+                                                            <h3 className="mt-2 text-sm font-medium text-gray-900">No adverts found</h3>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
                                 </div>
-                            </div>
 
-                            {/* Mobile Card View */}
-                            <div className="md:hidden space-y-4">
-                                {filteredAdverts.map((ad) => (
-                                    <div key={ad.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 card-mobile">
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div>
-                                                <h3 className="font-bold text-gray-900">{ad.client_name}</h3>
-                                                <div className="flex items-center text-xs text-gray-500 mt-1">
-                                                    <User className="h-3 w-3 mr-1" />
-                                                    {ad.sales_rep_name}
-                                                </div>
-                                            </div>
-                                            {getStatusBadge(ad.status)}
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-2 mb-3">
-                                            <div className="bg-gray-50 p-2 rounded-lg">
-                                                <span className="text-xs text-gray-500 block">Category</span>
-                                                <span className="text-sm font-medium text-gray-900 capitalize">{ad.category.replace(/_/g, ' ')}</span>
-                                            </div>
-                                            <div className="bg-gray-50 p-2 rounded-lg">
-                                                <span className="text-xs text-gray-500 block">Type</span>
-                                                <span className="text-sm font-medium text-gray-900 capitalize">{(ad.advert_type || 'text_ad').replace(/_/g, ' ')}</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex justify-between items-center py-3 border-t border-b border-gray-50 mb-3">
-                                            <div className="flex items-center text-sm text-gray-600">
-                                                <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                                                {new Date(ad.start_date).toLocaleDateString()}
-                                            </div>
-                                            <span className="text-lg font-bold text-gray-900">${Number(ad.amount_paid).toFixed(2)}</span>
-                                        </div>
-
-                                        <button
-                                            onClick={() => handleDelete(ad.id)}
-                                            className="w-full flex justify-center items-center px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 btn-touch"
-                                        >
-                                            <Trash2 className="h-4 w-4 mr-2" />
-                                            Delete Advert
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {filteredAdverts.length === 0 && (
-                                <div className="text-center py-12">
-                                    <Search className="mx-auto h-12 w-12 text-gray-300" />
-                                    <h3 className="mt-2 text-sm font-medium text-gray-900">No adverts found</h3>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
-            </div>
-        </Layout>
-    );
+                                <ConfirmModal
+                                    isOpen={deleteModal.isOpen}
+                                    onClose={() => setDeleteModal({ isOpen: false, advertId: null, advertName: '' })}
+                                    onConfirm={confirmDelete}
+                                    title="Delete Advert"
+                                    message={`Are you sure you want to delete the advert for "${deleteModal.advertName}"? This action cannot be undone.`}
+                                    confirmText="Delete"
+                                    type="danger"
+                                />
+                            </Layout>
+                            );
 };
 
-export default AllAdverts;
+                            export default AllAdverts;
