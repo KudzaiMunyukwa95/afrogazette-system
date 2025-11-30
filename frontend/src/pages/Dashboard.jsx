@@ -29,8 +29,8 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const response = isAdmin()
-        ? await analyticsAPI.getDashboard()
-        : await analyticsAPI.getMyDashboard();
+        ? await analyticsAPI.getDashboard({ timeFilter })
+        : await analyticsAPI.getMyDashboard({ timeFilter });
 
       // Debug: Log the response to see data structure
       console.log('Dashboard API Response:', response.data.data);
@@ -201,38 +201,29 @@ const KPICard = ({ title, value, icon: Icon, trend, color = 'red', prefix = '', 
 );
 
 const SalesRepDashboard = ({ data, timeFilter }) => {
-  // Mock chart data - in production, this would come from the API
-  const advertTypeData = [
-    { name: 'Text Ads', value: 40 },
-    { name: 'Group Links', value: 30 },
-    { name: 'Picture Ads', value: 20 },
-    { name: 'Website Ads', value: 10 }
-  ];
+  // Format advert types for chart
+  const advertTypeData = data?.advertTypes?.map(item => ({
+    name: (item.name || 'text_ad').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    value: parseInt(item.value)
+  })) || [];
 
-  const paymentMethodData = [
-    { method: 'Cash', amount: 450 },
-    { method: 'Ecocash', amount: 320 },
-    { method: 'Innbucks', amount: 180 },
-    { method: 'Bank Transfer', amount: 150 }
-  ];
+  // Format payment methods for chart
+  const paymentMethodData = data?.paymentMethods?.map(item => ({
+    method: (item.method || 'cash').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    amount: parseFloat(item.amount || 0)
+  })) || [];
 
-  const salesTrendData = [
-    { day: 'Mon', sales: 120 },
-    { day: 'Tue', sales: 180 },
-    { day: 'Wed', sales: 150 },
-    { day: 'Thu', sales: 220 },
-    { day: 'Fri', sales: 190 },
-    { day: 'Sat', sales: 160 },
-    { day: 'Sun', sales: 140 }
-  ];
+  // Format sales trend data
+  const salesTrendData = data?.salesTrend?.map(item => ({
+    day: item.day,
+    sales: parseFloat(item.sales || 0)
+  })) || [];
 
-  const topClients = [
-    { name: 'BuySpot', spent: 500 },
-    { name: 'Best Furniture', spent: 350 },
-    { name: 'Clive Properties', spent: 280 },
-    { name: 'Best Wholesalers', spent: 220 },
-    { name: 'Tech Solutions', spent: 180 }
-  ];
+  // Format top clients data
+  const topClients = data?.topClients?.map(item => ({
+    name: item.name,
+    spent: parseFloat(item.spent || 0)
+  })) || [];
 
   return (
     <div className="space-y-8">
