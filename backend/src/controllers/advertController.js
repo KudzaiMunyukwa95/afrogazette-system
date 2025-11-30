@@ -7,6 +7,7 @@ const { calculateRemainingDays } = require('../services/schedulingService');
 const createAdvert = async (req, res) => {
   try {
     const {
+      clientId,
       clientName,
       category,
       caption,
@@ -18,16 +19,34 @@ const createAdvert = async (req, res) => {
     } = req.body;
 
     const salesRepId = req.user.id;
+    let finalClientName = clientName;
+
+    // If client_id is provided, fetch client name from clients table
+    if (clientId) {
+      const clientResult = await pool.query(
+        'SELECT name FROM clients WHERE id = $1 AND sales_rep_id = $2',
+        [clientId, salesRepId]
+      );
+
+      if (clientResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Client not found'
+        });
+      }
+
+      finalClientName = clientResult.rows[0].name;
+    }
 
     // Insert advert with pending status
     const result = await pool.query(
       `INSERT INTO adverts (
-        client_name, category, caption, media_url, days_paid,
+        client_id, client_name, category, caption, media_url, days_paid,
         payment_date, amount_paid, start_date, sales_rep_id, status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')
       RETURNING *`,
-      [clientName, category, caption, mediaUrl, daysPaid, paymentDate, parseFloat(amountPaid).toFixed(2), startDate, salesRepId]
+      [clientId || null, finalClientName, category, caption, mediaUrl, daysPaid, paymentDate, parseFloat(amountPaid).toFixed(2), startDate, salesRepId]
     );
 
     const advert = result.rows[0];
@@ -53,7 +72,8 @@ const createAdvert = async (req, res) => {
  */
 const getAdverts = async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, page = 1, limit = 15 } = req.query;
+    const offset = (page - 1) * limit;
 
     let query = `
       SELECT 
@@ -87,14 +107,30 @@ const getAdverts = async (req, res) => {
       query += ' WHERE ' + conditions.join(' AND ');
     }
 
+    // Get total count for pagination
+    const countQuery = `SELECT COUNT(*) FROM adverts a` +
+      (conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '');
+    const countResult = await pool.query(countQuery, values);
+    const total = parseInt(countResult.rows[0].count);
+
     query += ' ORDER BY a.created_at DESC';
+
+    // Add pagination
+    query += ` LIMIT $${paramCount++} OFFSET $${paramCount++}`;
+    values.push(limit, offset);
 
     const result = await pool.query(query, values);
 
     res.json({
       success: true,
       data: {
-        adverts: result.rows
+        adverts: result.rows,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
       }
     });
   } catch (error) {
