@@ -28,7 +28,8 @@ const Layout = ({ children }) => {
       // Admin Navigation
       return [
         { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
-        { name: 'All Adverts', href: '/all-adverts', icon: Calendar, current: currentPath === '/all-adverts' },
+        { name: 'Schedule', href: '/schedule', icon: Calendar, current: currentPath === '/schedule' },
+        { name: 'All Adverts', href: '/all-adverts', icon: FileText, current: currentPath === '/all-adverts' },
         { name: 'Invoices', href: '/invoices', icon: FileText, current: currentPath === '/invoices' },
         { name: 'Pending Approvals', href: '/pending-approvals', icon: Clock, current: currentPath === '/pending-approvals' },
         { name: 'Users', href: '/users', icon: Users, current: currentPath === '/users' },
