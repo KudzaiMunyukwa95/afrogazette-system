@@ -35,7 +35,7 @@ const AllAdverts = () => {
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this advert?')) {
             try {
-                await advertAPI.deleteAdvert(id);
+                await advertAPI.delete(id);
                 fetchAdverts(); // Refresh list
             } catch (error) {
                 console.error('Error deleting advert:', error);
