@@ -68,9 +68,9 @@ const NotificationBell = () => {
                 onClick={() => setIsOpen(!isOpen)}
                 className="relative p-2 rounded-full hover:bg-gray-800 transition-colors focus:outline-none"
             >
-                <Bell className="h-6 w-6 text-white" />
+                <Bell className="h-5 w-5 text-white" />
                 {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white animate-pulse" />
+                    <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full ring-2 ring-white animate-pulse" />
                 )}
             </button>
 
@@ -81,7 +81,7 @@ const NotificationBell = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-80 md:w-96 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                        className="absolute right-[-60px] md:right-0 mt-2 w-[90vw] sm:w-96 max-w-[360px] bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 origin-top-right"
                     >
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <h3 className="font-semibold text-gray-900">Notifications</h3>
