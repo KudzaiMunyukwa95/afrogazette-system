@@ -13,7 +13,7 @@ export const useNotifications = () => {
 };
 
 export const NotificationProvider = ({ children }) => {
-    const { user, token } = useAuth();
+    const { user } = useAuth();
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -22,6 +22,8 @@ export const NotificationProvider = ({ children }) => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
     const fetchNotifications = useCallback(async () => {
+        const token = localStorage.getItem('token');
+
         if (!user || !token) {
             console.log('⚠️ NotificationContext: No user or token', { user: !!user, token: !!token });
             return;
@@ -45,9 +47,10 @@ export const NotificationProvider = ({ children }) => {
             console.error('❌ Error fetching notifications:', error);
             console.error('Error details:', error.response?.data || error.message);
         }
-    }, [user, token, API_URL]);
+    }, [user, API_URL]);
 
     const markAsRead = async (id) => {
+        const token = localStorage.getItem('token');
         try {
             await axios.patch(`${API_URL}/notifications/${id}/read`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -65,6 +68,7 @@ export const NotificationProvider = ({ children }) => {
     };
 
     const markAllAsRead = async () => {
+        const token = localStorage.getItem('token');
         try {
             await axios.patch(`${API_URL}/notifications/read-all`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
