@@ -48,10 +48,10 @@ const Layout = ({ children }) => {
         { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
         { name: 'Create Advert', href: '/create-advert', icon: Plus, current: currentPath === '/create-advert' },
         { name: 'Calendar', href: '/calendar', icon: Calendar, current: currentPath === '/calendar' },
-        { name: 'My Adverts', href: '/my-adverts', icon: FileText, current: currentPath === '/my-adverts' },
-        { name: 'My Clients', href: '/my-clients', icon: Users, current: currentPath === '/my-clients' },
-        { name: 'My Invoices', href: '/invoices', icon: FileText, current: currentPath === '/invoices' },
-        { name: 'My Requisitions', href: '/finance/my-requisitions', icon: DollarSign, current: currentPath === '/finance/my-requisitions' },
+        { name: 'Adverts', href: '/my-adverts', icon: FileText, current: currentPath === '/my-adverts' },
+        { name: 'Clients', href: '/my-clients', icon: Users, current: currentPath === '/my-clients' },
+        { name: 'Invoices', href: '/invoices', icon: FileText, current: currentPath === '/invoices' },
+        { name: 'Requisitions', href: '/finance/my-requisitions', icon: DollarSign, current: currentPath === '/finance/my-requisitions' },
       ];
     }
   };
