@@ -231,12 +231,16 @@ const getExpenseBreakdown = async (req, res) => {
  */
 const getPaymentMethodSummary = async (req, res) => {
     try {
+        console.log('=== getPaymentMethodSummary called ===');
         const { startDate, endDate } = req.query;
+        console.log('Date range:', { startDate, endDate });
 
         const methods = ['cash', 'ecocash', 'innbucks'];
         const summary = [];
 
         for (const method of methods) {
+            console.log(`Processing method: ${method}`);
+
             // Build income query with proper parameters
             let incomeQuery = `
                 SELECT COALESCE(SUM(i.amount), 0) as total
@@ -257,8 +261,11 @@ const getPaymentMethodSummary = async (req, res) => {
                 incomeParams.push(endDate);
             }
 
+            console.log('Income query:', incomeQuery);
+            console.log('Income params:', incomeParams);
             const incomeResult = await pool.query(incomeQuery, incomeParams);
             const income = parseFloat(incomeResult.rows[0].total);
+            console.log(`Income for ${method}:`, income);
 
             // Build expense query with proper parameters
             let expenseQuery = `
@@ -279,8 +286,11 @@ const getPaymentMethodSummary = async (req, res) => {
                 expenseParams.push(endDate);
             }
 
+            console.log('Expense query:', expenseQuery);
+            console.log('Expense params:', expenseParams);
             const expenseResult = await pool.query(expenseQuery, expenseParams);
             const expense = parseFloat(expenseResult.rows[0].total);
+            console.log(`Expense for ${method}:`, expense);
 
             summary.push({
                 method,
@@ -290,15 +300,18 @@ const getPaymentMethodSummary = async (req, res) => {
             });
         }
 
+        console.log('Final summary:', summary);
         res.json({
             success: true,
             data: summary
         });
     } catch (error) {
         console.error('Get payment method summary error:', error);
+        console.error('Error stack:', error.stack);
         res.status(500).json({
             success: false,
-            message: 'Server error fetching payment method summary'
+            message: 'Server error fetching payment method summary',
+            error: error.message
         });
     }
 };
