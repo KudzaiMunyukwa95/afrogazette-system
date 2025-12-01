@@ -260,18 +260,18 @@ const getPaymentMethodSummary = async (req, res) => {
                 SELECT COALESCE(SUM(i.amount), 0) as total
                 FROM invoices i
                 JOIN adverts a ON i.advert_id = a.id
-                WHERE a.payment_method = $${paramCount} ${invoiceDateFilter}
+                WHERE a.payment_method = $1 ${invoiceDateFilter.replace(/\$(\d+)/g, (match, num) => `$${parseInt(num) + 1}`)}
             `;
-            const incomeResult = await pool.query(incomeQuery, [...params, method]);
+            const incomeResult = await pool.query(incomeQuery, [method, ...params]);
             const income = parseFloat(incomeResult.rows[0].total);
 
             // Expense for this method
             const expenseQuery = `
                 SELECT COALESCE(SUM(amount), 0) as total
                 FROM expenses
-                WHERE payment_method = $${paramCount} AND status = 'Approved' ${dateFilter}
+                WHERE payment_method = $1 AND status = 'Approved' ${dateFilter.replace(/\$(\d+)/g, (match, num) => `$${parseInt(num) + 1}`)}
             `;
-            const expenseResult = await pool.query(expenseQuery, [...params, method]);
+            const expenseResult = await pool.query(expenseQuery, [method, ...params]);
             const expense = parseFloat(expenseResult.rows[0].total);
 
             summary.push({
