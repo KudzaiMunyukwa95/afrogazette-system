@@ -210,10 +210,14 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent }) => {
   })) || [];
 
   // Format payment methods for chart
-  const paymentMethodData = data?.paymentMethods?.map(item => ({
-    method: (item.method || 'cash').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-    amount: parseFloat(item.amount || 0)
-  })) || [];
+  const paymentMethodData = data?.paymentMethods?.map(item => {
+    let methodLabel = item.method || 'cash';
+    if (methodLabel === 'omarimoney') methodLabel = 'Omari';
+    return {
+      method: methodLabel.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      amount: parseFloat(item.amount || 0)
+    };
+  }) || [];
 
   // Format sales trend data
   const salesTrendData = data?.salesTrend?.map(item => ({
