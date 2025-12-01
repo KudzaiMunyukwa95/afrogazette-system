@@ -110,9 +110,35 @@ const createNotification = async (userId, title, message, type = 'info', related
     }
 };
 
+/**
+ * Helper to notify all admins (internal use)
+ */
+const notifyAdmins = async (title, message, type = 'info', relatedId = null) => {
+    try {
+        // Get all admin IDs
+        const result = await pool.query(`SELECT id FROM users WHERE role = 'admin'`);
+        const admins = result.rows;
+
+        // Create notifications for each admin
+        const queries = admins.map(admin =>
+            pool.query(`
+        INSERT INTO notifications (user_id, title, message, type, related_id)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [admin.id, title, message, type, relatedId])
+        );
+
+        await Promise.all(queries);
+        return true;
+    } catch (error) {
+        console.error('Notify admins error:', error);
+        return false;
+    }
+};
+
 module.exports = {
     getNotifications,
     markAsRead,
     markAllAsRead,
-    createNotification
+    createNotification,
+    notifyAdmins
 };
