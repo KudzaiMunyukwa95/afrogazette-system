@@ -1,6 +1,6 @@
 const pool = require('../config/database');
 const { calculateRemainingDays } = require('../services/schedulingService');
-const { createNotification } = require('./notificationController');
+const { createNotification, notifyAdmins } = require('./notificationController');
 
 /**
  * Create new advert (sales rep)
@@ -52,12 +52,20 @@ const createAdvert = async (req, res) => {
       [clientId || null, finalClientName, category, caption, mediaUrl, daysPaid, paymentDate, parseFloat(amountPaid).toFixed(2), startDate, salesRepId, advertType, paymentMethod]
     );
 
-    const advert = result.rows[0];
+    const newAdvert = result.rows[0];
+
+    // Notify admins about new pending advert
+    await notifyAdmins(
+      'New Pending Advert',
+      `New advert created by ${req.user.full_name || req.user.email} for client "${newAdvert.client_name}".`,
+      'info',
+      newAdvert.id
+    );
 
     res.status(201).json({
       success: true,
-      message: 'Advert created successfully and pending approval',
-      data: { advert }
+      message: 'Advert created successfully',
+      data: newAdvert
     });
   } catch (error) {
     console.error('Create advert error:', error);
