@@ -21,15 +21,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Use routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/adverts', advertRoutes);
-app.use('/api/slots', slotRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/invoices', invoiceRoutes);
-app.use('/api/clients', clientRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/finance', financeRoutes);
+// Routes are mounted below with error handling
 
 // Enhanced CORS configuration
 const corsOptions = {
@@ -350,6 +342,13 @@ try {
   console.log('✅ Notification routes mounted');
 } catch (error) {
   console.error('❌ Failed to mount notification routes:', error.message);
+}
+
+try {
+  app.use('/api/finance', financeRoutes);
+  console.log('✅ Finance routes mounted');
+} catch (error) {
+  console.error('❌ Failed to mount finance routes:', error.message);
 }
 
 // Manual update endpoint (for testing)
