@@ -12,42 +12,35 @@ export const useNotifications = () => {
     return context;
 };
 
+// API URL helper
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 export const NotificationProvider = ({ children }) => {
     const { user } = useAuth();
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
 
-    // API URL helper
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
     const fetchNotifications = useCallback(async () => {
         const token = localStorage.getItem('token');
 
         if (!user || !token) {
-            console.log('⚠️ NotificationContext: No user or token', { user: !!user, token: !!token });
             return;
         }
-
-        console.log('🔔 Fetching notifications...', { API_URL, userId: user.id });
 
         try {
             const response = await axios.get(`${API_URL}/notifications`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            console.log('✅ Notifications response:', response.data);
-
             if (response.data.success) {
                 setNotifications(response.data.data.notifications);
                 setUnreadCount(response.data.data.unreadCount);
-                console.log('📬 Notifications set:', response.data.data.notifications.length, 'total,', response.data.data.unreadCount, 'unread');
             }
         } catch (error) {
-            console.error('❌ Error fetching notifications:', error);
-            console.error('Error details:', error.response?.data || error.message);
+            console.error('Error fetching notifications:', error);
         }
-    }, [user, API_URL]);
+    }, [user]);
 
     const markAsRead = async (id) => {
         const token = localStorage.getItem('token');
@@ -90,7 +83,7 @@ export const NotificationProvider = ({ children }) => {
             const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
             return () => clearInterval(interval);
         }
-    }, [user, fetchNotifications]);
+    }, [user]); // Removed fetchNotifications to prevent infinite loop
 
     const value = {
         notifications,
