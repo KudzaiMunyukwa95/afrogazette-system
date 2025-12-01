@@ -1,5 +1,6 @@
 const pool = require('../config/database');
 const { calculateRemainingDays } = require('../services/schedulingService');
+const { createNotification } = require('./notificationController');
 
 /**
  * Create new advert (sales rep)
@@ -318,6 +319,15 @@ const approveAdvert = async (req, res) => {
       req.user.id
     ]);
 
+    // Send notification to sales rep
+    await createNotification(
+      advert.sales_rep_id,
+      'Advert Approved',
+      `Your advert for "${advert.client_name}" has been approved and scheduled.`,
+      'success',
+      id
+    );
+
     await client.query('COMMIT');
 
     // Fetch updated advert
@@ -416,6 +426,15 @@ const declineAdvert = async (req, res) => {
       // Table doesn't exist yet, that's ok - just log the decline
       console.log('Admin actions table not available yet, decline logged to advert status');
     }
+
+    // Send notification to sales rep
+    await createNotification(
+      advert.sales_rep_id,
+      'Advert Declined',
+      `Your advert for "${advert.client_name}" was declined. Reason: ${reason}`,
+      'error',
+      id
+    );
 
     await client.query('COMMIT');
 
