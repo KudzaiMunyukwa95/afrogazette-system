@@ -112,8 +112,6 @@ const Layout = ({ children }) => {
 
             {/* User Profile - Mobile Optimized */}
             <div className="flex items-center space-x-2 md:space-x-4">
-              <NotificationBell />
-
               {/* User Info */}
               <div className="hidden sm:flex items-center space-x-3">
                 <div className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full bg-red-600 text-white font-bold text-sm">
@@ -132,6 +130,9 @@ const Layout = ({ children }) => {
                   </div>
                 </div>
               </div>
+
+              {/* Notification Bell */}
+              <NotificationBell />
 
               {/* Logout Button - Mobile Optimized */}
               <button
