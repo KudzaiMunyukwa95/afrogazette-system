@@ -1,144 +1,290 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Check, X, Info, CheckCircle, AlertTriangle, AlertCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { useNotifications } from '../context/NotificationContext';
+import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { formatDistanceToNow } from 'date-fns';
+import NotificationBell from './NotificationBell';
+import {
+  Menu,
+  X,
+  BarChart3,
+  Plus,
+  Clock,
+  Calendar,
+  Users,
+  LogOut,
+  User,
+  FileText,
+  Facebook,
+  Instagram,
+  Youtube,
+  Globe,
+  MessageCircle
+} from 'lucide-react';
 
-const NotificationBell = () => {
-    const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
-    const { user } = useAuth();
-    const navigate = useNavigate();
-    const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef(null);
+const Layout = ({ children }) => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    const handleNotificationClick = (notification) => {
-        // Mark as read
-        if (!notification.is_read) {
-            markAsRead(notification.id);
-        }
+  // Different navigation based on user role
+  const getNavigation = () => {
+    const currentPath = location.pathname;
 
-        // Navigate based on notification type
-        if (notification.title === 'New Pending Advert' && user?.role === 'admin') {
-            navigate('/pending-approvals');
-        } else if (notification.title === 'Advert Approved' || notification.title === 'Advert Expiring Soon') {
-            navigate('/my-adverts');
-        } else if (notification.title === 'Advert Declined') {
-            navigate('/my-adverts');
-        }
+    if (user && user.role === 'admin') {
+      // Admin Navigation
+      return [
+        { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
+        { name: 'Schedule', href: '/schedule', icon: Calendar, current: currentPath === '/schedule' },
+        { name: 'All Adverts', href: '/all-adverts', icon: FileText, current: currentPath === '/all-adverts' },
+        { name: 'Invoices', href: '/invoices', icon: FileText, current: currentPath === '/invoices' },
+        { name: 'Pending Approvals', href: '/pending-approvals', icon: Clock, current: currentPath === '/pending-approvals' },
+        { name: 'Users', href: '/users', icon: Users, current: currentPath === '/users' },
+      ];
+    } else {
+      // Sales Rep Navigation
+      return [
+        { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
+        { name: 'Create Advert', href: '/create-advert', icon: Plus, current: currentPath === '/create-advert' },
+        { name: 'My Adverts', href: '/my-adverts', icon: Calendar, current: currentPath === '/my-adverts' },
+        { name: 'My Clients', href: '/my-clients', icon: Users, current: currentPath === '/my-clients' },
+        { name: 'My Invoices', href: '/invoices', icon: FileText, current: currentPath === '/invoices' },
+      ];
+    }
+  };
 
-        // Close dropdown
-        setIsOpen(false);
-    };
+  const navigation = getNavigation();
 
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        };
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+  const handleNavigation = (href) => {
+    navigate(href);
+    setIsMobileMenuOpen(false);
+  };
 
-    const getIcon = (type) => {
-        switch (type) {
-            case 'success': return <CheckCircle className="h-5 w-5 text-green-500" />;
-            case 'warning': return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
-            case 'error': return <AlertCircle className="h-5 w-5 text-red-500" />;
-            default: return <Info className="h-5 w-5 text-blue-500" />;
-        }
-    };
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Fixed Header */}
+      <header className="bg-black border-b border-gray-800 fixed top-0 left-0 right-0 z-50">
+        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo and Navigation */}
+            <div className="flex items-center space-x-8">
+              {/* Logo */}
+              <div className="flex-shrink-0">
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="flex items-center space-x-3 text-white hover:opacity-80 transition-opacity duration-200"
+                >
+                  <img
+                    src="/logo.svg"
+                    alt="AfroGazette"
+                    className="h-7 w-auto"
+                  />
+                </button>
+              </div>
 
-    const getBgColor = (type) => {
-        switch (type) {
-            case 'success': return 'bg-green-50';
-            case 'warning': return 'bg-yellow-50';
-            case 'error': return 'bg-red-50';
-            default: return 'bg-blue-50';
-        }
-    };
-
-    return (
-        <div className="relative" ref={dropdownRef}>
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2 rounded-full hover:bg-gray-800 transition-colors focus:outline-none"
-            >
-                <Bell className="h-6 w-6 text-white" />
-                {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full ring-2 ring-white animate-pulse" />
-                )}
-            </button>
-
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-80 md:w-96 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+              {/* Desktop Navigation */}
+              <nav className="hidden md:flex space-x-1">
+                {navigation.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.name}
+                      onClick={() => handleNavigation(item.href)}
+                      className={`
+                        flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200
+                        ${item.current
+                          ? 'bg-red-600 text-white'
+                          : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                        }
+                      `}
                     >
-                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                            <h3 className="font-semibold text-gray-900">Notifications</h3>
-                            {unreadCount > 0 && (
-                                <button
-                                    onClick={markAllAsRead}
-                                    className="text-xs font-medium text-red-600 hover:text-red-700 flex items-center"
-                                >
-                                    <Check className="h-3 w-3 mr-1" />
-                                    Mark all read
-                                </button>
-                            )}
-                        </div>
+                      <Icon className="h-4 w-4 mr-2" />
+                      {item.name}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
 
-                        <div className="max-h-[400px] overflow-y-auto">
-                            {notifications.length > 0 ? (
-                                <div className="divide-y divide-gray-100">
-                                    {notifications.map((notification) => (
-                                        <div
-                                            key={notification.id}
-                                            className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${!notification.is_read ? 'bg-red-50/30' : ''}`}
-                                            onClick={() => handleNotificationClick(notification)}
-                                        >
-                                            <div className="flex items-start gap-3">
-                                                <div className={`p-2 rounded-full ${getBgColor(notification.type)} shrink-0`}>
-                                                    {getIcon(notification.type)}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className={`text-sm font-medium ${!notification.is_read ? 'text-gray-900' : 'text-gray-700'}`}>
-                                                        {notification.title}
-                                                    </p>
-                                                    <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">
-                                                        {notification.message}
-                                                    </p>
-                                                    <p className="text-xs text-gray-400 mt-1">
-                                                        {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                                                    </p>
-                                                </div>
-                                                {!notification.is_read && (
-                                                    <div className="h-2 w-2 bg-red-500 rounded-full mt-2 shrink-0" />
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="p-8 text-center text-gray-500">
-                                    <Bell className="h-8 w-8 mx-auto mb-3 text-gray-300" />
-                                    <p>No notifications yet</p>
-                                </div>
-                            )}
-                        </div>
-                    </motion.div>
+            {/* User Profile - Mobile Optimized */}
+            <div className="flex items-center space-x-2 md:space-x-4">
+              {/* User Info */}
+              <div className="hidden sm:flex items-center space-x-3">
+                <div className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full bg-red-600 text-white font-bold text-sm">
+                  {(user?.full_name || user?.fullName || user?.name || user?.email || 'U').charAt(0).toUpperCase()}
+                </div>
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-white">
+                    {user?.full_name?.split(' ')[0] ||
+                      user?.fullName?.split(' ')[0] ||
+                      user?.name?.split(' ')[0] ||
+                      user?.email?.split('@')[0] ||
+                      'User'}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {user?.role === 'admin' ? 'Administrator' : 'Sales Rep'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Notification Bell */}
+              <NotificationBell />
+
+              {/* Logout Button - Mobile Optimized */}
+              <button
+                onClick={handleLogout}
+                className="hidden sm:flex items-center px-3 md:px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors duration-200 tap-target"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                <span>Logout</span>
+              </button>
+
+              {/* Mobile Menu Button - Larger Tap Target */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden tap-target-lg rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors duration-200"
+                aria-label="Toggle menu"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
                 )}
-            </AnimatePresence>
+              </button>
+            </div>
+          </div>
         </div>
-    );
+
+        {/* Mobile Navigation - Improved Spacing & Tap Targets */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-gray-900 border-t border-gray-800 animate-in slide-in-from-top-2 duration-200">
+            <div className="mobile-container py-4 space-y-2">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.name}
+                    onClick={() => handleNavigation(item.href)}
+                    className={`
+                      w-full flex items-center px-4 py-3.5 text-base font-medium rounded-lg transition-colors duration-200 text-left tap-target-lg
+                      ${item.current
+                        ? 'bg-red-600 text-white font-semibold'
+                        : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                      }
+                    `}
+                  >
+                    <Icon className="h-5 w-5 mr-3 flex-shrink-0" />
+                    {item.name}
+                  </button>
+                );
+              })}
+
+              {/* Mobile User Info - Show First Name */}
+              <div className="pt-4 border-t border-gray-800 mt-4">
+                <div className="flex items-center px-4 py-3 mb-2">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-600 text-white font-bold text-sm mr-3 flex-shrink-0">
+                    {(user?.full_name || user?.fullName || user?.name || user?.email || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-white">
+                      {user?.full_name?.split(' ')[0] ||
+                        user?.fullName?.split(' ')[0] ||
+                        user?.name?.split(' ')[0] ||
+                        user?.email?.split('@')[0] ||
+                        'User'}
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {user?.role === 'admin' ? 'Administrator' : 'Sales Rep'}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center px-4 py-3.5 text-base font-medium text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors duration-200"
+                >
+                  <LogOut className="h-5 w-5 mr-3" />
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* Main Content */}
+      <main className="pt-16 flex-grow">
+        <div className="w-full max-w-none mx-auto">
+          <div className="px-0 sm:px-0 lg:px-0">
+            <div className="w-full overflow-x-hidden">
+              {children}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-black text-white py-8 border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
+            {/* Brand */}
+            <div className="text-center md:text-left">
+              <div className="flex items-center justify-center md:justify-start space-x-2 mb-2">
+                <img
+                  src="/logo.svg"
+                  alt="AfroGazette"
+                  className="h-6 w-auto"
+                />
+              </div>
+              <p className="text-gray-400 text-sm">
+                Premium Advertising Platform
+              </p>
+            </div>
+
+            {/* Social Icons */}
+            <div className="flex space-x-6">
+              <a href="#" className="text-gray-400 hover:text-white transition-colors p-2">
+                <MessageCircle className="h-6 w-6" />
+                <span className="sr-only">WhatsApp</span>
+              </a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors p-2">
+                <Facebook className="h-6 w-6" />
+                <span className="sr-only">Facebook</span>
+              </a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors p-2">
+                <Instagram className="h-6 w-6" />
+                <span className="sr-only">Instagram</span>
+              </a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors p-2">
+                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                </svg>
+                <span className="sr-only">TikTok</span>
+              </a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors p-2">
+                <Youtube className="h-6 w-6" />
+                <span className="sr-only">YouTube</span>
+              </a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors p-2">
+                <Globe className="h-6 w-6" />
+                <span className="sr-only">Website</span>
+              </a>
+            </div>
+
+            {/* Copyright */}
+            <div className="text-center md:text-right text-gray-500 text-xs">
+              <p>&copy; {new Date().getFullYear()} AfroGazette News.</p>
+              <p>All rights reserved.</p>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
 };
 
-export default NotificationBell;
+export default Layout;
