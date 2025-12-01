@@ -230,90 +230,20 @@ const getExpenseBreakdown = async (req, res) => {
  * Get Payment Method Summary (Income vs Expense vs Net)
  */
 const getPaymentMethodSummary = async (req, res) => {
-    try {
-        console.log('=== getPaymentMethodSummary called ===');
-        const { startDate, endDate } = req.query;
-        console.log('Date range:', { startDate, endDate });
-
-        const methods = ['cash', 'ecocash', 'innbucks'];
-        const summary = [];
-
-        for (const method of methods) {
-            console.log(`Processing method: ${method}`);
-
-            // Build income query with proper parameters
-            let incomeQuery = `
-                SELECT COALESCE(SUM(i.amount), 0) as total
-                FROM invoices i
-                JOIN adverts a ON i.advert_id = a.id
-                WHERE a.payment_method = $1
-            `;
-            const incomeParams = [method];
-            let paramIndex = 2;
-
-            if (startDate) {
-                incomeQuery += ` AND i.generated_at >= $${paramIndex}`;
-                incomeParams.push(startDate);
-                paramIndex++;
-            }
-            if (endDate) {
-                incomeQuery += ` AND i.generated_at < $${paramIndex}::date + INTERVAL '1 day'`;
-                incomeParams.push(endDate);
-            }
-
-            console.log('Income query:', incomeQuery);
-            console.log('Income params:', incomeParams);
-            const incomeResult = await pool.query(incomeQuery, incomeParams);
-            const income = parseFloat(incomeResult.rows[0].total);
-            console.log(`Income for ${method}:`, income);
-
-            // Build expense query with proper parameters
-            let expenseQuery = `
-                SELECT COALESCE(SUM(amount), 0) as total
-                FROM expenses
-                WHERE payment_method = $1 AND status = 'Approved'
-            `;
-            const expenseParams = [method];
-            paramIndex = 2;
-
-            if (startDate) {
-                expenseQuery += ` AND created_at >= $${paramIndex}`;
-                expenseParams.push(startDate);
-                paramIndex++;
-            }
-            if (endDate) {
-                expenseQuery += ` AND created_at < $${paramIndex}::date + INTERVAL '1 day'`;
-                expenseParams.push(endDate);
-            }
-
-            console.log('Expense query:', expenseQuery);
-            console.log('Expense params:', expenseParams);
-            const expenseResult = await pool.query(expenseQuery, expenseParams);
-            const expense = parseFloat(expenseResult.rows[0].total);
-            console.log(`Expense for ${method}:`, expense);
-
-            summary.push({
-                method,
-                income,
-                expense,
-                net: income - expense
-            });
-        }
-
-        console.log('Final summary:', summary);
-        res.json({
-            success: true,
-            data: summary
-        });
-    } catch (error) {
-        console.error('Get payment method summary error:', error);
-        console.error('Error stack:', error.stack);
-        res.status(500).json({
-            success: false,
-            message: 'Server error fetching payment method summary',
-            error: error.message
-        });
-    }
+    console.log('Final summary:', summary);
+    res.json({
+        success: true,
+        data: summary
+    });
+} catch (error) {
+    console.error('Get payment method summary error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+        success: false,
+        message: 'Server error fetching payment method summary',
+        error: error.message
+    });
+}
 };
 
 module.exports = {
