@@ -54,9 +54,13 @@ const SalesCalendar = () => {
         if (!Array.isArray(adverts)) return [];
         return adverts.filter(advert => {
             if (!advert.start_date || !advert.end_date) return false;
-            const start = parseISO(advert.start_date);
-            const end = parseISO(advert.end_date);
-            return isWithinInterval(day, { start, end });
+
+            // Normalize dates to YYYY-MM-DD for accurate comparison
+            const checkDate = format(day, 'yyyy-MM-dd');
+            const start = format(parseISO(advert.start_date), 'yyyy-MM-dd');
+            const end = format(parseISO(advert.end_date), 'yyyy-MM-dd');
+
+            return checkDate >= start && checkDate <= end;
         });
     };
 
