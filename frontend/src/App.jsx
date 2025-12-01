@@ -18,6 +18,11 @@ import MyAdverts from './pages/MyAdverts';
 import MyClients from './pages/MyClients';
 import AllAdverts from './pages/AllAdverts';
 import SalesCalendar from './pages/SalesCalendar';
+import FinanceOverview from './pages/FinanceOverview';
+import Expenses from './pages/Expenses';
+import Requisitions from './pages/Requisitions';
+import MyRequisitions from './pages/MyRequisitions';
+import FinancialReports from './pages/FinancialReports';
 
 function App() {
   return (
@@ -123,6 +128,48 @@ function App() {
                 element={
                   <PrivateRoute adminOnly>
                     <AllAdverts />
+                  </PrivateRoute>
+                }
+              />
+
+              {/* Finance Module Routes */}
+              <Route
+                path="/finance/overview"
+                element={
+                  <PrivateRoute adminOnly>
+                    <FinanceOverview />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/finance/expenses"
+                element={
+                  <PrivateRoute adminOnly>
+                    <Expenses />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/finance/requisitions"
+                element={
+                  <PrivateRoute adminOnly>
+                    <Requisitions />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/finance/reports"
+                element={
+                  <PrivateRoute adminOnly>
+                    <FinancialReports />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/finance/my-requisitions"
+                element={
+                  <PrivateRoute>
+                    <MyRequisitions />
                   </PrivateRoute>
                 }
               />
