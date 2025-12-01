@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 const { getNotifications, markAsRead, markAllAsRead } = require('../controllers/notificationController');
 
 // All routes require authentication
-router.use(verifyToken);
+router.use(authenticate);
 
 router.get('/', getNotifications);
 router.patch('/:id/read', markAsRead);
