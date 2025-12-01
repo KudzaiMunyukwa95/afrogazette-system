@@ -253,16 +253,16 @@ const downloadFinancialReport = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
 
-        // 1. Fetch Data
-        // ... (Logic to fetch income and expense details similar to financeController but detailed lists)
-
         // Fetch Income Details
         let incomeQuery = `
-            SELECT i.generated_at as date, c.company as description, a.payment_method as method, i.amount
+            SELECT i.generated_at as date, 
+                   COALESCE(c.name, a.client_name, 'Unknown Client') as description, 
+                   a.payment_method as method, 
+                   i.amount
             FROM invoices i
             JOIN adverts a ON i.advert_id = a.id
             LEFT JOIN clients c ON a.client_id = c.id
-            WHERE 1=1
+            WHERE i.amount > 0
         `;
         const params = [];
         let paramCount = 1;
@@ -275,7 +275,7 @@ const downloadFinancialReport = async (req, res) => {
         let expenseQuery = `
             SELECT created_at as date, reason, category, payment_method as method, amount
             FROM expenses
-            WHERE status = 'Approved'
+            WHERE status = 'Approved' AND amount > 0
         `;
         // Reuse params as they are the same for date filtering
         let expParamCount = 1;
