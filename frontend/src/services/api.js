@@ -152,6 +152,31 @@ export const clientAPI = {
   merge: (keepId, mergeIds) => api.post('/clients/merge', { keepId, mergeIds })
 };
 
+// Finance APIs
+export const financeAPI = {
+  // Expenses
+  createExpense: (data) => api.post('/finance/expenses', data),
+  getExpenses: (params) => api.get('/finance/expenses', { params }),
+  getExpenseById: (id) => api.get(`/finance/expenses/${id}`),
+  approveExpense: (id) => api.put(`/finance/expenses/${id}/approve`),
+  rejectExpense: (id, comment) => api.put(`/finance/expenses/${id}/reject`, { comment }),
+  getExpenseHistory: (id) => api.get(`/finance/expenses/${id}/history`),
+
+  // Requisitions
+  createRequisition: (data) => api.post('/finance/requisitions', data),
+  getRequisitions: (params) => api.get('/finance/requisitions', { params }),
+
+  // Reports
+  getFinancialOverview: (params) => api.get('/finance/reports/overview', { params }),
+  getIncomeBreakdown: (params) => api.get('/finance/reports/income', { params }),
+  getExpenseBreakdown: (params) => api.get('/finance/reports/expenses', { params }),
+  getPaymentMethodSummary: (params) => api.get('/finance/reports/payment-methods', { params }),
+  downloadFinancialReport: (params) => api.get('/finance/reports/download-pdf', {
+    params,
+    responseType: 'blob'
+  })
+};
+
 // Health check function
 export const healthCheck = async () => {
   try {
