@@ -30,7 +30,8 @@ const SalesCalendar = () => {
             console.log('📅 Calendar API Response:', response.data);
             if (response.data.success && response.data.data && Array.isArray(response.data.data.adverts)) {
                 console.log('📅 Total adverts loaded:', response.data.data.adverts.length);
-                console.log('📅 Sample advert:', response.data.data.adverts[0]);
+                console.log('📅 Sample advert (all fields):', response.data.data.adverts[0]);
+                console.log('📅 Destination field:', response.data.data.adverts[0]?.destination);
                 setAdverts(response.data.data.adverts);
             } else {
                 console.warn('📅 No adverts data or invalid format');
