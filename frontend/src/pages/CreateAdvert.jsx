@@ -50,6 +50,15 @@ const CATEGORIES = [
   { value: 'other', label: 'Other' }
 ];
 
+const PAYMENT_METHODS = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'ecocash', label: 'Ecocash' },
+  { value: 'zipit', label: 'Zipit' },
+  { value: 'innbucks', label: 'Innbucks' },
+  { value: 'omarimoney', label: 'Omari' },
+  { value: 'bank_transfer', label: 'Bank Transfer' }
+];
+
 const CreateAdvert = () => {
   const navigate = useNavigate();
   const toast = useToast();
@@ -364,6 +373,23 @@ const CreateAdvert = () => {
                     required
                     className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
+                  <select
+                    name="paymentMethod"
+                    value={formData.paymentMethod}
+                    onChange={handleChange}
+                    required
+                    className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white"
+                  >
+                    {PAYMENT_METHODS.map(method => (
+                      <option key={method.value} value={method.value}>
+                        {method.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
