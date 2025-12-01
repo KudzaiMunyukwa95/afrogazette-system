@@ -22,19 +22,28 @@ export const NotificationProvider = ({ children }) => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
     const fetchNotifications = useCallback(async () => {
-        if (!user || !token) return;
+        if (!user || !token) {
+            console.log('⚠️ NotificationContext: No user or token', { user: !!user, token: !!token });
+            return;
+        }
+
+        console.log('🔔 Fetching notifications...', { API_URL, userId: user.id });
 
         try {
             const response = await axios.get(`${API_URL}/notifications`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
+            console.log('✅ Notifications response:', response.data);
+
             if (response.data.success) {
                 setNotifications(response.data.data.notifications);
                 setUnreadCount(response.data.data.unreadCount);
+                console.log('📬 Notifications set:', response.data.data.notifications.length, 'total,', response.data.data.unreadCount, 'unread');
             }
         } catch (error) {
-            console.error('Error fetching notifications:', error);
+            console.error('❌ Error fetching notifications:', error);
+            console.error('Error details:', error.response?.data || error.message);
         }
     }, [user, token, API_URL]);
 
