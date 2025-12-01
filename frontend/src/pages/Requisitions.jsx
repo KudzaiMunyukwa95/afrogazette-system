@@ -49,8 +49,8 @@ const Requisitions = () => {
 
         try {
             setProcessingId(id);
-            await financeAPI.approveExpense(id);
-            showToast('Requisition approved successfully', 'success');
+            const response = await financeAPI.approveExpense(id);
+            showToast(response.data?.message || 'Requisition approved successfully', 'success');
             fetchRequisitions();
         } catch (error) {
             console.error('Error approving requisition:', error);
