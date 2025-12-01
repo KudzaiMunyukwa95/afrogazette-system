@@ -1,13 +1,36 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Check, X, Info, CheckCircle, AlertTriangle, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 
 const NotificationBell = () => {
     const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+    const { user } = useAuth();
+    const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
+
+    const handleNotificationClick = (notification) => {
+        // Mark as read
+        if (!notification.is_read) {
+            markAsRead(notification.id);
+        }
+
+        // Navigate based on notification type
+        if (notification.title === 'New Pending Advert' && user?.role === 'admin') {
+            navigate('/pending-approvals');
+        } else if (notification.title === 'Advert Approved' || notification.title === 'Advert Expiring Soon') {
+            navigate('/my-adverts');
+        } else if (notification.title === 'Advert Declined') {
+            navigate('/my-adverts');
+        }
+
+        // Close dropdown
+        setIsOpen(false);
+    };
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -79,8 +102,8 @@ const NotificationBell = () => {
                                     {notifications.map((notification) => (
                                         <div
                                             key={notification.id}
-                                            className={`p-4 hover:bg-gray-50 transition-colors ${!notification.is_read ? 'bg-red-50/30' : ''}`}
-                                            onClick={() => !notification.is_read && markAsRead(notification.id)}
+                                            className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${!notification.is_read ? 'bg-red-50/30' : ''}`}
+                                            onClick={() => handleNotificationClick(notification)}
                                         >
                                             <div className="flex items-start gap-3">
                                                 <div className={`p-2 rounded-full ${getBgColor(notification.type)} shrink-0`}>
