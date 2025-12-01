@@ -75,7 +75,7 @@ const Layout = ({ children }) => {
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16 gap-4">
             {/* Logo and Navigation */}
-            <div className="flex items-center md:space-x-8 min-w-0">
+            <div className="flex items-center lg:space-x-4 xl:space-x-8 min-w-0">
               {/* Logo */}
               <div className="flex-shrink-0">
                 <button
@@ -91,7 +91,7 @@ const Layout = ({ children }) => {
               </div>
 
               {/* Desktop Navigation */}
-              <nav className="hidden md:flex space-x-1">
+              <nav className="hidden lg:flex space-x-1">
                 {navigation.map((item) => {
                   const Icon = item.icon;
                   return (
@@ -99,7 +99,7 @@ const Layout = ({ children }) => {
                       key={item.name}
                       onClick={() => handleNavigation(item.href)}
                       className={`
-                        flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200
+                        flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 whitespace-nowrap
                         ${item.current
                           ? 'bg-red-600 text-white'
                           : 'text-gray-300 hover:text-white hover:bg-gray-800'
@@ -117,11 +117,11 @@ const Layout = ({ children }) => {
             {/* User Profile - Mobile Optimized */}
             <div className="flex items-center space-x-2 md:space-x-4 flex-shrink-0">
               {/* User Info */}
-              <div className="hidden sm:flex items-center space-x-3">
+              <div className="hidden md:flex items-center space-x-3">
                 <div className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full bg-red-600 text-white font-bold text-sm">
                   {(user?.full_name || user?.fullName || user?.name || user?.email || 'U').charAt(0).toUpperCase()}
                 </div>
-                <div className="text-left">
+                <div className="text-left hidden xl:block">
                   <div className="text-sm font-semibold text-white">
                     {user?.full_name?.split(' ')[0] ||
                       user?.fullName?.split(' ')[0] ||
@@ -141,16 +141,16 @@ const Layout = ({ children }) => {
               {/* Logout Button - Mobile Optimized */}
               <button
                 onClick={handleLogout}
-                className="hidden sm:flex items-center px-3 md:px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors duration-200 tap-target"
+                className="hidden md:flex items-center px-3 md:px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors duration-200 tap-target"
               >
                 <LogOut className="h-4 w-4 mr-2" />
-                <span>Logout</span>
+                <span className="hidden xl:inline">Logout</span>
               </button>
 
               {/* Mobile Menu Button - Larger Tap Target */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden tap-target-lg rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors duration-200"
+                className="lg:hidden tap-target-lg rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors duration-200"
                 aria-label="Toggle menu"
               >
                 {isMobileMenuOpen ? (
