@@ -18,7 +18,7 @@ const MyRequisitions = () => {
     const [formData, setFormData] = useState({
         reason: '',
         amount: '',
-        payment_method: 'Cash',
+        payment_method: 'cash',
         details: ''
     });
     const [submitting, setSubmitting] = useState(false);
@@ -53,7 +53,7 @@ const MyRequisitions = () => {
             setFormData({
                 reason: '',
                 amount: '',
-                payment_method: 'Cash',
+                payment_method: 'cash',
                 details: ''
             });
             fetchRequisitions();
@@ -204,9 +204,9 @@ const MyRequisitions = () => {
                                         onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
                                     >
-                                        <option value="Cash">Cash</option>
-                                        <option value="EcoCash">EcoCash</option>
-                                        <option value="Innbucks">Innbucks</option>
+                                        <option value="cash">Cash</option>
+                                        <option value="ecocash">EcoCash</option>
+                                        <option value="innbucks">Innbucks</option>
                                     </select>
                                 </div>
                             </div>
