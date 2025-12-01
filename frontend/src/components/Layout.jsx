@@ -71,7 +71,7 @@ const Layout = ({ children }) => {
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16 gap-4">
             {/* Logo and Navigation */}
-            <div className="flex items-center space-x-8">
+            <div className="flex items-center md:space-x-8 min-w-0">
               {/* Logo */}
               <div className="flex-shrink-0">
                 <button
@@ -81,7 +81,7 @@ const Layout = ({ children }) => {
                   <img
                     src="/logo.svg"
                     alt="AfroGazette"
-                    className="h-7 w-auto"
+                    className="h-6 md:h-7 w-auto max-w-[120px] md:max-w-none object-contain"
                   />
                 </button>
               </div>
@@ -111,7 +111,7 @@ const Layout = ({ children }) => {
             </div>
 
             {/* User Profile - Mobile Optimized */}
-            <div className="flex items-center space-x-2 md:space-x-4">
+            <div className="flex items-center space-x-2 md:space-x-4 flex-shrink-0">
               {/* User Info */}
               <div className="hidden sm:flex items-center space-x-3">
                 <div className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full bg-red-600 text-white font-bold text-sm">
