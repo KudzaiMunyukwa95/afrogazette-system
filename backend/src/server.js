@@ -15,9 +15,21 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const financeRoutes = require('./routes/financeRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Use routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/adverts', advertRoutes);
+app.use('/api/slots', slotRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/clients', clientRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/finance', financeRoutes);
 
 // Enhanced CORS configuration
 const corsOptions = {
