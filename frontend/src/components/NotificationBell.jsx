@@ -62,6 +62,8 @@ const NotificationBell = () => {
         }
     };
 
+    const unreadNotifications = notifications.filter(n => !n.is_read);
+
     return (
         <div className="relative" ref={dropdownRef}>
             <button
@@ -81,7 +83,7 @@ const NotificationBell = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute right-[-60px] md:right-0 mt-2 w-[90vw] sm:w-96 max-w-[360px] bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 origin-top-right"
+                        className="fixed left-4 right-4 top-[72px] md:absolute md:left-auto md:right-0 md:top-full md:mt-2 md:w-96 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 origin-top md:origin-top-right"
                     >
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <h3 className="font-semibold text-gray-900">Notifications</h3>
@@ -97,12 +99,12 @@ const NotificationBell = () => {
                         </div>
 
                         <div className="max-h-[400px] overflow-y-auto">
-                            {notifications.length > 0 ? (
+                            {unreadNotifications.length > 0 ? (
                                 <div className="divide-y divide-gray-100">
-                                    {notifications.map((notification) => (
+                                    {unreadNotifications.map((notification) => (
                                         <div
                                             key={notification.id}
-                                            className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${!notification.is_read ? 'bg-red-50/30' : ''}`}
+                                            className="p-4 hover:bg-gray-50 transition-colors cursor-pointer bg-red-50/30"
                                             onClick={() => handleNotificationClick(notification)}
                                         >
                                             <div className="flex items-start gap-3">
