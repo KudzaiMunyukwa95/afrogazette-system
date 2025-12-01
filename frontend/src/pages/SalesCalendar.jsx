@@ -23,7 +23,8 @@ const SalesCalendar = () => {
     const fetchAdverts = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_URL}/adverts`, {
+            // Fetch all adverts without pagination limit
+            const response = await axios.get(`${API_URL}/adverts?limit=1000`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             console.log('📅 Calendar API Response:', response.data);
