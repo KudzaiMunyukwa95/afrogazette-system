@@ -233,45 +233,53 @@ const getPaymentMethodSummary = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
 
-        let dateFilter = '';
-        let invoiceDateFilter = '';
-        const params = [];
-        let paramCount = 1;
-
-        if (startDate) {
-            dateFilter += ` AND created_at >= $${paramCount}`;
-            invoiceDateFilter += ` AND i.generated_at >= $${paramCount}`;
-            params.push(startDate);
-            paramCount++;
-        }
-        if (endDate) {
-            dateFilter += ` AND created_at < $${paramCount}::date + INTERVAL '1 day'`;
-            invoiceDateFilter += ` AND i.generated_at < $${paramCount}::date + INTERVAL '1 day'`;
-            params.push(endDate);
-            paramCount++;
-        }
-
         const methods = ['cash', 'ecocash', 'innbucks'];
         const summary = [];
 
         for (const method of methods) {
-            // Income for this method
-            const incomeQuery = `
+            // Build income query with proper parameters
+            let incomeQuery = `
                 SELECT COALESCE(SUM(i.amount), 0) as total
                 FROM invoices i
                 JOIN adverts a ON i.advert_id = a.id
-                WHERE a.payment_method = $1 ${invoiceDateFilter.replace(/\$(\d+)/g, (match, num) => `$${parseInt(num) + 1}`)}
+                WHERE a.payment_method = $1
             `;
-            const incomeResult = await pool.query(incomeQuery, [method, ...params]);
+            const incomeParams = [method];
+            let paramIndex = 2;
+
+            if (startDate) {
+                incomeQuery += ` AND i.generated_at >= $${paramIndex}`;
+                incomeParams.push(startDate);
+                paramIndex++;
+            }
+            if (endDate) {
+                incomeQuery += ` AND i.generated_at < $${paramIndex}::date + INTERVAL '1 day'`;
+                incomeParams.push(endDate);
+            }
+
+            const incomeResult = await pool.query(incomeQuery, incomeParams);
             const income = parseFloat(incomeResult.rows[0].total);
 
-            // Expense for this method
-            const expenseQuery = `
+            // Build expense query with proper parameters
+            let expenseQuery = `
                 SELECT COALESCE(SUM(amount), 0) as total
                 FROM expenses
-                WHERE payment_method = $1 AND status = 'Approved' ${dateFilter.replace(/\$(\d+)/g, (match, num) => `$${parseInt(num) + 1}`)}
+                WHERE payment_method = $1 AND status = 'Approved'
             `;
-            const expenseResult = await pool.query(expenseQuery, [method, ...params]);
+            const expenseParams = [method];
+            paramIndex = 2;
+
+            if (startDate) {
+                expenseQuery += ` AND created_at >= $${paramIndex}`;
+                expenseParams.push(startDate);
+                paramIndex++;
+            }
+            if (endDate) {
+                expenseQuery += ` AND created_at < $${paramIndex}::date + INTERVAL '1 day'`;
+                expenseParams.push(endDate);
+            }
+
+            const expenseResult = await pool.query(expenseQuery, expenseParams);
             const expense = parseFloat(expenseResult.rows[0].total);
 
             summary.push({
