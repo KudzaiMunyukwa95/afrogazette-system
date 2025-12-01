@@ -17,7 +17,8 @@ import {
   Instagram,
   Youtube,
   Globe,
-  MessageCircle
+  MessageCircle,
+  DollarSign
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -38,6 +39,7 @@ const Layout = ({ children }) => {
         { name: 'All Adverts', href: '/all-adverts', icon: FileText, current: currentPath === '/all-adverts' },
         { name: 'Invoices', href: '/invoices', icon: FileText, current: currentPath === '/invoices' },
         { name: 'Pending Approvals', href: '/pending-approvals', icon: Clock, current: currentPath === '/pending-approvals' },
+        { name: 'Finance', href: '/finance/overview', icon: DollarSign, current: currentPath.startsWith('/finance') },
         { name: 'Users', href: '/users', icon: Users, current: currentPath === '/users' },
       ];
     } else {
@@ -49,6 +51,7 @@ const Layout = ({ children }) => {
         { name: 'My Adverts', href: '/my-adverts', icon: FileText, current: currentPath === '/my-adverts' },
         { name: 'My Clients', href: '/my-clients', icon: Users, current: currentPath === '/my-clients' },
         { name: 'My Invoices', href: '/invoices', icon: FileText, current: currentPath === '/invoices' },
+        { name: 'My Requisitions', href: '/finance/my-requisitions', icon: DollarSign, current: currentPath === '/finance/my-requisitions' },
       ];
     }
   };
