@@ -42,8 +42,8 @@ const getDashboard = async (req, res) => {
     const summary = await pool.query(`
       SELECT 
         COUNT(*) as total_adverts,
-        SUM(amount_paid) as total_sales,
-        SUM(commission_amount) as total_commission,
+        SUM(CASE WHEN status IN ('active', 'expired') THEN amount_paid ELSE 0 END) as total_sales,
+        SUM(CASE WHEN status IN ('active', 'expired') THEN commission_amount ELSE 0 END) as total_commission,
         COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
         COUNT(CASE WHEN status = 'expired' THEN 1 END) as expired_count,
@@ -124,6 +124,7 @@ const getDashboard = async (req, res) => {
         SUM(amount_paid) as sales
       FROM adverts
       WHERE COALESCE(approved_at, created_at) >= CURRENT_DATE - INTERVAL '7 days'
+        AND status IN ('active', 'expired')
       GROUP BY COALESCE(approved_at, created_at)::date, TO_CHAR(COALESCE(approved_at, created_at)::date, 'Dy')
       ORDER BY COALESCE(approved_at, created_at)::date ASC
     `);
@@ -146,7 +147,7 @@ const getDashboard = async (req, res) => {
       SELECT 
         u.full_name as name,
         COUNT(a.id) as total_adverts,
-        COALESCE(SUM(a.amount_paid), 0) as total_revenue
+        COALESCE(SUM(CASE WHEN a.status IN ('active', 'expired') THEN a.amount_paid ELSE 0 END), 0) as total_revenue
       FROM users u
       LEFT JOIN adverts a ON u.id = a.sales_rep_id 
         AND COALESCE(a.approved_at, a.created_at) >= $1 
@@ -222,8 +223,8 @@ const getMyDashboard = async (req, res) => {
     const summary = await pool.query(`
       SELECT 
         COUNT(*) as total_adverts,
-        SUM(amount_paid) as total_sales,
-        SUM(commission_amount) as total_commission,
+        SUM(CASE WHEN status IN ('active', 'expired') THEN amount_paid ELSE 0 END) as total_sales,
+        SUM(CASE WHEN status IN ('active', 'expired') THEN commission_amount ELSE 0 END) as total_commission,
         COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
         COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
         COUNT(CASE WHEN status = 'expired' THEN 1 END) as expired_count,
@@ -303,6 +304,7 @@ const getMyDashboard = async (req, res) => {
       FROM adverts
       WHERE sales_rep_id = $1
         AND COALESCE(approved_at, created_at) >= CURRENT_DATE - INTERVAL '7 days'
+        AND status IN ('active', 'expired')
       GROUP BY COALESCE(approved_at, created_at)::date, TO_CHAR(COALESCE(approved_at, created_at)::date, 'Dy')
       ORDER BY COALESCE(approved_at, created_at)::date ASC
     `, [salesRepId]);
