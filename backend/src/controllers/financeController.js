@@ -24,7 +24,6 @@ const getFinancialOverview = async (req, res) => {
         }
 
         // 1. Total Income (from invoices)
-        // Note: Using generated_at for invoices as the date reference
         let invoiceDateFilter = dateFilter.replace(/created_at/g, 'generated_at');
         const incomeQuery = `
             SELECT COALESCE(SUM(amount), 0) as total_income
@@ -109,7 +108,7 @@ const getIncomeBreakdown = async (req, res) => {
             paramCount++;
         }
 
-        // Breakdown by Payment Method (from adverts linked to invoices)
+        // Breakdown by Payment Method
         const paymentMethodQuery = `
             SELECT a.payment_method, COALESCE(SUM(i.amount), 0) as total
             FROM invoices i
@@ -119,7 +118,7 @@ const getIncomeBreakdown = async (req, res) => {
         `;
         const paymentMethodResult = await pool.query(paymentMethodQuery, params);
 
-        // Breakdown by Advert Type (category)
+        // Breakdown by Category
         const typeQuery = `
             SELECT a.category, COALESCE(SUM(i.amount), 0) as total
             FROM invoices i
@@ -178,7 +177,6 @@ const getExpenseBreakdown = async (req, res) => {
             paramCount++;
         }
 
-        // Only approved expenses count
         const approvedFilter = " AND status = 'Approved'";
 
         // Breakdown by Category
@@ -228,22 +226,85 @@ const getExpenseBreakdown = async (req, res) => {
 
 /**
  * Get Payment Method Summary (Income vs Expense vs Net)
+ * Note: adverts uses payment_method_enum ('cash', 'ecocash', 'innbucks')
+ *       expenses uses payment_method_type ('Cash', 'EcoCash', 'Innbucks')
  */
 const getPaymentMethodSummary = async (req, res) => {
-    console.log('Final summary:', summary);
-    res.json({
-        success: true,
-        data: summary
-    });
-} catch (error) {
-    console.error('Get payment method summary error:', error);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({
-        success: false,
-        message: 'Server error fetching payment method summary',
-        error: error.message
-    });
-}
+    try {
+        const { startDate, endDate } = req.query;
+
+        const methods = [
+            { advertMethod: 'cash', expenseMethod: 'Cash', display: 'cash' },
+            { advertMethod: 'ecocash', expenseMethod: 'EcoCash', display: 'ecocash' },
+            { advertMethod: 'innbucks', expenseMethod: 'Innbucks', display: 'innbucks' }
+        ];
+        const summary = [];
+
+        for (const methodPair of methods) {
+            // Income query (uses lowercase for adverts)
+            let incomeQuery = `
+                SELECT COALESCE(SUM(i.amount), 0) as total
+                FROM invoices i
+                JOIN adverts a ON i.advert_id = a.id
+                WHERE a.payment_method = $1
+            `;
+            const incomeParams = [methodPair.advertMethod];
+            let paramIndex = 2;
+
+            if (startDate) {
+                incomeQuery += ` AND i.generated_at >= $${paramIndex}`;
+                incomeParams.push(startDate);
+                paramIndex++;
+            }
+            if (endDate) {
+                incomeQuery += ` AND i.generated_at < $${paramIndex}::date + INTERVAL '1 day'`;
+                incomeParams.push(endDate);
+            }
+
+            const incomeResult = await pool.query(incomeQuery, incomeParams);
+            const income = parseFloat(incomeResult.rows[0].total);
+
+            // Expense query (uses capitalized for expenses)
+            let expenseQuery = `
+                SELECT COALESCE(SUM(amount), 0) as total
+                FROM expenses
+                WHERE payment_method = $1 AND status = 'Approved'
+            `;
+            const expenseParams = [methodPair.expenseMethod];
+            paramIndex = 2;
+
+            if (startDate) {
+                expenseQuery += ` AND created_at >= $${paramIndex}`;
+                expenseParams.push(startDate);
+                paramIndex++;
+            }
+            if (endDate) {
+                expenseQuery += ` AND created_at < $${paramIndex}::date + INTERVAL '1 day'`;
+                expenseParams.push(endDate);
+            }
+
+            const expenseResult = await pool.query(expenseQuery, expenseParams);
+            const expense = parseFloat(expenseResult.rows[0].total);
+
+            summary.push({
+                method: methodPair.display,
+                income,
+                expense,
+                net: income - expense
+            });
+        }
+
+        res.json({
+            success: true,
+            data: summary
+        });
+    } catch (error) {
+        console.error('Get payment method summary error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error fetching payment method summary'
+        });
+    }
 };
 
 module.exports = {
