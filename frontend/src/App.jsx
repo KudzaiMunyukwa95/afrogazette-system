@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import { ToastProvider } from './components/Toast';
 import PrivateRoute from './components/PrivateRoute';
 
@@ -21,104 +22,106 @@ function App() {
   return (
     <ToastProvider>
       <AuthProvider>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<Login />} />
+        <NotificationProvider>
+          <Router>
+            <Routes>
+              <Route path="/login" element={<Login />} />
 
-            <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            />
+              <Route
+                path="/dashboard"
+                element={
+                  <PrivateRoute>
+                    <Dashboard />
+                  </PrivateRoute>
+                }
+              />
 
-            <Route
-              path="/create-advert"
-              element={
-                <PrivateRoute>
-                  <CreateAdvert />
-                </PrivateRoute>
-              }
-            />
+              <Route
+                path="/create-advert"
+                element={
+                  <PrivateRoute>
+                    <CreateAdvert />
+                  </PrivateRoute>
+                }
+              />
 
-            <Route
-              path="/pending-approvals"
-              element={
-                <PrivateRoute adminOnly>
-                  <PendingApprovals />
-                </PrivateRoute>
-              }
-            />
+              <Route
+                path="/pending-approvals"
+                element={
+                  <PrivateRoute adminOnly>
+                    <PendingApprovals />
+                  </PrivateRoute>
+                }
+              />
 
-            <Route
-              path="/schedule"
-              element={
-                <PrivateRoute adminOnly>
-                  <Schedule />
-                </PrivateRoute>
-              }
-            />
+              <Route
+                path="/schedule"
+                element={
+                  <PrivateRoute adminOnly>
+                    <Schedule />
+                  </PrivateRoute>
+                }
+              />
 
-            <Route
-              path="/users"
-              element={
-                <PrivateRoute adminOnly>
-                  <Users />
-                </PrivateRoute>
-              }
-            />
+              <Route
+                path="/users"
+                element={
+                  <PrivateRoute adminOnly>
+                    <Users />
+                  </PrivateRoute>
+                }
+              />
 
-            <Route
-              path="/clients"
-              element={
-                <PrivateRoute>
-                  <ClientManagement />
-                </PrivateRoute>
-              }
-            />
+              <Route
+                path="/clients"
+                element={
+                  <PrivateRoute>
+                    <ClientManagement />
+                  </PrivateRoute>
+                }
+              />
 
-            <Route
-              path="/my-clients"
-              element={
-                <PrivateRoute>
-                  <MyClients />
-                </PrivateRoute>
-              }
-            />
+              <Route
+                path="/my-clients"
+                element={
+                  <PrivateRoute>
+                    <MyClients />
+                  </PrivateRoute>
+                }
+              />
 
-            <Route
-              path="/my-adverts"
-              element={
-                <PrivateRoute>
-                  <MyAdverts />
-                </PrivateRoute>
-              }
-            />
+              <Route
+                path="/my-adverts"
+                element={
+                  <PrivateRoute>
+                    <MyAdverts />
+                  </PrivateRoute>
+                }
+              />
 
-            <Route
-              path="/invoices"
-              element={
-                <PrivateRoute>
-                  <MyInvoices />
-                </PrivateRoute>
-              }
-            />
+              <Route
+                path="/invoices"
+                element={
+                  <PrivateRoute>
+                    <MyInvoices />
+                  </PrivateRoute>
+                }
+              />
 
-            <Route
-              path="/all-adverts"
-              element={
-                <PrivateRoute adminOnly>
-                  <AllAdverts />
-                </PrivateRoute>
-              }
-            />
+              <Route
+                path="/all-adverts"
+                element={
+                  <PrivateRoute adminOnly>
+                    <AllAdverts />
+                  </PrivateRoute>
+                }
+              />
 
-            <Route path="/" element={<Navigate to="/dashboard" />} />
-            <Route path="*" element={<Navigate to="/dashboard" />} />
-          </Routes>
-        </Router>
+              <Route path="/" element={<Navigate to="/dashboard" />} />
+              <Route path="*" element={<Navigate to="/dashboard" />} />
+            </Routes>
+          </Router>
+        </NotificationProvider>
       </AuthProvider>
     </ToastProvider>
   );
