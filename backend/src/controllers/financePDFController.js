@@ -182,7 +182,7 @@ const generateFinancialReportPDF = async (reportData, filePath) => {
                 if (currentY > pageHeight - 50) { doc.addPage(); drawHeader(); currentY = 110; }
 
                 doc.text(new Date(item.date).toLocaleDateString(), marginX + 10, currentY);
-                doc.text(item.description.substring(0, 45), marginX + 80, currentY);
+                doc.text((item.description || 'N/A').substring(0, 45), marginX + 80, currentY);
                 doc.text(item.method, marginX + 350, currentY);
                 doc.text(`$${parseFloat(item.amount).toFixed(2)}`, pageWidth - marginX - 90, currentY, { align: 'right', width: 80 });
 
@@ -291,7 +291,7 @@ const downloadFinancialReport = async (req, res) => {
         const margin = totalIncome > 0 ? (netPosition / totalIncome) * 100 : 0;
 
         // Calculate Payment Method Summary
-        const methods = ['Cash', 'EcoCash', 'Innbucks'];
+        const methods = ['cash', 'ecocash', 'innbucks'];
         const paymentMethods = methods.map(method => {
             const inc = incomeResult.rows.filter(i => i.method === method).reduce((s, i) => s + parseFloat(i.amount), 0);
             const exp = expenseResult.rows.filter(e => e.method === method).reduce((s, e) => s + parseFloat(e.amount), 0);
