@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isWithinInterval, parseISO } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, CheckCircle, AlertTriangle, Activity } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO } from 'date-fns';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, CheckCircle, Activity } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
@@ -26,13 +26,17 @@ const SalesCalendar = () => {
             const response = await axios.get(`${API_URL}/adverts`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            console.log('📅 Calendar API Response:', response.data);
             if (response.data.success && Array.isArray(response.data.data)) {
+                console.log('📅 Total adverts loaded:', response.data.data.length);
+                console.log('📅 Sample advert:', response.data.data[0]);
                 setAdverts(response.data.data);
             } else {
+                console.warn('📅 No adverts data or invalid format');
                 setAdverts([]);
             }
         } catch (error) {
-            console.error('Error fetching adverts:', error);
+            console.error('📅 Error fetching adverts:', error);
             setAdverts([]);
         } finally {
             setLoading(false);
@@ -52,7 +56,7 @@ const SalesCalendar = () => {
 
     const getAdvertsForDay = (day) => {
         if (!Array.isArray(adverts)) return [];
-        return adverts.filter(advert => {
+        const matches = adverts.filter(advert => {
             if (!advert.start_date || !advert.end_date) return false;
 
             // Normalize dates to YYYY-MM-DD for accurate comparison
@@ -60,8 +64,13 @@ const SalesCalendar = () => {
             const start = format(parseISO(advert.start_date), 'yyyy-MM-dd');
             const end = format(parseISO(advert.end_date), 'yyyy-MM-dd');
 
-            return checkDate >= start && checkDate <= end;
+            const isMatch = checkDate >= start && checkDate <= end;
+            if (isMatch) {
+                console.log(`📅 Match found for ${checkDate}:`, advert.client_name, `(${start} to ${end})`);
+            }
+            return isMatch;
         });
+        return matches;
     };
 
     const getStatusColor = (status) => {
