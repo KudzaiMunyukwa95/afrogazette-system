@@ -18,6 +18,7 @@ const MyRequisitions = () => {
     const [formData, setFormData] = useState({
         reason: '',
         amount: '',
+        category: 'Transport',
         payment_method: 'cash',
         details: ''
     });
@@ -53,6 +54,7 @@ const MyRequisitions = () => {
             setFormData({
                 reason: '',
                 amount: '',
+                category: 'Transport',
                 payment_method: 'cash',
                 details: ''
             });
@@ -198,17 +200,34 @@ const MyRequisitions = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Method</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                                     <select
-                                        value={formData.payment_method}
-                                        onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+                                        value={formData.category}
+                                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                                        required
                                     >
-                                        <option value="cash">Cash</option>
-                                        <option value="ecocash">EcoCash</option>
-                                        <option value="innbucks">Innbucks</option>
+                                        <option value="Transport">Transport</option>
+                                        <option value="Marketing">Marketing</option>
+                                        <option value="Office Supplies">Office Supplies</option>
+                                        <option value="Utilities">Utilities</option>
+                                        <option value="Salaries">Salaries</option>
+                                        <option value="Other">Other</option>
                                     </select>
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Method</label>
+                                <select
+                                    value={formData.payment_method}
+                                    onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                                >
+                                    <option value="cash">Cash</option>
+                                    <option value="ecocash">EcoCash</option>
+                                    <option value="innbucks">Innbucks</option>
+                                </select>
                             </div>
 
                             <div>
