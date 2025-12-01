@@ -14,6 +14,7 @@ const slotRoutes = require('./routes/slotRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const clientRoutes = require('./routes/clientRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -330,6 +331,13 @@ try {
   console.log('✅ Client routes mounted');
 } catch (error) {
   console.error('❌ Failed to mount client routes:', error.message);
+}
+
+try {
+  app.use('/api/notifications', notificationRoutes);
+  console.log('✅ Notification routes mounted');
+} catch (error) {
+  console.error('❌ Failed to mount notification routes:', error.message);
 }
 
 // Manual update endpoint (for testing)
