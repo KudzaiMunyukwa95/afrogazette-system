@@ -16,7 +16,10 @@ import ClientManagement from './pages/ClientManagement';
 import MyInvoices from './pages/MyInvoices';
 import MyAdverts from './pages/MyAdverts';
 import MyClients from './pages/MyClients';
+import MyAdverts from './pages/MyAdverts';
+import MyClients from './pages/MyClients';
 import AllAdverts from './pages/AllAdverts';
+import SalesCalendar from './pages/SalesCalendar';
 
 function App() {
   return (
@@ -95,6 +98,15 @@ function App() {
                 element={
                   <PrivateRoute>
                     <MyAdverts />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/calendar"
+                element={
+                  <PrivateRoute>
+                    <SalesCalendar />
                   </PrivateRoute>
                 }
               />
