@@ -254,7 +254,7 @@ const getPaymentMethodSummary = async (req, res) => {
             paramCount++;
         }
 
-        const methods = ['Cash', 'EcoCash', 'Innbucks'];
+        const methods = ['cash', 'ecocash', 'innbucks'];
         const summary = [];
 
         for (const method of methods) {
