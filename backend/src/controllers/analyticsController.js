@@ -39,19 +39,33 @@ const getDashboard = async (req, res) => {
     }
 
     // Summary statistics for date range (Global)
+    // Note: Active and Pending counts should be ALL TIME, not just within the date range
     const summary = await pool.query(`
       SELECT 
         COUNT(*) as total_adverts,
         SUM(CASE WHEN status IN ('active', 'expired') THEN amount_paid ELSE 0 END) as total_sales,
         SUM(CASE WHEN status IN ('active', 'expired') THEN commission_amount ELSE 0 END) as total_commission,
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-        COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
         COUNT(CASE WHEN status = 'expired' THEN 1 END) as expired_count,
         COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as declined_count
       FROM adverts
       WHERE COALESCE(approved_at, created_at) >= $1
         AND COALESCE(approved_at, created_at) < $2
     `, [startDate.toISOString(), endDate.toISOString()]);
+
+    // Get real-time Active and Pending counts (independent of date filter)
+    const realTimeCounts = await pool.query(`
+      SELECT
+        COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count
+      FROM adverts
+    `);
+
+    // Merge counts
+    const summaryData = {
+      ...summary.rows[0],
+      active_count: realTimeCounts.rows[0].active_count,
+      pending_count: realTimeCounts.rows[0].pending_count
+    };
 
     // Active adverts (Global)
     const active = await pool.query(`
@@ -160,7 +174,7 @@ const getDashboard = async (req, res) => {
     res.json({
       success: true,
       data: {
-        summary: summary.rows[0],
+        summary: summaryData,
         active: active.rows,
         pending: pending.rows,
         expired: expired.rows,
@@ -220,13 +234,12 @@ const getMyDashboard = async (req, res) => {
     }
 
     // Summary statistics for date range
+    // Note: Active and Pending counts should be ALL TIME, not just within the date range
     const summary = await pool.query(`
       SELECT 
         COUNT(*) as total_adverts,
         SUM(CASE WHEN status IN ('active', 'expired') THEN amount_paid ELSE 0 END) as total_sales,
         SUM(CASE WHEN status IN ('active', 'expired') THEN commission_amount ELSE 0 END) as total_commission,
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-        COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
         COUNT(CASE WHEN status = 'expired' THEN 1 END) as expired_count,
         COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as declined_count
       FROM adverts
@@ -234,6 +247,22 @@ const getMyDashboard = async (req, res) => {
         AND COALESCE(approved_at, created_at) >= $2
         AND COALESCE(approved_at, created_at) < $3
     `, [salesRepId, startDate.toISOString(), endDate.toISOString()]);
+
+    // Get real-time Active and Pending counts (independent of date filter)
+    const realTimeCounts = await pool.query(`
+      SELECT
+        COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count
+      FROM adverts
+      WHERE sales_rep_id = $1
+    `, [salesRepId]);
+
+    // Merge counts
+    const summaryData = {
+      ...summary.rows[0],
+      active_count: realTimeCounts.rows[0].active_count,
+      pending_count: realTimeCounts.rows[0].pending_count
+    };
 
     // Active adverts
     const active = await pool.query(`
@@ -326,7 +355,7 @@ const getMyDashboard = async (req, res) => {
     res.json({
       success: true,
       data: {
-        summary: summary.rows[0],
+        summary: summaryData,
         active: active.rows,
         pending: pending.rows,
         expired: expired.rows,
