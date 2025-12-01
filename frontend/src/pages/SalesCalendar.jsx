@@ -25,11 +25,14 @@ const SalesCalendar = () => {
             const response = await axios.get(`${API_URL}/adverts`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (response.data.success) {
+            if (response.data.success && Array.isArray(response.data.data)) {
                 setAdverts(response.data.data);
+            } else {
+                setAdverts([]);
             }
         } catch (error) {
             console.error('Error fetching adverts:', error);
+            setAdverts([]);
         } finally {
             setLoading(false);
         }
@@ -46,7 +49,9 @@ const SalesCalendar = () => {
     const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
 
     const getAdvertsForDay = (day) => {
+        if (!Array.isArray(adverts)) return [];
         return adverts.filter(advert => {
+            if (!advert.start_date || !advert.end_date) return false;
             const start = parseISO(advert.start_date);
             const end = parseISO(advert.end_date);
             return isWithinInterval(day, { start, end });
