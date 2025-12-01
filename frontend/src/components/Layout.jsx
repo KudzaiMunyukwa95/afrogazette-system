@@ -45,7 +45,8 @@ const Layout = ({ children }) => {
       return [
         { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
         { name: 'Create Advert', href: '/create-advert', icon: Plus, current: currentPath === '/create-advert' },
-        { name: 'My Adverts', href: '/my-adverts', icon: Calendar, current: currentPath === '/my-adverts' },
+        { name: 'Calendar', href: '/calendar', icon: Calendar, current: currentPath === '/calendar' },
+        { name: 'My Adverts', href: '/my-adverts', icon: FileText, current: currentPath === '/my-adverts' },
         { name: 'My Clients', href: '/my-clients', icon: Users, current: currentPath === '/my-clients' },
         { name: 'My Invoices', href: '/invoices', icon: FileText, current: currentPath === '/invoices' },
       ];
