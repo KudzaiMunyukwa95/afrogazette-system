@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, CheckCircle, Activity, Radio } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, CheckCircle, Activity, Radio, Users } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
@@ -256,6 +256,12 @@ const SalesCalendar = () => {
                                                             <div className="flex items-center text-sm text-gray-600">
                                                                 <Radio className="h-4 w-4 mr-2 text-red-500" />
                                                                 <span className="font-medium">Posts at {advert.slot_time}</span>
+                                                            </div>
+                                                        )}
+                                                        {advert.destination && (
+                                                            <div className="flex items-center text-sm text-gray-600">
+                                                                <Users className="h-4 w-4 mr-2 text-blue-500" />
+                                                                <span className="capitalize">{advert.destination === 'both' ? 'Groups & Channel' : advert.destination}</span>
                                                             </div>
                                                         )}
                                                         <div className="flex items-center text-sm text-gray-600">
