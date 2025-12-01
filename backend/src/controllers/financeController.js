@@ -234,9 +234,9 @@ const getPaymentMethodSummary = async (req, res) => {
         const { startDate, endDate } = req.query;
 
         const methods = [
-            { advertMethod: 'cash', expenseMethod: 'Cash', display: 'cash' },
-            { advertMethod: 'ecocash', expenseMethod: 'EcoCash', display: 'ecocash' },
-            { advertMethod: 'innbucks', expenseMethod: 'Innbucks', display: 'innbucks' }
+            { advertMethod: 'cash', expenseMethod: 'Cash', display: 'Cash' },
+            { advertMethod: 'ecocash', expenseMethod: 'EcoCash', display: 'EcoCash' },
+            { advertMethod: 'innbucks', expenseMethod: 'Innbucks', display: 'Innbucks' }
         ];
         const summary = [];
 
