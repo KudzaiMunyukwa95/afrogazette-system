@@ -11,19 +11,32 @@ const AllAdverts = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [categoryFilter, setCategoryFilter] = useState('all');
+    const [salesRepFilter, setSalesRepFilter] = useState('all');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [pagination, setPagination] = useState({ total: 0, totalPages: 0, limit: 15 });
     const [deleteModal, setDeleteModal] = useState({ isOpen: false, advertId: null, advertName: '' });
 
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
+
     useEffect(() => {
         fetchAdverts();
-    }, [statusFilter, currentPage]);
+    }, [statusFilter, typeFilter, categoryFilter, salesRepFilter, startDate, endDate, currentPage]);
 
     const fetchAdverts = async () => {
         try {
             setLoading(true);
             const params = { page: currentPage, limit: 15 };
             if (statusFilter !== 'all') params.status = statusFilter;
+            if (typeFilter !== 'all') params.type = typeFilter;
+            if (categoryFilter !== 'all') params.category = categoryFilter;
+            if (salesRepFilter !== 'all') params.salesRepId = salesRepFilter;
+            if (startDate) params.startDate = startDate;
+            if (endDate) params.endDate = endDate;
 
             const response = await advertAPI.getAll(params);
             setAdverts(response.data.data.adverts);
