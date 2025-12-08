@@ -83,7 +83,7 @@ const createAdvert = async (req, res) => {
  */
 const getAdverts = async (req, res) => {
   try {
-    const { status, page = 1, limit = 15 } = req.query;
+    const { status, page = 1, limit = 15, startDate, endDate, type, category, salesRepId } = req.query;
     const offset = (page - 1) * limit;
 
     let query = `
@@ -106,12 +106,39 @@ const getAdverts = async (req, res) => {
     if (req.user.role === 'sales_rep') {
       conditions.push(`a.sales_rep_id = $${paramCount++}`);
       values.push(req.user.id);
+    } else if (salesRepId) {
+      // Admins can filter by sales rep
+      conditions.push(`a.sales_rep_id = $${paramCount++}`);
+      values.push(salesRepId);
     }
 
     // Filter by status if provided
     if (status) {
       conditions.push(`a.status = $${paramCount++}`);
       values.push(status);
+    }
+
+    // Filter by Type
+    if (type) {
+      conditions.push(`a.advert_type = $${paramCount++}`);
+      values.push(type);
+    }
+
+    // Filter by Category
+    if (category) {
+      conditions.push(`a.category = $${paramCount++}`);
+      values.push(category);
+    }
+
+    // Filter by Date Range (Start Date)
+    if (startDate) {
+      conditions.push(`a.start_date >= $${paramCount++}`);
+      values.push(startDate);
+    }
+
+    if (endDate) {
+      conditions.push(`a.start_date <= $${paramCount++}`);
+      values.push(endDate);
     }
 
     if (conditions.length > 0) {
