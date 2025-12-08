@@ -14,7 +14,8 @@ import {
   X,
   Eye,
   EyeOff,
-  User
+  User,
+  Edit
 } from 'lucide-react';
 
 const Users = () => {
@@ -145,7 +146,11 @@ const Users = () => {
               </div>
 
               <button
-                onClick={() => setShowModal(true)}
+                onClick={() => {
+                  setEditingUser(null);
+                  setFormData({ email: '', password: '', fullName: '', role: 'sales_rep' });
+                  setShowModal(true);
+                }}
                 className="bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors flex items-center space-x-2"
               >
                 <UserPlus className="h-4 w-4" />
@@ -185,7 +190,11 @@ const Users = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No Users Yet</h3>
               <p className="text-gray-600 mb-4">Create your first user to get started</p>
               <button
-                onClick={() => setShowModal(true)}
+                onClick={() => {
+                  setEditingUser(null);
+                  setFormData({ email: '', password: '', fullName: '', role: 'sales_rep' });
+                  setShowModal(true);
+                }}
                 className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
               >
                 Create User
@@ -201,6 +210,7 @@ const Users = () => {
                   icon={<Shield className="h-5 w-5 text-blue-600" />}
                   badgeColor="bg-blue-100 text-blue-700"
                   onDeleteUser={handleDeleteUser}
+                  onEditUser={handleEditUser}
                 />
               )}
 
@@ -212,20 +222,23 @@ const Users = () => {
                   icon={<Briefcase className="h-5 w-5 text-green-600" />}
                   badgeColor="bg-green-100 text-green-700"
                   onDeleteUser={handleDeleteUser}
+                  onEditUser={handleEditUser}
                 />
               )}
             </div>
           )}
         </div>
 
-        {/* Create User Modal */}
+        {/* Create/Edit User Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
               <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Create New User</h2>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {editingUser ? 'Edit User' : 'Create New User'}
+                </h2>
                 <button
-                  onClick={() => setShowModal(false)}
+                  onClick={resetForm}
                   disabled={submitting}
                   className="p-1 hover:bg-gray-100 rounded transition-colors"
                 >
@@ -233,7 +246,7 @@ const Users = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleCreateUser} className="p-6 space-y-4">
+              <form onSubmit={handleSaveUser} className="p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Full Name *
@@ -266,16 +279,16 @@ const Users = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password *
+                    Password {editingUser ? '(Optional)' : '*'}
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      required
+                      required={!editingUser}
                       minLength="6"
-                      placeholder="Minimum 6 characters"
+                      placeholder={editingUser ? "Leave blank to keep unchanged" : "Minimum 6 characters"}
                       disabled={submitting}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 pr-10"
                     />
@@ -317,11 +330,11 @@ const Users = () => {
                     disabled={submitting}
                     className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 disabled:opacity-50 transition-colors"
                   >
-                    {submitting ? 'Creating...' : 'Create User'}
+                    {submitting ? (editingUser ? 'Updating...' : 'Creating...') : (editingUser ? 'Update User' : 'Create User')}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowModal(false)}
+                    onClick={resetForm}
                     disabled={submitting}
                     className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
                   >
@@ -363,7 +376,7 @@ const StatCard = ({ title, value, icon, color }) => (
 );
 
 // User Section Component - More compact and visually appealing
-const UserSection = ({ title, users, icon, badgeColor, onDeleteUser }) => (
+const UserSection = ({ title, users, icon, badgeColor, onDeleteUser, onEditUser }) => (
   <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
     <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
       <div className="flex items-center justify-between">
@@ -380,7 +393,7 @@ const UserSection = ({ title, users, icon, badgeColor, onDeleteUser }) => (
     <div className="p-4">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {users.map(user => (
-          <UserCard key={user.id} user={user} onDelete={onDeleteUser} />
+          <UserCard key={user.id} user={user} onDelete={onDeleteUser} onEdit={onEditUser} />
         ))}
       </div>
     </div>
@@ -388,7 +401,7 @@ const UserSection = ({ title, users, icon, badgeColor, onDeleteUser }) => (
 );
 
 // User Card Component - Much more compact and professional
-const UserCard = ({ user, onDelete }) => {
+const UserCard = ({ user, onDelete, onEdit }) => {
   const getAvatarColor = () => {
     return user.role === 'admin'
       ? 'bg-gradient-to-br from-blue-500 to-blue-600'
@@ -407,12 +420,22 @@ const UserCard = ({ user, onDelete }) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
             <h3 className="font-semibold text-gray-900 text-sm truncate">{user.fullName}</h3>
-            <button
-              onClick={() => onDelete(user.id, user.fullName)}
-              className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all duration-200"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
+            <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+              <button
+                onClick={() => onEdit(user)}
+                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                title="Edit User"
+              >
+                <Edit className="h-3 w-3" />
+              </button>
+              <button
+                onClick={() => onDelete(user.id, user.fullName)}
+                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                title="Delete User"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
           </div>
 
           <div className="space-y-1">
