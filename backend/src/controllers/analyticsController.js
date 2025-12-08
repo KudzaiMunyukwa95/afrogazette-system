@@ -133,14 +133,21 @@ const getDashboard = async (req, res) => {
 
     // Last 7 Days Sales Trend (Global)
     const salesTrend = await pool.query(`
+      WITH dates AS (
+        SELECT generate_series(
+          CURRENT_DATE - INTERVAL '6 days',
+          CURRENT_DATE,
+          '1 day'::interval
+        )::date AS date
+      )
       SELECT 
-        TO_CHAR(COALESCE(approved_at, created_at)::date, 'Dy') as day,
-        SUM(amount_paid) as sales
-      FROM adverts
-      WHERE COALESCE(approved_at, created_at) >= CURRENT_DATE - INTERVAL '7 days'
-        AND status IN ('active', 'expired')
-      GROUP BY COALESCE(approved_at, created_at)::date, TO_CHAR(COALESCE(approved_at, created_at)::date, 'Dy')
-      ORDER BY COALESCE(approved_at, created_at)::date ASC
+        TO_CHAR(d.date, 'Dy') as day,
+        COALESCE(SUM(a.amount_paid), 0) as sales
+      FROM dates d
+      LEFT JOIN adverts a ON COALESCE(a.approved_at, a.created_at)::date = d.date
+        AND a.status IN ('active', 'expired')
+      GROUP BY d.date
+      ORDER BY d.date ASC
     `);
 
     // Top 5 Clients by Spend (Global)
@@ -327,15 +334,22 @@ const getMyDashboard = async (req, res) => {
 
     // Last 7 Days Sales Trend
     const salesTrend = await pool.query(`
+      WITH dates AS (
+        SELECT generate_series(
+          CURRENT_DATE - INTERVAL '6 days',
+          CURRENT_DATE,
+          '1 day'::interval
+        )::date AS date
+      )
       SELECT 
-        TO_CHAR(COALESCE(approved_at, created_at)::date, 'Dy') as day,
-        SUM(amount_paid) as sales
-      FROM adverts
-      WHERE sales_rep_id = $1
-        AND COALESCE(approved_at, created_at) >= CURRENT_DATE - INTERVAL '7 days'
-        AND status IN ('active', 'expired')
-      GROUP BY COALESCE(approved_at, created_at)::date, TO_CHAR(COALESCE(approved_at, created_at)::date, 'Dy')
-      ORDER BY COALESCE(approved_at, created_at)::date ASC
+        TO_CHAR(d.date, 'Dy') as day,
+        COALESCE(SUM(a.amount_paid), 0) as sales
+      FROM dates d
+      LEFT JOIN adverts a ON COALESCE(a.approved_at, a.created_at)::date = d.date
+        AND a.sales_rep_id = $1
+        AND a.status IN ('active', 'expired')
+      GROUP BY d.date
+      ORDER BY d.date ASC
     `, [salesRepId]);
 
     // Top 5 Clients by Spend
