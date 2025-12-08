@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 
 const Expenses = () => {
     const { user } = useAuth();
-    const { showToast } = useToast();
+    const { success, error } = useToast();
     const [loading, setLoading] = useState(true);
     const [expenses, setExpenses] = useState([]);
     const [filters, setFilters] = useState({
@@ -46,7 +46,7 @@ const Expenses = () => {
             setExpenses(response.data.data);
         } catch (error) {
             console.error('Error fetching expenses:', error);
-            showToast('Failed to load expenses', 'error');
+            error('Failed to load expenses');
         } finally {
             setLoading(false);
         }
@@ -63,7 +63,7 @@ const Expenses = () => {
             const response = await financeAPI.createExpense(formData);
             console.log('✅ API Response:', response);
 
-            showToast('Expense created successfully', 'success');
+            success('Expense created successfully');
             setIsModalOpen(false);
             setFormData({
                 reason: '',
@@ -75,7 +75,7 @@ const Expenses = () => {
             fetchExpenses();
         } catch (error) {
             console.error('❌ Error creating expense:', error);
-            showToast(error.response?.data?.message || 'Failed to create expense', 'error');
+            error(error.response?.data?.message || 'Failed to create expense');
         } finally {
             console.log('🏁 Handler finished');
             setSubmitting(false);
