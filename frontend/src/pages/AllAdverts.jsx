@@ -315,6 +315,18 @@ const AllAdverts = () => {
                             </div>
                         </>
                     )}
+
+                    {!loading && pagination.total > 0 && (
+                        <div className="mt-6">
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={pagination.totalPages}
+                                total={pagination.total}
+                                limit={pagination.limit}
+                                onPageChange={setCurrentPage}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
