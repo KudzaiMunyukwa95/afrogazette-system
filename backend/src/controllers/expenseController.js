@@ -42,7 +42,8 @@ const createExpense = async (req, res) => {
         console.error('Create expense error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error creating expense'
+            message: 'Server error creating expense',
+            error: error.message // Expose error for debugging
         });
     } finally {
         client.release();
@@ -55,7 +56,7 @@ const createExpense = async (req, res) => {
 const createRequisition = async (req, res) => {
     const client = await pool.connect();
     try {
-        const { reason, amount, payment_method, details } = req.body;
+        const { reason, amount, payment_method, details, category } = req.body;
         const raised_by_user_id = req.user.id;
 
         await client.query('BEGIN');
@@ -63,10 +64,10 @@ const createRequisition = async (req, res) => {
         // Create requisition record
         const expenseResult = await client.query(
             `INSERT INTO expenses 
-            (reason, amount, payment_method, details, type, status, raised_by_user_id) 
-            VALUES ($1, $2, $3, $4, 'Requisition', 'Pending', $5) 
+            (reason, amount, payment_method, details, category, type, status, raised_by_user_id) 
+            VALUES ($1, $2, $3, $4, $5, 'Requisition', 'Pending', $6) 
             RETURNING *`,
-            [reason, amount, payment_method, details, raised_by_user_id]
+            [reason, amount, payment_method, details, category, raised_by_user_id]
         );
 
         const expense = expenseResult.rows[0];
@@ -91,7 +92,8 @@ const createRequisition = async (req, res) => {
         console.error('Create requisition error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error creating requisition'
+            message: 'Server error creating requisition',
+            error: error.message // Expose error for debugging
         });
     } finally {
         client.release();
@@ -391,6 +393,49 @@ const getExpenseHistory = async (req, res) => {
     }
 };
 
+/**
+ * Delete Expense (Super Admin Only)
+ */
+const deleteExpense = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { id } = req.params;
+
+        await client.query('BEGIN');
+
+        // Delete history first (foreign key constraint)
+        await client.query('DELETE FROM expense_status_history WHERE expense_id = $1', [id]);
+
+        // Delete the expense
+        const result = await client.query('DELETE FROM expenses WHERE id = $1 RETURNING *', [id]);
+
+        if (result.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({
+                success: false,
+                message: 'Expense not found'
+            });
+        }
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: 'Expense deleted successfully',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Delete expense error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error deleting expense'
+        });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
     createExpense,
     createRequisition,
@@ -398,5 +443,6 @@ module.exports = {
     getExpenseById,
     approveExpense,
     rejectExpense,
-    getExpenseHistory
+    getExpenseHistory,
+    deleteExpense
 };
