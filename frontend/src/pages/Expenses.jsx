@@ -54,9 +54,15 @@ const Expenses = () => {
 
     const handleCreateExpense = async (e) => {
         e.preventDefault();
+        console.log('🚀 handleCreateExpense called');
+        console.log('📝 Form Data:', formData);
+
         try {
             setSubmitting(true);
-            await financeAPI.createExpense(formData);
+            console.log('⏳ Sending API request...');
+            const response = await financeAPI.createExpense(formData);
+            console.log('✅ API Response:', response);
+
             showToast('Expense created successfully', 'success');
             setIsModalOpen(false);
             setFormData({
@@ -68,9 +74,10 @@ const Expenses = () => {
             });
             fetchExpenses();
         } catch (error) {
-            console.error('Error creating expense:', error);
+            console.error('❌ Error creating expense:', error);
             showToast(error.response?.data?.message || 'Failed to create expense', 'error');
         } finally {
+            console.log('🏁 Handler finished');
             setSubmitting(false);
         }
     };
