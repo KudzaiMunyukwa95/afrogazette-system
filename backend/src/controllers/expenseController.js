@@ -109,6 +109,12 @@ const getExpenses = async (req, res) => {
         const userId = req.user.id;
         const userRole = req.user.role;
 
+        console.log('🔍 GET /expenses Request:', {
+            query: req.query,
+            userId,
+            userRole
+        });
+
         let query = `
             SELECT e.*, 
                    u_raised.full_name as raised_by_name,
@@ -164,6 +170,7 @@ const getExpenses = async (req, res) => {
         query += ` ORDER BY e.created_at DESC`;
 
         const result = await pool.query(query, params);
+        console.log(`✅ Found ${result.rows.length} expenses matching criteria`);
 
         res.json({
             success: true,
