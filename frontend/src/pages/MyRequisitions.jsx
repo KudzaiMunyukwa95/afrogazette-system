@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 
 const MyRequisitions = () => {
     const { user } = useAuth();
-    const { success, error } = useToast();
+    const { success, error: showError } = useToast();
     const [loading, setLoading] = useState(true);
     const [requisitions, setRequisitions] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,7 +38,7 @@ const MyRequisitions = () => {
             setRequisitions(response.data.data);
         } catch (error) {
             console.error('Error fetching requisitions:', error);
-            error('Failed to load your requisitions');
+            showError('Failed to load your requisitions');
         } finally {
             setLoading(false);
         }
@@ -67,7 +67,7 @@ const MyRequisitions = () => {
             fetchRequisitions();
         } catch (error) {
             console.error('❌ Error creating requisition:', error);
-            error(error.response?.data?.message || 'Failed to submit requisition');
+            showError(error.response?.data?.message || 'Failed to submit requisition');
         } finally {
             console.log('🏁 Handler finished');
             setSubmitting(false);
