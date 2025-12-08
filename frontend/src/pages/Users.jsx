@@ -31,6 +31,7 @@ const Users = () => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, userId: null, userName: '' });
+  const [editingUser, setEditingUser] = useState(null);
 
   useEffect(() => {
     fetchUsers();
@@ -48,23 +49,50 @@ const Users = () => {
     }
   };
 
-  const handleCreateUser = async (e) => {
+  const resetForm = () => {
+    setFormData({
+      email: '',
+      password: '',
+      fullName: '',
+      role: 'sales_rep'
+    });
+    setEditingUser(null);
+    setShowModal(false);
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setFormData({
+      email: user.email,
+      password: '', // Leave blank to keep unchanged
+      fullName: user.fullName || user.full_name,
+      role: user.role
+    });
+    setShowModal(true);
+  };
+
+  const handleSaveUser = async (e) => {
     e.preventDefault();
     setSubmitting(true);
 
     try {
-      await userAPI.create(formData);
-      toast.success('User created successfully!');
-      setShowModal(false);
-      setFormData({
-        email: '',
-        password: '',
-        fullName: '',
-        role: 'sales_rep'
-      });
+      if (editingUser) {
+        // Update existing user
+        const data = { ...formData };
+        if (!data.password) delete data.password; // Don't send empty password
+
+        await userAPI.update(editingUser.id, data);
+        toast.success('User updated successfully!');
+      } else {
+        // Create new user
+        await userAPI.create(formData);
+        toast.success('User created successfully!');
+      }
+
+      resetForm();
       fetchUsers();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Error creating user');
+      toast.error(err.response?.data?.message || `Error ${editingUser ? 'updating' : 'creating'} user`);
     } finally {
       setSubmitting(false);
     }
