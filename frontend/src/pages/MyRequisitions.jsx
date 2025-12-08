@@ -25,7 +25,7 @@ const MyRequisitions = () => {
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        fetchRequisitions();,
+        fetchRequisitions();
     }, []);
 
     const fetchRequisitions = async () => {
