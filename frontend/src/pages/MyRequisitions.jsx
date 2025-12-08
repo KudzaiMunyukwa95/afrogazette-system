@@ -46,9 +46,15 @@ const MyRequisitions = () => {
 
     const handleCreateRequisition = async (e) => {
         e.preventDefault();
+        console.log('🚀 handleCreateRequisition called');
+        console.log('📝 Form Data:', formData);
+
         try {
             setSubmitting(true);
-            await financeAPI.createRequisition(formData);
+            console.log('⏳ Sending API request...');
+            const response = await financeAPI.createRequisition(formData);
+            console.log('✅ API Response:', response);
+
             showToast('Requisition submitted successfully', 'success');
             setIsModalOpen(false);
             setFormData({
@@ -60,9 +66,10 @@ const MyRequisitions = () => {
             });
             fetchRequisitions();
         } catch (error) {
-            console.error('Error creating requisition:', error);
+            console.error('❌ Error creating requisition:', error);
             showToast(error.response?.data?.message || 'Failed to submit requisition', 'error');
         } finally {
+            console.log('🏁 Handler finished');
             setSubmitting(false);
         }
     };
