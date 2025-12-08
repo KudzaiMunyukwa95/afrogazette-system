@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 
 const Requisitions = () => {
     const { user } = useAuth();
-    const { showToast } = useToast();
+    const { success, error: showError } = useToast();
     const [loading, setLoading] = useState(true);
     const [requisitions, setRequisitions] = useState([]);
     const [processingId, setProcessingId] = useState(null);
@@ -27,15 +27,14 @@ const Requisitions = () => {
     const fetchRequisitions = async () => {
         try {
             setLoading(true);
-            // Fetch all pending requisitions
+            // Fetch all pending expenses (Requisitions AND Direct Expenses)
             const response = await financeAPI.getExpenses({
-                status: 'Pending',
-                type: 'Requisition'
+                status: 'Pending'
             });
             setRequisitions(response.data.data);
         } catch (error) {
             console.error('Error fetching requisitions:', error);
-            showToast('Failed to load requisitions', 'error');
+            showError('Failed to load requisitions');
         } finally {
             setLoading(false);
         }
@@ -43,18 +42,18 @@ const Requisitions = () => {
 
     const handleApprove = async (id, raisedById) => {
         if (user.id === raisedById) {
-            showToast('You cannot approve your own requisition', 'error');
+            showError('You cannot approve your own requisition');
             return;
         }
 
         try {
             setProcessingId(id);
             const response = await financeAPI.approveExpense(id);
-            showToast(response.data?.message || 'Requisition approved successfully', 'success');
+            success(response.data?.message || 'Requisition approved successfully');
             fetchRequisitions();
         } catch (error) {
             console.error('Error approving requisition:', error);
-            showToast(error.response?.data?.message || 'Failed to approve requisition', 'error');
+            showError(error.response?.data?.message || 'Failed to approve requisition');
         } finally {
             setProcessingId(null);
         }
@@ -69,19 +68,19 @@ const Requisitions = () => {
     const handleReject = async (e) => {
         e.preventDefault();
         if (!rejectComment.trim()) {
-            showToast('Please provide a reason for rejection', 'error');
+            showError('Please provide a reason for rejection');
             return;
         }
 
         try {
             setProcessingId(selectedReqId);
             await financeAPI.rejectExpense(selectedReqId, rejectComment);
-            showToast('Requisition rejected', 'success');
+            success('Requisition rejected');
             setRejectModalOpen(false);
             fetchRequisitions();
         } catch (error) {
             console.error('Error rejecting requisition:', error);
-            showToast(error.response?.data?.message || 'Failed to reject requisition', 'error');
+            showError(error.response?.data?.message || 'Failed to reject requisition');
         } finally {
             setProcessingId(null);
         }
