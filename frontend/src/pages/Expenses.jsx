@@ -147,7 +147,7 @@ const Expenses = () => {
                     >
                         <option value="">All Payment Methods</option>
                         <option value="Cash">Cash</option>
-                        <option value="Ecocash">EcoCash</option>
+                        <option value="EcoCash">EcoCash</option>
                         <option value="Innbucks">Innbucks</option>
                     </select>
 
@@ -258,7 +258,7 @@ const Expenses = () => {
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
                                         >
                                             <option value="Cash">Cash</option>
-                                            <option value="Ecocash">EcoCash</option>
+                                            <option value="EcoCash">EcoCash</option>
                                             <option value="Innbucks">Innbucks</option>
                                         </select>
                                     </div>
