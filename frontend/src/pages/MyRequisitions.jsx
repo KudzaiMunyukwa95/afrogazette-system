@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 
 const MyRequisitions = () => {
     const { user } = useAuth();
-    const { showToast } = useToast();
+    const { success, error } = useToast();
     const [loading, setLoading] = useState(true);
     const [requisitions, setRequisitions] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,7 +25,7 @@ const MyRequisitions = () => {
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        fetchRequisitions();
+        fetchRequisitions();,
     }, []);
 
     const fetchRequisitions = async () => {
@@ -38,7 +38,7 @@ const MyRequisitions = () => {
             setRequisitions(response.data.data);
         } catch (error) {
             console.error('Error fetching requisitions:', error);
-            showToast('Failed to load your requisitions', 'error');
+            error('Failed to load your requisitions');
         } finally {
             setLoading(false);
         }
@@ -55,7 +55,7 @@ const MyRequisitions = () => {
             const response = await financeAPI.createRequisition(formData);
             console.log('✅ API Response:', response);
 
-            showToast('Requisition submitted successfully', 'success');
+            success('Requisition submitted successfully');
             setIsModalOpen(false);
             setFormData({
                 reason: '',
@@ -67,7 +67,7 @@ const MyRequisitions = () => {
             fetchRequisitions();
         } catch (error) {
             console.error('❌ Error creating requisition:', error);
-            showToast(error.response?.data?.message || 'Failed to submit requisition', 'error');
+            error(error.response?.data?.message || 'Failed to submit requisition');
         } finally {
             console.log('🏁 Handler finished');
             setSubmitting(false);
