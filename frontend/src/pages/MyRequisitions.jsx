@@ -19,7 +19,7 @@ const MyRequisitions = () => {
         reason: '',
         amount: '',
         category: 'Transport',
-        payment_method: 'cash',
+        payment_method: 'Cash',
         details: ''
     });
     const [submitting, setSubmitting] = useState(false);
@@ -231,9 +231,9 @@ const MyRequisitions = () => {
                                     onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
                                 >
-                                    <option value="cash">Cash</option>
-                                    <option value="ecocash">EcoCash</option>
-                                    <option value="innbucks">Innbucks</option>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Ecocash">EcoCash</option>
+                                    <option value="Innbucks">Innbucks</option>
                                 </select>
                             </div>
 
