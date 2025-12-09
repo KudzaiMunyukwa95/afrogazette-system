@@ -23,6 +23,7 @@ import Expenses from './pages/Expenses';
 import Requisitions from './pages/Requisitions';
 import MyRequisitions from './pages/MyRequisitions';
 import FinancialReports from './pages/FinancialReports';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -38,6 +39,15 @@ function App() {
                 element={
                   <PrivateRoute>
                     <Dashboard />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/profile"
+                element={
+                  <PrivateRoute>
+                    <Profile />
                   </PrivateRoute>
                 }
               />
