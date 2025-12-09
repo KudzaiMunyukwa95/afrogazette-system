@@ -117,7 +117,10 @@ const Layout = ({ children }) => {
             {/* User Profile - Mobile Optimized */}
             <div className="flex items-center space-x-2 md:space-x-4 flex-shrink-0">
               {/* User Info */}
-              <div className="hidden md:flex items-center space-x-3">
+              <div
+                onClick={() => navigate('/profile')}
+                className="hidden md:flex items-center space-x-3 cursor-pointer hover:bg-gray-800 rounded-lg p-2 transition-colors -ml-2"
+              >
                 <div className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 rounded-full bg-red-600 text-white font-bold text-sm">
                   {(user?.full_name || user?.fullName || user?.name || user?.email || 'U').charAt(0).toUpperCase()}
                 </div>
@@ -189,7 +192,10 @@ const Layout = ({ children }) => {
 
               {/* Mobile User Info - Show First Name */}
               <div className="pt-4 border-t border-gray-800 mt-4">
-                <div className="flex items-center px-4 py-3 mb-2">
+                <div
+                  onClick={() => navigate('/profile')}
+                  className="flex items-center px-4 py-3 mb-2 cursor-pointer hover:bg-gray-800 transition-colors"
+                >
                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-600 text-white font-bold text-sm mr-3 flex-shrink-0">
                     {(user?.full_name || user?.fullName || user?.name || user?.email || 'U').charAt(0).toUpperCase()}
                   </div>
