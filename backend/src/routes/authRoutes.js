@@ -50,6 +50,26 @@ router.post(
 router.get('/profile', authenticate, authController.getProfile);
 
 /**
+ * @route   PATCH /api/auth/profile
+ * @desc    Update current user profile
+ * @access  Private
+ */
+router.patch(
+  '/profile',
+  [
+    body('email').optional().isEmail().withMessage('Valid email is required'),
+    body('password')
+      .optional()
+      .isLength({ min: 6 })
+      .withMessage('Password must be at least 6 characters'),
+    body('fullName').optional().notEmpty().withMessage('Full name cannot be empty')
+  ],
+  authenticate,
+  validate,
+  authController.updateProfile
+);
+
+/**
  * @route   POST /api/auth/logout
  * @desc    Logout user and clear session
  * @access  Private
