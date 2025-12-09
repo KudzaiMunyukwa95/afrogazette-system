@@ -171,6 +171,84 @@ const getProfile = async (req, res) => {
 };
 
 /**
+ * Update current user profile
+ */
+const updateProfile = async (req, res) => {
+  try {
+    const { email, fullName, password } = req.body;
+    const userId = req.user.id;
+
+    // Check if email is already taken by another user
+    if (email) {
+      const emailCheck = await pool.query(
+        'SELECT id FROM users WHERE email = $1 AND id != $2',
+        [email, userId]
+      );
+
+      if (emailCheck.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already in use'
+        });
+      }
+    }
+
+    // Build update query
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (email) {
+      updates.push(`email = $${paramCount++}`);
+      values.push(email);
+    }
+
+    if (fullName) {
+      updates.push(`full_name = $${paramCount++}`);
+      values.push(fullName);
+    }
+
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updates.push(`password = $${paramCount++}`);
+      values.push(hashedPassword);
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(userId);
+
+    const result = await pool.query(
+      `UPDATE users SET ${updates.join(', ')}
+       WHERE id = $${paramCount}
+       RETURNING id, email, full_name, role, created_at`,
+      values
+    );
+
+    const updatedUser = result.rows[0];
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          fullName: updatedUser.full_name,
+          role: updatedUser.role,
+          createdAt: updatedUser.created_at
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating profile'
+    });
+  }
+};
+
+/**
  * Logout user (for analytics tracking)
  */
 const logout = async (req, res) => {
@@ -200,5 +278,6 @@ module.exports = {
   login,
   register,
   getProfile,
+  updateProfile,
   logout
 };
