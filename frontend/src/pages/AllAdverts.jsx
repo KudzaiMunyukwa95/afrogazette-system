@@ -178,9 +178,9 @@ const AllAdverts = () => {
                                 >
                                     <option value="all">Type: All</option>
                                     <option value="text_ad">Text Ad</option>
-                                    <option value="banner_ad">Banner Ad</option>
+                                    <option value="picture_ad">Banner/Picture Ad</option>
                                     <option value="group_link_ad">Group Link</option>
-                                    <option value="sponsored_article">Sponsored Article</option>
+                                    <option value="feature">Sponsored Article/Feature</option>
                                 </select>
 
                                 {/* Category Filter */}
