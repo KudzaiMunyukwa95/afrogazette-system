@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
-import { advertAPI } from '../services/api';
+import { advertAPI, userAPI } from '../services/api';
 import { Search, Filter, Calendar, CheckCircle, XCircle, Clock, Trash2, Edit, MoreVertical, User } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import { useAuth } from '../context/AuthContext';
 
 const AllAdverts = () => {
     const [adverts, setAdverts] = useState([]);
+    const [salesReps, setSalesReps] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -26,6 +27,25 @@ const AllAdverts = () => {
     useEffect(() => {
         fetchAdverts();
     }, [statusFilter, typeFilter, categoryFilter, salesRepFilter, startDate, endDate, currentPage]);
+
+    useEffect(() => {
+        if (isAdmin) {
+            fetchSalesReps();
+        }
+    }, [isAdmin]);
+
+    const fetchSalesReps = async () => {
+        try {
+            const response = await userAPI.getAll();
+            // Filter only sales reps if needed, but getAll returns all users. 
+            // We might want to filter for role='sales_rep' or just show all.
+            // Usually simpler to just show all for admin purposes or filter by role.
+            // Let's assume we want to show all users who can be sales reps.
+            setSalesReps(response.data.data.users);
+        } catch (error) {
+            console.error('Error fetching sales reps:', error);
+        }
+    };
 
     const fetchAdverts = async () => {
         try {
@@ -180,14 +200,18 @@ const AllAdverts = () => {
 
                                 {/* Sales Rep Filter (Admin Only) */}
                                 {isAdmin && (
-                                    <input
-                                        type="text"
-                                        placeholder="Filter by Rep ID..."
-                                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-sm w-full sm:w-32"
-                                        value={salesRepFilter === 'all' ? '' : salesRepFilter}
-                                        onChange={(e) => setSalesRepFilter(e.target.value || 'all')}
-                                        title="Enter Sales Rep ID"
-                                    />
+                                    <select
+                                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-sm w-full sm:w-auto min-w-[150px] bg-white"
+                                        value={salesRepFilter}
+                                        onChange={(e) => setSalesRepFilter(e.target.value)}
+                                    >
+                                        <option value="all">All Sales Reps</option>
+                                        {salesReps.map(rep => (
+                                            <option key={rep.id} value={rep.id}>
+                                                {rep.fullName || rep.full_name || rep.email}
+                                            </option>
+                                        ))}
+                                    </select>
                                 )}
                             </div>
                         </div>
