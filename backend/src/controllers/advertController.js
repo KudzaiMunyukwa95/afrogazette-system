@@ -84,7 +84,6 @@ const createAdvert = async (req, res) => {
 const getAdverts = async (req, res) => {
   try {
     const { status, page = 1, limit = 15, startDate, endDate, type, category, salesRepId } = req.query;
-    console.log('GET /adverts query params:', { status, type, category, salesRepId });
     const offset = (page - 1) * limit;
 
     let query = `
@@ -157,9 +156,6 @@ const getAdverts = async (req, res) => {
     // Add pagination
     query += ` LIMIT $${paramCount++} OFFSET $${paramCount++}`;
     values.push(limit, offset);
-
-    console.log('Executing query:', query);
-    console.log('Values:', values);
 
     const result = await pool.query(query, values);
 
