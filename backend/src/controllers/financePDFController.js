@@ -317,8 +317,8 @@ const downloadFinancialReport = async (req, res) => {
         // Calculate Payment Method Summary
         const methods = ['cash', 'ecocash', 'innbucks'];
         const paymentMethods = methods.map(method => {
-            const inc = incomeResult.rows.filter(i => i.method === method).reduce((s, i) => s + parseFloat(i.amount), 0);
-            const exp = expenseResult.rows.filter(e => e.method === method).reduce((s, e) => s + parseFloat(e.amount), 0);
+            const inc = incomeResult.rows.filter(i => (i.method || '').toLowerCase() === method).reduce((s, i) => s + parseFloat(i.amount), 0);
+            const exp = expenseResult.rows.filter(e => (e.method || '').toLowerCase() === method).reduce((s, e) => s + parseFloat(e.amount), 0);
             return { method, income: inc, expense: exp };
         });
 
