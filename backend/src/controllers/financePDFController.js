@@ -14,7 +14,7 @@ const generateFinancialReportPDF = async (reportData, filePath) => {
                 margin: 40,
                 size: 'A4',
                 bufferPages: true,
-                autoFirstPage: true
+                autoFirstPage: false // Important: We control the first page to trigger the event
             });
             const stream = fs.createWriteStream(filePath);
 
@@ -28,13 +28,16 @@ const generateFinancialReportPDF = async (reportData, filePath) => {
             const TEXT_GRAY = '#6B7280';
             const BORDER_COLOR = '#E5E7EB';
             const WHITE = '#FFFFFF';
+            const ROW_ALT_BG = '#F9FAFB'; // Light gray for zebra striping
 
+            const marginX = 40;
             const pageWidth = doc.page.width;
             const pageHeight = doc.page.height;
-            const marginX = 40;
+            const contentWidth = pageWidth - 2 * marginX;
 
-            // --- HEADER FUNCTION (Repeated on new pages) ---
-            const drawHeader = () => {
+            // --- HEADER HANDLER ---
+            // This runs automatically whenever a new page is added
+            doc.on('pageAdded', () => {
                 const headerHeight = 80;
                 doc.rect(0, 0, pageWidth, headerHeight).fill(BRAND_BLACK);
 
@@ -71,169 +74,184 @@ const generateFinancialReportPDF = async (reportData, filePath) => {
                 // Company Details
                 doc.font('Helvetica').fontSize(9).fillColor(WHITE);
                 let headerY = 22;
-                doc.text('AfroGazette', marginX, headerY, { align: 'right', width: pageWidth - 2 * marginX });
+                doc.text('AfroGazette', marginX, headerY, { align: 'right', width: contentWidth });
                 headerY += 12;
-                doc.text('Office 4, Karimapondo Building', marginX, headerY, { align: 'right', width: pageWidth - 2 * marginX });
+                doc.text('Office 4, Karimapondo Building', marginX, headerY, { align: 'right', width: contentWidth });
                 headerY += 12;
-                doc.text('78 Leopold Takawira, Harare, Zimbabwe', marginX, headerY, { align: 'right', width: pageWidth - 2 * marginX });
+                doc.text('78 Leopold Takawira, Harare, Zimbabwe', marginX, headerY, { align: 'right', width: contentWidth });
                 headerY += 12;
-                doc.text('support@afrogazette.co.zw | +263 77 8826661', marginX, headerY, { align: 'right', width: pageWidth - 2 * marginX });
+                doc.text('support@afrogazette.co.zw | +263 77 8826661', marginX, headerY, { align: 'right', width: contentWidth });
+
+                // Reset Y for content
+                doc.y = 100;
+            });
+
+            // --- CONTENT HELPERS ---
+
+            const checkSpace = (neededSpace) => {
+                if (doc.y + neededSpace > pageHeight - 50) {
+                    doc.addPage();
+                }
             };
 
-            // Draw initial header
-            drawHeader();
+            const drawSectionHeader = (title) => {
+                checkSpace(60);
+                doc.moveDown(1);
+                doc.font('Helvetica-Bold').fontSize(14).fillColor(TEXT_DARK).text(title, marginX, doc.y);
+                doc.rect(marginX, doc.y + 5, contentWidth, 2).fill(BRAND_RED);
+                doc.moveDown(0.5); // Add some spacing after the line
+                doc.y += 10;
+            };
 
-            // --- REPORT TITLE ---
-            let currentY = 110;
+            const drawTableHeader = (columns) => {
+                checkSpace(30);
+                const startY = doc.y;
+                doc.rect(marginX, startY, contentWidth, 25).fill(TABLE_HEADER_BG);
+                doc.font('Helvetica-Bold').fontSize(10).fillColor(TEXT_DARK);
+
+                columns.forEach(col => {
+                    doc.text(col.label, col.x, startY + 8, { width: col.width, align: col.align || 'left' });
+                });
+
+                doc.y = startY + 30;
+            };
+
+            const drawTableRow = (columns, isEven) => {
+                checkSpace(20);
+                const startY = doc.y;
+
+                if (!isEven) {
+                    doc.rect(marginX, startY - 2, contentWidth, 16).fill(ROW_ALT_BG);
+                }
+
+                doc.font('Helvetica').fontSize(10).fillColor(TEXT_DARK);
+                columns.forEach(col => {
+                    doc.text(col.value, col.x, startY, { width: col.width, align: col.align || 'left' });
+                });
+
+                doc.y = startY + 16;
+            };
+
+            // --- START GENERATION ---
+            doc.addPage(); // Trigger first page
+
+            // Report Title
             doc.font('Helvetica-Bold').fontSize(24).fillColor(TEXT_DARK);
-            doc.text('Financial Report', marginX, currentY);
-
-            currentY += 30;
+            doc.text('Financial Report', marginX, doc.y);
+            doc.moveDown(0.5);
             doc.font('Helvetica').fontSize(12).fillColor(TEXT_GRAY);
-            doc.text(`Reporting Period: ${reportData.dateRange}`, marginX, currentY);
-
-            currentY += 20;
+            doc.text(`Reporting Period: ${reportData.dateRange}`, marginX, doc.y);
+            doc.moveDown(0.5);
             doc.font('Helvetica').fontSize(10).fillColor(TEXT_GRAY);
-            doc.text(`Generated on: ${new Date().toLocaleDateString()} | Prepared by: ${reportData.preparedBy}`, marginX, currentY);
+            doc.text(`Generated on: ${new Date().toLocaleDateString()} | Prepared by: ${reportData.preparedBy}`, marginX, doc.y);
 
-            // --- EXECUTIVE SUMMARY ---
-            currentY += 40;
-            doc.font('Helvetica-Bold').fontSize(14).fillColor(TEXT_DARK).text('Executive Summary', marginX, currentY);
-            doc.rect(marginX, currentY + 20, pageWidth - 2 * marginX, 2).fill(BRAND_RED);
+            // Executive Summary
+            drawSectionHeader('Executive Summary');
 
-            currentY += 40;
+            const cardWidth = contentWidth / 4;
+            const summaryY = doc.y;
 
-            // Summary Cards (simulated with text)
-            const cardWidth = (pageWidth - 2 * marginX) / 4;
+            // Draw cards
+            const summaries = [
+                { label: 'Total Income', value: reportData.summary.totalIncome, format: 'currency' },
+                { label: 'Total Expenses', value: reportData.summary.totalExpenses, format: 'currency' },
+                { label: 'Net Position', value: reportData.summary.netPosition, format: 'currency', color: true },
+                { label: 'Net Margin', value: reportData.summary.margin, format: 'percent' }
+            ];
 
-            // Total Income
-            doc.font('Helvetica').fontSize(10).fillColor(TEXT_GRAY).text('Total Income', marginX, currentY);
-            doc.font('Helvetica-Bold').fontSize(14).fillColor(TEXT_DARK).text(`$${reportData.summary.totalIncome.toFixed(2)}`, marginX, currentY + 15);
+            summaries.forEach((item, index) => {
+                const x = marginX + (index * cardWidth);
+                doc.font('Helvetica').fontSize(10).fillColor(TEXT_GRAY).text(item.label, x, summaryY);
 
-            // Total Expenses
-            doc.font('Helvetica').fontSize(10).fillColor(TEXT_GRAY).text('Total Expenses', marginX + cardWidth, currentY);
-            doc.font('Helvetica-Bold').fontSize(14).fillColor(TEXT_DARK).text(`$${reportData.summary.totalExpenses.toFixed(2)}`, marginX + cardWidth, currentY + 15);
+                let valStr = '';
+                let color = TEXT_DARK;
 
-            // Net Position
-            doc.font('Helvetica').fontSize(10).fillColor(TEXT_GRAY).text('Net Position', marginX + cardWidth * 2, currentY);
-            const netColor = reportData.summary.netPosition >= 0 ? '#059669' : '#DC2626'; // Green or Red
-            doc.font('Helvetica-Bold').fontSize(14).fillColor(netColor).text(`$${reportData.summary.netPosition.toFixed(2)}`, marginX + cardWidth * 2, currentY + 15);
+                if (item.format === 'currency') {
+                    valStr = `$${item.value.toFixed(2)}`;
+                    if (item.color) color = item.value >= 0 ? '#059669' : '#DC2626';
+                } else {
+                    valStr = `${item.value.toFixed(1)}%`;
+                }
 
-            // Margin
-            doc.font('Helvetica').fontSize(10).fillColor(TEXT_GRAY).text('Net Margin', marginX + cardWidth * 3, currentY);
-            doc.font('Helvetica-Bold').fontSize(14).fillColor(TEXT_DARK).text(`${reportData.summary.margin.toFixed(1)}%`, marginX + cardWidth * 3, currentY + 15);
+                doc.font('Helvetica-Bold').fontSize(14).fillColor(color).text(valStr, x, summaryY + 15);
+            });
 
-            currentY += 60;
+            doc.y = summaryY + 45;
 
-            // --- PAYMENT METHOD SUMMARY ---
-            doc.font('Helvetica-Bold').fontSize(14).fillColor(TEXT_DARK).text('Summary by Payment Method', marginX, currentY);
-            doc.rect(marginX, currentY + 20, pageWidth - 2 * marginX, 1).fill(BORDER_COLOR);
+            // Payment Methods Table
+            drawSectionHeader('Summary by Payment Method');
 
-            currentY += 35;
+            const pmCols = [
+                { label: 'METHOD', x: marginX + 10, width: 100 },
+                { label: 'INCOME', x: marginX + 150, width: 80, align: 'right' },
+                { label: 'EXPENSE', x: marginX + 250, width: 80, align: 'right' },
+                { label: 'NET', x: marginX + 350, width: 80, align: 'right' }
+            ];
 
-            // Table Header
-            doc.rect(marginX, currentY, pageWidth - 2 * marginX, 25).fill(TABLE_HEADER_BG);
-            doc.font('Helvetica-Bold').fontSize(10).fillColor(TEXT_DARK);
-            doc.text('METHOD', marginX + 10, currentY + 8);
-            doc.text('INCOME', marginX + 150, currentY + 8, { align: 'right', width: 80 });
-            doc.text('EXPENSE', marginX + 250, currentY + 8, { align: 'right', width: 80 });
-            doc.text('NET', marginX + 350, currentY + 8, { align: 'right', width: 80 });
+            drawTableHeader(pmCols);
 
-            currentY += 30;
-
-            // Table Rows
-            doc.font('Helvetica').fontSize(10).fillColor(TEXT_DARK);
-            reportData.paymentMethods.forEach(pm => {
-                doc.text(pm.method, marginX + 10, currentY);
-                doc.text(`$${pm.income.toFixed(2)}`, marginX + 150, currentY, { align: 'right', width: 80 });
-                doc.text(`$${pm.expense.toFixed(2)}`, marginX + 250, currentY, { align: 'right', width: 80 });
-
+            reportData.paymentMethods.forEach((pm, i) => {
                 const netVal = pm.income - pm.expense;
-                const netCol = netVal >= 0 ? '#059669' : '#DC2626';
-                doc.fillColor(netCol).text(`$${netVal.toFixed(2)}`, marginX + 350, currentY, { align: 'right', width: 80 });
-                doc.fillColor(TEXT_DARK); // Reset color
-
-                currentY += 20;
-                doc.moveTo(marginX, currentY - 5).lineTo(pageWidth - marginX, currentY - 5).strokeColor(BORDER_COLOR).stroke();
+                drawTableRow([
+                    { value: pm.method.toUpperCase(), x: marginX + 10, width: 100 },
+                    { value: `$${pm.income.toFixed(2)}`, x: marginX + 150, width: 80, align: 'right' },
+                    { value: `$${pm.expense.toFixed(2)}`, x: marginX + 250, width: 80, align: 'right' },
+                    { value: `$${netVal.toFixed(2)}`, x: marginX + 350, width: 80, align: 'right' }
+                ], i % 2 === 0);
             });
 
-            currentY += 40;
+            // Income Details
+            drawSectionHeader('Income Details');
 
-            // --- INCOME SECTION ---
-            if (currentY > pageHeight - 150) { doc.addPage(); drawHeader(); currentY = 110; }
+            const incCols = [
+                { label: 'DATE', x: marginX + 10, width: 70 },
+                { label: 'CLIENT / DESCRIPTION', x: marginX + 90, width: 250 },
+                { label: 'METHOD', x: marginX + 350, width: 60 },
+                { label: 'AMOUNT', x: pageWidth - marginX - 90, width: 80, align: 'right' }
+            ];
 
-            doc.font('Helvetica-Bold').fontSize(14).fillColor(TEXT_DARK).text('Income Details', marginX, currentY);
-            doc.rect(marginX, currentY + 20, pageWidth - 2 * marginX, 1).fill(BORDER_COLOR);
-            currentY += 35;
+            drawTableHeader(incCols);
 
-            // Income Table Header
-            doc.rect(marginX, currentY, pageWidth - 2 * marginX, 25).fill(TABLE_HEADER_BG);
-            doc.font('Helvetica-Bold').fontSize(9).fillColor(TEXT_DARK);
-            doc.text('DATE', marginX + 10, currentY + 8);
-            doc.text('CLIENT / DESCRIPTION', marginX + 80, currentY + 8);
-            doc.text('METHOD', marginX + 350, currentY + 8);
-            doc.text('AMOUNT', pageWidth - marginX - 90, currentY + 8, { align: 'right', width: 80 });
-
-            currentY += 30;
-
-            // Income Rows
-            doc.font('Helvetica').fontSize(9).fillColor(TEXT_DARK);
-            reportData.incomeDetails.forEach(item => {
-                if (currentY > pageHeight - 50) { doc.addPage(); drawHeader(); currentY = 110; }
-
-                doc.text(new Date(item.date).toLocaleDateString(), marginX + 10, currentY);
-                doc.text((item.description || 'N/A').substring(0, 45), marginX + 80, currentY);
-                doc.text(item.method, marginX + 350, currentY);
-                doc.text(`$${parseFloat(item.amount).toFixed(2)}`, pageWidth - marginX - 90, currentY, { align: 'right', width: 80 });
-
-                currentY += 18;
-                doc.moveTo(marginX, currentY - 5).lineTo(pageWidth - marginX, currentY - 5).strokeColor(BORDER_COLOR).stroke();
+            reportData.incomeDetails.forEach((item, i) => {
+                drawTableRow([
+                    { value: new Date(item.date).toLocaleDateString(), x: marginX + 10, width: 70 },
+                    { value: (item.description || 'N/A').substring(0, 40), x: marginX + 90, width: 250 },
+                    { value: item.method, x: marginX + 350, width: 60 },
+                    { value: `$${parseFloat(item.amount).toFixed(2)}`, x: pageWidth - marginX - 90, width: 80, align: 'right' }
+                ], i % 2 === 0);
             });
 
-            currentY += 40;
+            // Expense Details
+            drawSectionHeader('Expense Details');
 
-            // --- EXPENSES SECTION ---
-            if (currentY > pageHeight - 150) { doc.addPage(); drawHeader(); currentY = 110; }
+            const expCols = [
+                { label: 'DATE', x: marginX + 10, width: 70 },
+                { label: 'REASON', x: marginX + 90, width: 150 },
+                { label: 'CATEGORY', x: marginX + 250, width: 90 },
+                { label: 'METHOD', x: marginX + 350, width: 60 },
+                { label: 'AMOUNT', x: pageWidth - marginX - 90, width: 80, align: 'right' }
+            ];
 
-            doc.font('Helvetica-Bold').fontSize(14).fillColor(TEXT_DARK).text('Expense Details', marginX, currentY);
-            doc.rect(marginX, currentY + 20, pageWidth - 2 * marginX, 1).fill(BORDER_COLOR);
-            currentY += 35;
+            drawTableHeader(expCols);
 
-            // Expense Table Header
-            doc.rect(marginX, currentY, pageWidth - 2 * marginX, 25).fill(TABLE_HEADER_BG);
-            doc.font('Helvetica-Bold').fontSize(9).fillColor(TEXT_DARK);
-            doc.text('DATE', marginX + 10, currentY + 8);
-            doc.text('REASON', marginX + 80, currentY + 8);
-            doc.text('CATEGORY', marginX + 250, currentY + 8);
-            doc.text('METHOD', marginX + 350, currentY + 8);
-            doc.text('AMOUNT', pageWidth - marginX - 90, currentY + 8, { align: 'right', width: 80 });
-
-            currentY += 30;
-
-            // Expense Rows
-            doc.font('Helvetica').fontSize(9).fillColor(TEXT_DARK);
-            reportData.expenseDetails.forEach(item => {
-                if (currentY > pageHeight - 50) { doc.addPage(); drawHeader(); currentY = 110; }
-
-                doc.text(new Date(item.date).toLocaleDateString(), marginX + 10, currentY);
-                doc.text(item.reason.substring(0, 30), marginX + 80, currentY);
-                doc.text(item.category || '-', marginX + 250, currentY);
-                doc.text(item.method, marginX + 350, currentY);
-                doc.text(`$${parseFloat(item.amount).toFixed(2)}`, pageWidth - marginX - 90, currentY, { align: 'right', width: 80 });
-
-                currentY += 18;
-                doc.moveTo(marginX, currentY - 5).lineTo(pageWidth - marginX, currentY - 5).strokeColor(BORDER_COLOR).stroke();
+            reportData.expenseDetails.forEach((item, i) => {
+                drawTableRow([
+                    { value: new Date(item.date).toLocaleDateString(), x: marginX + 10, width: 70 },
+                    { value: item.reason.substring(0, 25), x: marginX + 90, width: 150 },
+                    { value: item.category || '-', x: marginX + 250, width: 90 },
+                    { value: item.method, x: marginX + 350, width: 60 },
+                    { value: `$${parseFloat(item.amount).toFixed(2)}`, x: pageWidth - marginX - 90, width: 80, align: 'right' }
+                ], i % 2 === 0);
             });
 
-            // --- FOOTER (On every page) ---
+
+            // Final Footer Loop
             const range = doc.bufferedPageRange();
             for (let i = range.start; i < range.start + range.count; i++) {
                 doc.switchToPage(i);
-
-                const footerY = pageHeight - 40;
                 doc.font('Helvetica-Oblique').fontSize(8).fillColor(TEXT_GRAY);
-                doc.text('Internal Financial Report – For Management Use Only', marginX, footerY, { align: 'center', width: pageWidth - 2 * marginX });
-                doc.text(`Page ${i + 1} of ${range.count}`, marginX, footerY + 12, { align: 'center', width: pageWidth - 2 * marginX });
+                doc.text('Internal Financial Report – For Management Use Only', marginX, pageHeight - 40, { align: 'center', width: contentWidth });
+                doc.text(`Page ${i + 1} of ${range.count}`, marginX, pageHeight - 28, { align: 'center', width: contentWidth });
             }
 
             doc.end();
