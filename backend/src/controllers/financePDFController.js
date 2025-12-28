@@ -11,7 +11,12 @@ const generateFinancialReportPDF = async (reportData, filePath) => {
     return new Promise(async (resolve, reject) => {
         try {
             const doc = new PDFDocument({
-                margin: 40,
+                margins: {
+                    top: 0,
+                    bottom: 0,
+                    left: 0,
+                    right: 0
+                },
                 size: 'A4',
                 bufferPages: true,
                 autoFirstPage: false // Important: We control the first page to trigger the event
