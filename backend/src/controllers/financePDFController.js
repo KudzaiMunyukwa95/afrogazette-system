@@ -31,8 +31,9 @@ const generateFinancialReportPDF = async (reportData, filePath) => {
             const ROW_ALT_BG = '#F9FAFB'; // Light gray for zebra striping
 
             const marginX = 40;
-            const pageWidth = doc.page.width;
-            const pageHeight = doc.page.height;
+            // PDFKit A4 size in points (standard)
+            const pageWidth = 595.28;
+            const pageHeight = 841.89;
             const contentWidth = pageWidth - 2 * marginX;
 
             // --- HEADER HANDLER ---
