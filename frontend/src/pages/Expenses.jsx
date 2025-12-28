@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import FinanceNav from '../components/FinanceNav';
+import Pagination from '../components/Pagination';
 import { financeAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
@@ -16,6 +17,8 @@ const Expenses = () => {
     const { success, error: showError } = useToast();
     const [loading, setLoading] = useState(true);
     const [expenses, setExpenses] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pagination, setPagination] = useState({ total: 0, totalPages: 0, limit: 15 });
     const [filters, setFilters] = useState({
         status: '',
         payment_method: '',
@@ -34,22 +37,36 @@ const Expenses = () => {
 
     useEffect(() => {
         fetchExpenses();
-    }, [filters]);
+    }, [filters, currentPage]);
 
     const fetchExpenses = async () => {
         try {
             setLoading(true);
             const response = await financeAPI.getExpenses({
                 ...filters,
-                type: 'DirectExpense' // Only show direct expenses here? Or all? Let's show all for now but maybe filter in UI
+                type: 'DirectExpense',
+                page: currentPage,
+                limit: 15
             });
-            setExpenses(response.data.data);
+            // Handle new paginated response structure
+            if (response.data.data.expenses) {
+                setExpenses(response.data.data.expenses);
+                setPagination(response.data.data.pagination);
+            } else {
+                // Fallback for older API version or unexpected structure
+                setExpenses(response.data.data);
+            }
         } catch (error) {
             console.error('Error fetching expenses:', error);
             showError('Failed to load expenses');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+        window.scrollTo(0, 0);
     };
 
     const handleCreateExpense = async (e) => {
@@ -131,7 +148,10 @@ const Expenses = () => {
 
                     <select
                         value={filters.status}
-                        onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                        onChange={(e) => {
+                            setFilters({ ...filters, status: e.target.value });
+                            setCurrentPage(1);
+                        }}
                         className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500"
                     >
                         <option value="">All Statuses</option>
@@ -142,7 +162,10 @@ const Expenses = () => {
 
                     <select
                         value={filters.payment_method}
-                        onChange={(e) => setFilters({ ...filters, payment_method: e.target.value })}
+                        onChange={(e) => {
+                            setFilters({ ...filters, payment_method: e.target.value });
+                            setCurrentPage(1);
+                        }}
                         className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500"
                     >
                         <option value="">All Payment Methods</option>
@@ -154,20 +177,26 @@ const Expenses = () => {
                     <input
                         type="date"
                         value={filters.startDate}
-                        onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                        onChange={(e) => {
+                            setFilters({ ...filters, startDate: e.target.value });
+                            setCurrentPage(1);
+                        }}
                         className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500"
                     />
                     <span className="text-gray-400">-</span>
                     <input
                         type="date"
                         value={filters.endDate}
-                        onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                        onChange={(e) => {
+                            setFilters({ ...filters, endDate: e.target.value });
+                            setCurrentPage(1);
+                        }}
                         className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500"
                     />
                 </div>
 
                 {/* Expenses List */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
                     {expenses.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
@@ -218,6 +247,17 @@ const Expenses = () => {
                         </div>
                     )}
                 </div>
+
+                {/* Pagination */}
+                {expenses.length > 0 && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={pagination.totalPages}
+                        onPageChange={handlePageChange}
+                        totalItems={pagination.total}
+                        itemsPerPage={pagination.limit}
+                    />
+                )}
 
                 {/* Create Expense Modal */}
                 {isModalOpen && (
