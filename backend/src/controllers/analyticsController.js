@@ -5,13 +5,27 @@ const pool = require('../config/database');
  */
 const getDashboard = async (req, res) => {
   try {
-    const { timeFilter = 'month' } = req.query; // today, week, month, lastMonth
+    const { timeFilter = 'month', startDate: customStart, endDate: customEnd } = req.query; // today, week, month, lastMonth, custom
 
     // Calculate date range based on filter
     let startDate, endDate;
     const now = new Date();
 
     switch (timeFilter) {
+      case 'custom':
+        if (customStart && customEnd) {
+          startDate = new Date(customStart);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(customEnd);
+          endDate.setHours(23, 59, 59, 999);
+        } else {
+          // Default to current month if dates not provided
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        }
+        break;
+
       case 'today':
         startDate = new Date(now.setHours(0, 0, 0, 0));
         endDate = new Date(now.setHours(23, 59, 59, 999));
@@ -207,13 +221,27 @@ const getDashboard = async (req, res) => {
 const getMyDashboard = async (req, res) => {
   try {
     const salesRepId = req.user.id;
-    const { timeFilter = 'month' } = req.query; // today, week, month, lastMonth
+    const { timeFilter = 'month', startDate: customStart, endDate: customEnd } = req.query; // today, week, month, lastMonth, custom
 
     // Calculate date range based on filter
     let startDate, endDate;
     const now = new Date();
 
     switch (timeFilter) {
+      case 'custom':
+        if (customStart && customEnd) {
+          startDate = new Date(customStart);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(customEnd);
+          endDate.setHours(23, 59, 59, 999);
+        } else {
+          // Default to current month if dates not provided
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        }
+        break;
+
       case 'today':
         startDate = new Date(now.setHours(0, 0, 0, 0));
         endDate = new Date(now.setHours(23, 59, 59, 999));
