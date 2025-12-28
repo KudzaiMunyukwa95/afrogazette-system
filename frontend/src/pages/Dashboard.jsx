@@ -19,18 +19,32 @@ const Dashboard = () => {
   const { user, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
-  const [timeFilter, setTimeFilter] = useState('month'); // today, week, month, lastMonth
+  const [timeFilter, setTimeFilter] = useState('month'); // today, week, month, lastMonth, custom
+  const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' });
 
   useEffect(() => {
+    // For custom filter, don't fetch automatically until applied manually
+    if (timeFilter === 'custom') return;
     fetchDashboardData();
   }, [timeFilter]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      const params = { timeFilter };
+
+      if (timeFilter === 'custom') {
+        if (!customDateRange.start || !customDateRange.end) {
+          setLoading(false);
+          return;
+        }
+        params.startDate = customDateRange.start;
+        params.endDate = customDateRange.end;
+      }
+
       const response = isAdmin()
-        ? await analyticsAPI.getDashboard({ timeFilter })
-        : await analyticsAPI.getMyDashboard({ timeFilter });
+        ? await analyticsAPI.getDashboard(params)
+        : await analyticsAPI.getMyDashboard(params);
 
       // Debug: Log the response to see data structure
       console.log('Dashboard API Response:', response.data.data);
@@ -114,26 +128,64 @@ const Dashboard = () => {
           </motion.div>
 
           {/* Time Filter Tabs - Swipeable on Mobile */}
-          <div className="mb-6 md:mb-8 -mx-4 md:mx-0">
-            <div className="swipeable flex gap-2 px-4 md:px-0 pb-2">
-              {[
-                { id: 'today', label: 'Today' },
-                { id: 'week', label: 'Last 7 Days' },
-                { id: 'month', label: 'This Month' },
-                { id: 'lastMonth', label: 'Last Month' }
-              ].map((filter) => (
-                <button
-                  key={filter.id}
-                  onClick={() => setTimeFilter(filter.id)}
-                  className={`px-4 md:px-6 py-2 md:py-2.5 rounded-lg text-sm md:text-base font-medium transition-all whitespace-nowrap tap-target ${timeFilter === filter.id
-                    ? 'bg-red-600 text-white shadow-lg shadow-red-200'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-                    }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
+          <div className="mb-6 md:mb-8">
+            <div className="-mx-4 md:mx-0 mb-4">
+              <div className="swipeable flex gap-2 px-4 md:px-0 pb-2 overflow-x-auto">
+                {[
+                  { id: 'today', label: 'Today' },
+                  { id: 'week', label: 'Last 7 Days' },
+                  { id: 'month', label: 'This Month' },
+                  { id: 'lastMonth', label: 'Last Month' },
+                  { id: 'custom', label: 'Custom' }
+                ].map((filter) => (
+                  <button
+                    key={filter.id}
+                    onClick={() => setTimeFilter(filter.id)}
+                    className={`px-4 md:px-6 py-2 md:py-2.5 rounded-lg text-sm md:text-base font-medium transition-all whitespace-nowrap tap-target ${timeFilter === filter.id
+                      ? 'bg-red-600 text-white shadow-lg shadow-red-200'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                      }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Custom Date Inputs */}
+            {timeFilter === 'custom' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row items-end gap-4"
+              >
+                <div className="w-full md:w-auto">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={customDateRange.start}
+                    onChange={(e) => setCustomDateRange(prev => ({ ...prev, start: e.target.value }))}
+                    className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                  />
+                </div>
+                <div className="w-full md:w-auto">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={customDateRange.end}
+                    onChange={(e) => setCustomDateRange(prev => ({ ...prev, end: e.target.value }))}
+                    className="w-full md:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                  />
+                </div>
+                <button
+                  onClick={fetchDashboardData}
+                  disabled={!customDateRange.start || !customDateRange.end}
+                  className="w-full md:w-auto px-6 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Apply Range
+                </button>
+              </motion.div>
+            )}
           </div>
 
           {isAdmin() ? (
