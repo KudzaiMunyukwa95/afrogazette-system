@@ -167,14 +167,32 @@ const getExpenses = async (req, res) => {
             paramCount++;
         }
 
-        query += ` ORDER BY e.created_at DESC`;
+        // Pagination
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 15;
+        const offset = (page - 1) * limit;
+
+        // Get total count first
+        const countResult = await pool.query(`SELECT COUNT(*) FROM (${query}) as count_table`, params);
+        const total = parseInt(countResult.rows[0].count);
+
+        query += ` ORDER BY e.created_at DESC LIMIT $${paramCount++} OFFSET $${paramCount++}`;
+        params.push(limit, offset);
 
         const result = await pool.query(query, params);
-        console.log(`✅ Found ${result.rows.length} expenses matching criteria`);
+        console.log(`✅ Found ${result.rows.length} expenses matching criteria (Page ${page})`);
 
         res.json({
             success: true,
-            data: result.rows
+            data: {
+                expenses: result.rows,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            }
         });
     } catch (error) {
         console.error('Get expenses error:', error);
