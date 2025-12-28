@@ -31,7 +31,11 @@ const Requisitions = () => {
             const response = await financeAPI.getExpenses({
                 status: 'Pending'
             });
-            setRequisitions(response.data.data);
+            console.log('📥 Requisitions Page Response:', response.data);
+
+            // Handle both paginated ({ expenses: [], pagination: {} }) and non-paginated ([]) responses
+            const expensesData = response.data.data.expenses || response.data.data;
+            setRequisitions(expensesData);
         } catch (error) {
             console.error('Error fetching requisitions:', error);
             showError('Failed to load requisitions');
