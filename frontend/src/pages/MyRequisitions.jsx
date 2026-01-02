@@ -20,7 +20,8 @@ const MyRequisitions = () => {
         amount: '',
         category: 'Transport',
         payment_method: 'Cash',
-        details: ''
+        details: '',
+        expense_date: new Date().toISOString().split('T')[0]
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -62,7 +63,8 @@ const MyRequisitions = () => {
                 amount: '',
                 category: 'Transport',
                 payment_method: 'cash',
-                details: ''
+                details: '',
+                expense_date: new Date().toISOString().split('T')[0]
             });
             fetchRequisitions();
         } catch (error) {
@@ -194,6 +196,17 @@ const MyRequisitions = () => {
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Expense Date</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        max={new Date().toISOString().split('T')[0]} // Prevent future dates
+                                        value={formData.expense_date}
+                                        onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                                    />
+                                </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
                                     <input
