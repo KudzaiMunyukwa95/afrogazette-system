@@ -370,126 +370,128 @@ app.post('/api/adverts/manual-update', async (req, res) => {
       error: error.message
     });
   }
-  // TEMPORARY: Fix expense dates
-  app.post('/api/fix-expense-dates', async (req, res) => {
-    try {
-      console.log('🔧 Fixing expense dates...');
-      const result = await pool.query(`
+});
+
+// TEMPORARY: Fix expense dates
+app.post('/api/fix-expense-dates', async (req, res) => {
+  try {
+    console.log('🔧 Fixing expense dates...');
+    const result = await pool.query(`
       UPDATE expenses 
       SET expense_date = created_at 
       WHERE expense_date >= '2026-01-01'::date
       RETURNING id, expense_date, created_at
     `);
-      console.log(`✅ Fixed ${result.rowCount} expenses`);
-      res.json({
-        success: true,
-        fixed: result.rowCount,
-        details: result.rows
-      });
-    } catch (error) {
-      console.error('❌ Fix error:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  });
-
-  // 404 handler
-  app.use((req, res) => {
-    console.log('❌ 404 - Route not found:', req.method, req.path);
-    res.status(404).json({
-      success: false,
-      message: 'Route not found',
-      path: req.path,
-      method: req.method,
-      availableRoutes: [
-        'GET /health',
-        'GET /api',
-        'POST /api/auth/login',
-        'POST /api/adverts/manual-update',
-        'POST /test-login-debug',
-        'POST /create-fresh-admin'
-      ]
+    console.log(`✅ Fixed ${result.rowCount} expenses`);
+    res.json({
+      success: true,
+      fixed: result.rowCount,
+      details: result.rows
     });
-  });
-
-  // Global error handler
-  app.use((err, req, res, next) => {
-    console.error('❌ Global error:', err);
-    res.status(err.status || 500).json({
+  } catch (error) {
+    console.error('❌ Fix error:', error);
+    res.status(500).json({
       success: false,
-      message: err.message || 'Internal server error',
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+      error: error.message
     });
-  });
+  }
+});
 
-  // Start server with comprehensive testing
-  const startServer = async () => {
+// 404 handler
+app.use((req, res) => {
+  console.log('❌ 404 - Route not found:', req.method, req.path);
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
+    path: req.path,
+    method: req.method,
+    availableRoutes: [
+      'GET /health',
+      'GET /api',
+      'POST /api/auth/login',
+      'POST /api/adverts/manual-update',
+      'POST /test-login-debug',
+      'POST /create-fresh-admin'
+    ]
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('❌ Global error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+// Start server with comprehensive testing
+const startServer = async () => {
+  try {
+    // Test database connection
+    console.log('\n🔄 Starting AfroGazette API Server...');
+    console.log('==================================');
+    console.log('1️⃣ Testing database connection...');
+
+    const dbTest = await pool.query('SELECT NOW() as current_time, version()');
+    console.log('✅ Database connected:', dbTest.rows[0].current_time);
+    console.log('📊 Database version:', dbTest.rows[0].version.split(' ')[0]);
+
+    // Check users table
+    console.log('\n2️⃣ Checking users table...');
     try {
-      // Test database connection
-      console.log('\n🔄 Starting AfroGazette API Server...');
-      console.log('==================================');
-      console.log('1️⃣ Testing database connection...');
+      const usersCount = await pool.query('SELECT COUNT(*) as count FROM users');
+      console.log('👥 Total users:', usersCount.rows[0].count);
 
-      const dbTest = await pool.query('SELECT NOW() as current_time, version()');
-      console.log('✅ Database connected:', dbTest.rows[0].current_time);
-      console.log('📊 Database version:', dbTest.rows[0].version.split(' ')[0]);
+      const adminCheck = await pool.query(
+        'SELECT id, email, role, length(password) as pwd_len FROM users WHERE email = $1',
+        ['admin@afrogazette.com']
+      );
 
-      // Check users table
-      console.log('\n2️⃣ Checking users table...');
-      try {
-        const usersCount = await pool.query('SELECT COUNT(*) as count FROM users');
-        console.log('👥 Total users:', usersCount.rows[0].count);
-
-        const adminCheck = await pool.query(
-          'SELECT id, email, role, length(password) as pwd_len FROM users WHERE email = $1',
-          ['admin@afrogazette.com']
-        );
-
-        if (adminCheck.rows.length > 0) {
-          const admin = adminCheck.rows[0];
-          console.log('👨‍💼 Admin user found:', {
-            id: admin.id,
-            email: admin.email,
-            role: admin.role,
-            passwordLength: admin.pwd_len
-          });
-        } else {
-          console.log('⚠️  Admin user NOT found');
-        }
-      } catch (tableError) {
-        console.log('⚠️  Users table issue:', tableError.message);
+      if (adminCheck.rows.length > 0) {
+        const admin = adminCheck.rows[0];
+        console.log('👨‍💼 Admin user found:', {
+          id: admin.id,
+          email: admin.email,
+          role: admin.role,
+          passwordLength: admin.pwd_len
+        });
+      } else {
+        console.log('⚠️  Admin user NOT found');
       }
-
-      // Test JWT secret
-      console.log('\n3️⃣ Checking JWT configuration...');
-      const jwtSecret = process.env.JWT_SECRET;
-      console.log('🔐 JWT Secret:', jwtSecret ? 'Set (' + jwtSecret.length + ' chars)' : 'NOT SET - using fallback');
-
-      // Initialize cron jobs
-      console.log('\n4️⃣ Initializing cron jobs...');
-      initializeCronJobs();
-
-      // Start server
-      app.listen(PORT, '0.0.0.0', () => {
-        console.log('\n🚀 ====================================');
-        console.log(`   AfroGazette API Server RUNNING`);
-        console.log(`   Port: ${PORT}`);
-        console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`   Database: Connected`);
-        console.log(`   Cron Jobs: Active`);
-        console.log(`   API Base: /api`);
-        console.log(`   Debug Routes: /test-login-debug, /create-fresh-admin`);
-        console.log('🚀 ====================================\n');
-      });
-
-    } catch (error) {
-      console.error('❌ Failed to start server:', error);
-      process.exit(1);
+    } catch (tableError) {
+      console.log('⚠️  Users table issue:', tableError.message);
     }
-  };
 
-  startServer();
+    // Test JWT secret
+    console.log('\n3️⃣ Checking JWT configuration...');
+    const jwtSecret = process.env.JWT_SECRET;
+    console.log('🔐 JWT Secret:', jwtSecret ? 'Set (' + jwtSecret.length + ' chars)' : 'NOT SET - using fallback');
 
-  module.exports = app;
+    // Initialize cron jobs
+    console.log('\n4️⃣ Initializing cron jobs...');
+    initializeCronJobs();
+
+    // Start server
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log('\n🚀 ====================================');
+      console.log(`   AfroGazette API Server RUNNING`);
+      console.log(`   Port: ${PORT}`);
+      console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`   Database: Connected`);
+      console.log(`   Cron Jobs: Active`);
+      console.log(`   API Base: /api`);
+      console.log(`   Debug Routes: /test-login-debug, /create-fresh-admin`);
+      console.log('🚀 ====================================\n');
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
+
+module.exports = app;
