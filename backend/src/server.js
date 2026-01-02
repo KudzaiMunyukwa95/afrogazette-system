@@ -372,31 +372,6 @@ app.post('/api/adverts/manual-update', async (req, res) => {
   }
 });
 
-// TEMPORARY: Fix expense dates
-app.post('/api/fix-expense-dates', async (req, res) => {
-  try {
-    console.log('🔧 Fixing expense dates...');
-    const result = await pool.query(`
-      UPDATE expenses 
-      SET expense_date = created_at 
-      WHERE expense_date >= '2026-01-01'::date
-      RETURNING id, expense_date, created_at
-    `);
-    console.log(`✅ Fixed ${result.rowCount} expenses`);
-    res.json({
-      success: true,
-      fixed: result.rowCount,
-      details: result.rows
-    });
-  } catch (error) {
-    console.error('❌ Fix error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
 // 404 handler
 app.use((req, res) => {
   console.log('❌ 404 - Route not found:', req.method, req.path);
