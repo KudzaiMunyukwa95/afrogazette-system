@@ -199,11 +199,11 @@ const getExpenseBreakdown = async (req, res) => {
 
         // Time Series (Daily)
         const timeSeriesQuery = `
-            SELECT DATE(created_at) as date, COALESCE(SUM(amount), 0) as total
+            SELECT DATE(expense_date) as date, COALESCE(SUM(amount), 0) as total
             FROM expenses
             WHERE 1=1 ${approvedFilter} ${dateFilter}
-            GROUP BY DATE(created_at)
-            ORDER BY DATE(created_at)
+            GROUP BY DATE(expense_date)
+            ORDER BY DATE(expense_date)
         `;
         const timeSeriesResult = await pool.query(timeSeriesQuery, params);
 
@@ -274,12 +274,12 @@ const getPaymentMethodSummary = async (req, res) => {
             paramIndex = 2;
 
             if (startDate) {
-                expenseQuery += ` AND created_at >= $${paramIndex}`;
+                expenseQuery += ` AND expense_date >= $${paramIndex}`;
                 expenseParams.push(startDate);
                 paramIndex++;
             }
             if (endDate) {
-                expenseQuery += ` AND created_at < $${paramIndex}::date + INTERVAL '1 day'`;
+                expenseQuery += ` AND expense_date < $${paramIndex}::date + INTERVAL '1 day'`;
                 expenseParams.push(endDate);
             }
 
