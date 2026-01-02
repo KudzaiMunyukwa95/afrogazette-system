@@ -47,12 +47,7 @@ router.get('/expenses/:id/history', authenticate, getExpenseHistory);
 // --- FINANCIAL REPORTING (Admin Only) ---
 
 // Financial Overview (KPIs)
-console.log('DEBUG: financeRoutes imports', {
-    hasAuth: !!authenticate,
-    hasAdmin: !!isAdmin,
-    hasOverview: !!getFinancialOverview,
-    overviewType: typeof getFinancialOverview
-});
+// Financial Overview (KPIs)
 router.get('/reports/overview', authenticate, isAdmin, getFinancialOverview);
 
 // Income Breakdown
