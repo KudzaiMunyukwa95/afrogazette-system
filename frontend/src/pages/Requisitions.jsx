@@ -46,7 +46,7 @@ const Requisitions = () => {
 
     const handleApprove = async (id, raisedById) => {
         if (user.id === raisedById) {
-            showError('You cannot approve your own requisition');
+            showError('You are an admin and you cannot approve your own requisition');
             return;
         }
 
@@ -119,7 +119,7 @@ const Requisitions = () => {
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-2 text-sm text-gray-500">
                                             <Calendar className="w-4 h-4" />
-                                            {format(new Date(req.created_at), 'MMM d, yyyy')}
+                                            {format(new Date(req.expense_date || req.created_at), 'MMM d, yyyy')}
                                         </div>
                                         <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 flex items-center gap-1">
                                             <Clock className="w-3 h-3" /> Pending
