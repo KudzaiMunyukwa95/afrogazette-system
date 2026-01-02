@@ -45,26 +45,14 @@ const getFinancialOverview = async (req, res) => {
         const expenseResult = await pool.query(expenseQuery, params);
         const totalExpenses = parseFloat(expenseResult.rows[0].total_expenses);
 
-        // DEBUG: Find out WHICH expenses are appearing in Jan 2026
-        const debugExpenseQuery = `
-            SELECT id, reason, amount, expense_date, created_at
-            FROM expenses
-            WHERE status = 'Approved' ${dateFilter}
-        `;
-        const debugResult = await pool.query(debugExpenseQuery, params);
-        if (debugResult.rows.length > 0) {
-            console.log('DEBUG: Expenses found in this period:', debugResult.rows);
-        } else {
-            console.log('DEBUG: No expenses found for this period (Result is clean)');
-        }
-
-        // 3. Pending Items
+        // 3. Pending Items (ALL TIME - Should not be filtered by date)
         const pendingQuery = `
             SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount
             FROM expenses
-            WHERE status = 'Pending' ${dateFilter}
+            WHERE status = 'Pending'
         `;
-        const pendingResult = await pool.query(pendingQuery, params);
+        // Use empty params for pending query as it has no placeholders
+        const pendingResult = await pool.query(pendingQuery);
 
         // 4. Payment Method Breakdown (Expenses)
         const paymentMethodQuery = `
