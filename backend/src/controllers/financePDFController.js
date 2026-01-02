@@ -288,33 +288,86 @@ const downloadFinancialReport = async (req, res) => {
             LEFT JOIN clients c ON a.client_id = c.id
             WHERE i.amount > 0
         `;
+        // query params
         const params = [];
         let paramCount = 1;
-        if (startDate) { incomeQuery += ` AND i.generated_at >= $${paramCount}`; params.push(startDate); paramCount++; }
-        if (endDate) { incomeQuery += ` AND i.generated_at < $${paramCount}::date + INTERVAL '1 day'`; params.push(endDate); paramCount++; }
+
+        // 1. Fetch Income Details & Total
+        let incomeQuery = `
+            SELECT i.generated_at as date, 
+                   COALESCE(c.name, a.client_name, 'Unknown Client') as description, 
+                   a.payment_method as method, 
+                   i.amount
+            FROM invoices i
+            JOIN adverts a ON i.advert_id = a.id
+            LEFT JOIN clients c ON a.client_id = c.id
+            WHERE i.amount > 0
+        `;
+        if (startDate) {
+            incomeQuery += ` AND i.generated_at >= $${paramCount}`;
+            params.push(startDate);
+            paramCount++;
+        }
+        if (endDate) {
+            incomeQuery += ` AND i.generated_at < $${paramCount}::date + INTERVAL '1 day'`;
+            params.push(endDate);
+            paramCount++;
+        }
         incomeQuery += ` ORDER BY i.generated_at DESC`;
         const incomeResult = await pool.query(incomeQuery, params);
 
-        // Fetch Expense Details
+        // 2. Fetch Expense Details
+        // We use a separate params array for clarity/safety, distinct from income
+        const expenseParams = [];
+        let expParamCount = 1;
         let expenseQuery = `
-            SELECT created_at as date, reason, category, payment_method as method, amount
+            SELECT expense_date as date, reason, category, payment_method as method, amount
             FROM expenses
             WHERE status = 'Approved' AND amount > 0
         `;
-        // Reuse params as they are the same for date filtering
-        let expParamCount = 1;
-        if (startDate) { expenseQuery += ` AND created_at >= $${expParamCount}`; expParamCount++; }
-        if (endDate) { expenseQuery += ` AND created_at < $${expParamCount}::date + INTERVAL '1 day'`; expParamCount++; }
-        expenseQuery += ` ORDER BY created_at DESC`;
-        const expenseResult = await pool.query(expenseQuery, params);
+        if (startDate) {
+            expenseQuery += ` AND expense_date >= $${expParamCount}`;
+            expenseParams.push(startDate);
+            expParamCount++;
+        }
+        if (endDate) {
+            expenseQuery += ` AND expense_date < $${expParamCount}::date + INTERVAL '1 day'`;
+            expenseParams.push(endDate);
+            expParamCount++;
+        }
+        expenseQuery += ` ORDER BY expense_date DESC`;
+        const expenseResult = await pool.query(expenseQuery, expenseParams);
 
-        // Calculate Summary
-        const totalIncome = incomeResult.rows.reduce((sum, item) => sum + parseFloat(item.amount), 0);
-        const totalExpenses = expenseResult.rows.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+        // 3. Calc Totals via SQL for guaranteed consistency
+        // Re-using the logic from financeController.js
+        let totalIncomeQuery = `
+            SELECT COALESCE(SUM(amount), 0) as total 
+            FROM invoices i 
+            WHERE i.amount > 0
+        `;
+        const totalIncomeParams = [];
+        let tiCount = 1;
+        if (startDate) { totalIncomeQuery += ` AND i.generated_at >= $${tiCount}`; totalIncomeParams.push(startDate); tiCount++; }
+        if (endDate) { totalIncomeQuery += ` AND i.generated_at < $${tiCount}::date + INTERVAL '1 day'`; totalIncomeParams.push(endDate); tiCount++; }
+        const totalIncomeRes = await pool.query(totalIncomeQuery, totalIncomeParams);
+        const totalIncome = parseFloat(totalIncomeRes.rows[0].total);
+
+        let totalExpenseQuery = `
+            SELECT COALESCE(SUM(amount), 0) as total 
+            FROM expenses 
+            WHERE status = 'Approved'
+        `;
+        const totalExpenseParams = [];
+        let teCount = 1;
+        if (startDate) { totalExpenseQuery += ` AND expense_date >= $${teCount}`; totalExpenseParams.push(startDate); teCount++; }
+        if (endDate) { totalExpenseQuery += ` AND expense_date < $${teCount}::date + INTERVAL '1 day'`; totalExpenseParams.push(endDate); teCount++; }
+        const totalExpenseRes = await pool.query(totalExpenseQuery, totalExpenseParams);
+        const totalExpenses = parseFloat(totalExpenseRes.rows[0].total);
+
         const netPosition = totalIncome - totalExpenses;
         const margin = totalIncome > 0 ? (netPosition / totalIncome) * 100 : 0;
 
-        // Calculate Payment Method Summary
+        // Calculate Payment Method Summary (Using fetched rows to match PDF table detail)
         const methods = ['cash', 'ecocash', 'innbucks'];
         const paymentMethods = methods.map(method => {
             const inc = incomeResult.rows.filter(i => (i.method || '').toLowerCase() === method).reduce((s, i) => s + parseFloat(i.amount), 0);
