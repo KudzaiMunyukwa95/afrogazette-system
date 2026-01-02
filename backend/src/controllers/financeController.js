@@ -1,316 +1,483 @@
 const pool = require('../config/database');
 
 /**
- * Get Financial Overview (KPIs)
+ * Create a new expense (Admin Direct Expense)
  */
-const getFinancialOverview = async (req, res) => {
+const createExpense = async (req, res) => {
+    const client = await pool.connect();
     try {
-        const { startDate, endDate } = req.query;
+        const { reason, amount, payment_method, details, category, expense_date } = req.body;
+        const raised_by_user_id = req.user.id;
 
-        // Base date filter
-        let dateFilter = '';
+        console.log('DEBUG: createExpense Body:', req.body);
+
+        // Use provided date or default to current date
+        const finalDate = expense_date || new Date();
+
+        await client.query('BEGIN');
+
+        // Create expense record
+        const expenseResult = await client.query(
+            `INSERT INTO expenses 
+            (reason, amount, payment_method, details, category, type, status, raised_by_user_id, expense_date) 
+            VALUES ($1, $2, $3, $4, $5, 'DirectExpense', 'Pending', $6, $7) 
+            RETURNING *`,
+            [reason, amount, payment_method, details, category, raised_by_user_id, finalDate]
+        );
+
+        const expense = expenseResult.rows[0];
+
+        // Log to history
+        await client.query(
+            `INSERT INTO expense_status_history 
+            (expense_id, new_status, changed_by_user_id, comment) 
+            VALUES ($1, 'Pending', $2, 'Direct Expense Created')`,
+            [expense.id, raised_by_user_id]
+        );
+
+        await client.query('COMMIT');
+
+        res.status(201).json({
+            success: true,
+            message: 'Expense created successfully',
+            data: expense
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Create expense error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error creating expense',
+            error: error.message // Expose error for debugging
+        });
+    } finally {
+        client.release();
+    }
+};
+
+/**
+ * Create a new requisition (Sales Rep)
+ */
+const createRequisition = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { reason, amount, payment_method, details, category, expense_date } = req.body;
+        const raised_by_user_id = req.user.id;
+
+        console.log('DEBUG: createRequisition Body:', req.body);
+
+        // Use provided date or default to current date
+        const finalDate = expense_date || new Date();
+
+        await client.query('BEGIN');
+
+        // Create requisition record
+        const expenseResult = await client.query(
+            `INSERT INTO expenses 
+            (reason, amount, payment_method, details, category, type, status, raised_by_user_id, expense_date) 
+            VALUES ($1, $2, $3, $4, $5, 'Requisition', 'Pending', $6, $7) 
+            RETURNING *`,
+            [reason, amount, payment_method, details, category, raised_by_user_id, finalDate]
+        );
+
+        const expense = expenseResult.rows[0];
+
+        // Log to history
+        await client.query(
+            `INSERT INTO expense_status_history 
+            (expense_id, new_status, changed_by_user_id, comment) 
+            VALUES ($1, 'Pending', $2, 'Requisition Created')`,
+            [expense.id, raised_by_user_id]
+        );
+
+        await client.query('COMMIT');
+
+        res.status(201).json({
+            success: true,
+            message: 'Requisition submitted successfully',
+            data: expense
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Create requisition error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error creating requisition',
+            error: error.message // Expose error for debugging
+        });
+    } finally {
+        client.release();
+    }
+};
+
+/**
+ * Get expenses with filters
+ */
+const getExpenses = async (req, res) => {
+    try {
+        const { status, payment_method, startDate, endDate, type } = req.query;
+        const userId = req.user.id;
+        const userRole = req.user.role;
+
+        console.log('🔍 GET /expenses Request:', {
+            query: req.query,
+            userId,
+            userRole
+        });
+
+        let query = `
+            SELECT e.*, 
+                   u_raised.full_name as raised_by_name,
+                   u_approved.full_name as approved_by_name
+            FROM expenses e
+            JOIN users u_raised ON e.raised_by_user_id = u_raised.id
+            LEFT JOIN users u_approved ON e.approved_by_user_id = u_approved.id
+            WHERE 1=1
+        `;
         const params = [];
         let paramCount = 1;
 
-        console.log('DEBUG: getFinancialOverview Params:', { startDate, endDate });
+        // Role-based filtering
+        if (userRole === 'sales_rep') {
+            // Sales reps only see their own requisitions
+            query += ` AND e.raised_by_user_id = $${paramCount}`;
+            params.push(userId);
+            paramCount++;
+        }
+
+        // Apply filters
+        if (status) {
+            query += ` AND e.status = $${paramCount}`;
+            params.push(status);
+            paramCount++;
+        }
+
+        if (payment_method) {
+            query += ` AND e.payment_method = $${paramCount}`;
+            params.push(payment_method);
+            paramCount++;
+        }
+
+        if (type) {
+            query += ` AND e.type = $${paramCount}`;
+            params.push(type);
+            paramCount++;
+        }
 
         if (startDate) {
-            dateFilter += ` AND expense_date >= $${paramCount}`;
+            query += ` AND e.created_at >= $${paramCount}`;
             params.push(startDate);
             paramCount++;
         }
+
         if (endDate) {
-            dateFilter += ` AND expense_date < $${paramCount}::date + INTERVAL '1 day'`;
+            // Add one day to include the end date fully
+            query += ` AND e.created_at < $${paramCount}::date + INTERVAL '1 day'`;
             params.push(endDate);
             paramCount++;
         }
 
-        // 1. Total Income (from invoices)
-        let invoiceDateFilter = dateFilter.replace(/expense_date/g, 'generated_at');
-        const incomeQuery = `
-            SELECT COALESCE(SUM(amount), 0) as total_income
-            FROM invoices
-            WHERE 1=1 ${invoiceDateFilter}
-        `;
-        const incomeResult = await pool.query(incomeQuery, params);
-        const totalIncome = parseFloat(incomeResult.rows[0].total_income);
+        // Pagination
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 15;
+        const offset = (page - 1) * limit;
 
-        // 2. Total Expenses (Approved only)
-        const expenseQuery = `
-            SELECT COALESCE(SUM(amount), 0) as total_expenses
-            FROM expenses
-            WHERE status = 'Approved' ${dateFilter}
-        `;
-        console.log('DEBUG: expenseQuery:', expenseQuery);
-        const expenseResult = await pool.query(expenseQuery, params);
-        const totalExpenses = parseFloat(expenseResult.rows[0].total_expenses);
+        // Get total count first
+        const countResult = await pool.query(`SELECT COUNT(*) FROM (${query}) as count_table`, params);
+        const total = parseInt(countResult.rows[0].count);
 
-        // 3. Pending Items
-        const pendingQuery = `
-            SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount
-            FROM expenses
-            WHERE status = 'Pending' ${dateFilter}
-        `;
-        const pendingResult = await pool.query(pendingQuery, params);
+        query += ` ORDER BY e.created_at DESC LIMIT $${paramCount++} OFFSET $${paramCount++}`;
+        params.push(limit, offset);
 
-        // 4. Payment Method Breakdown (Expenses)
-        const paymentMethodQuery = `
-            SELECT payment_method, COALESCE(SUM(amount), 0) as total
-            FROM expenses
-            WHERE status = 'Approved' ${dateFilter}
-            GROUP BY payment_method
-        `;
-        const paymentMethodResult = await pool.query(paymentMethodQuery, params);
-
-        // Calculate Net Position
-        const netPosition = totalIncome - totalExpenses;
-        const margin = totalIncome > 0 ? (netPosition / totalIncome) * 100 : 0;
+        const result = await pool.query(query, params);
+        console.log(`✅ Found ${result.rows.length} expenses matching criteria (Page ${page})`);
 
         res.json({
             success: true,
             data: {
-                totalIncome,
-                totalExpenses,
-                netPosition,
-                margin: parseFloat(margin.toFixed(2)),
-                pending: {
-                    count: parseInt(pendingResult.rows[0].count),
-                    amount: parseFloat(pendingResult.rows[0].total_amount)
-                },
-                paymentMethods: paymentMethodResult.rows
+                expenses: result.rows,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
             }
         });
     } catch (error) {
-        console.error('Get financial overview error:', error);
+        console.error('Get expenses error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error fetching financial overview'
+            message: 'Server error fetching expenses'
         });
     }
 };
 
 /**
- * Get Income Breakdown
+ * Get single expense details
  */
-const getIncomeBreakdown = async (req, res) => {
+const getExpenseById = async (req, res) => {
     try {
-        const { startDate, endDate } = req.query;
+        const { id } = req.params;
 
-        let dateFilter = '';
-        const params = [];
-        let paramCount = 1;
+        const result = await pool.query(
+            `SELECT e.*, 
+                   u_raised.full_name as raised_by_name,
+                   u_approved.full_name as approved_by_name
+            FROM expenses e
+            JOIN users u_raised ON e.raised_by_user_id = u_raised.id
+            LEFT JOIN users u_approved ON e.approved_by_user_id = u_approved.id
+            WHERE e.id = $1`,
+            [id]
+        );
 
-        if (startDate) {
-            dateFilter += ` AND i.generated_at >= $${paramCount}`;
-            params.push(startDate);
-            paramCount++;
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Expense not found' });
         }
-        if (endDate) {
-            dateFilter += ` AND i.generated_at < $${paramCount}::date + INTERVAL '1 day'`;
-            params.push(endDate);
-            paramCount++;
+
+        const expense = result.rows[0];
+
+        // Check permission for sales reps
+        if (req.user.role === 'sales_rep' && expense.raised_by_user_id !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
         }
-
-        // Breakdown by Payment Method
-        const paymentMethodQuery = `
-            SELECT a.payment_method, COALESCE(SUM(i.amount), 0) as total
-            FROM invoices i
-            JOIN adverts a ON i.advert_id = a.id
-            WHERE 1=1 ${dateFilter}
-            GROUP BY a.payment_method
-        `;
-        const paymentMethodResult = await pool.query(paymentMethodQuery, params);
-
-        // Breakdown by Category
-        const typeQuery = `
-            SELECT a.category, COALESCE(SUM(i.amount), 0) as total
-            FROM invoices i
-            JOIN adverts a ON i.advert_id = a.id
-            WHERE 1=1 ${dateFilter}
-            GROUP BY a.category
-        `;
-        const typeResult = await pool.query(typeQuery, params);
-
-        // Time Series (Daily)
-        const timeSeriesQuery = `
-            SELECT DATE(i.generated_at) as date, COALESCE(SUM(i.amount), 0) as total
-            FROM invoices i
-            WHERE 1=1 ${dateFilter}
-            GROUP BY DATE(i.generated_at)
-            ORDER BY DATE(i.generated_at)
-        `;
-        const timeSeriesResult = await pool.query(timeSeriesQuery, params);
 
         res.json({
             success: true,
-            data: {
-                byPaymentMethod: paymentMethodResult.rows,
-                byCategory: typeResult.rows,
-                timeSeries: timeSeriesResult.rows
-            }
+            data: expense
         });
     } catch (error) {
-        console.error('Get income breakdown error:', error);
+        console.error('Get expense details error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error fetching income breakdown'
+            message: 'Server error fetching expense details'
         });
     }
 };
 
 /**
- * Get Expense Breakdown
+ * Approve expense/requisition
  */
-const getExpenseBreakdown = async (req, res) => {
+const approveExpense = async (req, res) => {
+    const client = await pool.connect();
     try {
-        const { startDate, endDate } = req.query;
+        const { id } = req.params;
+        const approverId = req.user.id;
 
-        let dateFilter = '';
-        const params = [];
-        let paramCount = 1;
+        await client.query('BEGIN');
 
-        if (startDate) {
-            dateFilter += ` AND expense_date >= $${paramCount}`;
-            params.push(startDate);
-            paramCount++;
-        }
-        if (endDate) {
-            dateFilter += ` AND expense_date < $${paramCount}::date + INTERVAL '1 day'`;
-            params.push(endDate);
-            paramCount++;
+        // Check if expense exists and is pending
+        const checkResult = await client.query('SELECT * FROM expenses WHERE id = $1', [id]);
+
+        if (checkResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'Expense not found' });
         }
 
-        const approvedFilter = " AND status = 'Approved'";
+        const expense = checkResult.rows[0];
 
-        // Breakdown by Category
-        const categoryQuery = `
-            SELECT category, COALESCE(SUM(amount), 0) as total
-            FROM expenses
-            WHERE 1=1 ${approvedFilter} ${dateFilter}
-            GROUP BY category
-        `;
-        const categoryResult = await pool.query(categoryQuery, params);
+        if (expense.status !== 'Pending') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Expense is not pending' });
+        }
 
-        // Breakdown by Payment Method
-        const paymentMethodQuery = `
-            SELECT payment_method, COALESCE(SUM(amount), 0) as total
-            FROM expenses
-            WHERE 1=1 ${approvedFilter} ${dateFilter}
-            GROUP BY payment_method
-        `;
-        const paymentMethodResult = await pool.query(paymentMethodQuery, params);
-
-        // Time Series (Daily)
-        const timeSeriesQuery = `
-            SELECT DATE(expense_date) as date, COALESCE(SUM(amount), 0) as total
-            FROM expenses
-            WHERE 1=1 ${approvedFilter} ${dateFilter}
-            GROUP BY DATE(expense_date)
-            ORDER BY DATE(expense_date)
-        `;
-        const timeSeriesResult = await pool.query(timeSeriesQuery, params);
-
-        res.json({
-            success: true,
-            data: {
-                byCategory: categoryResult.rows,
-                byPaymentMethod: paymentMethodResult.rows,
-                timeSeries: timeSeriesResult.rows
-            }
-        });
-    } catch (error) {
-        console.error('Get expense breakdown error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error fetching expense breakdown'
-        });
-    }
-};
-
-/**
- * Get Payment Method Summary (Income vs Expense vs Net)
- * Note: adverts uses payment_method_enum ('cash', 'ecocash', 'innbucks')
- *       expenses uses payment_method_type ('Cash', 'EcoCash', 'Innbucks')
- */
-const getPaymentMethodSummary = async (req, res) => {
-    try {
-        const { startDate, endDate } = req.query;
-
-        const methods = [
-            { advertMethod: 'cash', expenseMethod: 'Cash', display: 'Cash' },
-            { advertMethod: 'ecocash', expenseMethod: 'EcoCash', display: 'EcoCash' },
-            { advertMethod: 'innbucks', expenseMethod: 'Innbucks', display: 'Innbucks' }
-        ];
-        const summary = [];
-
-        for (const methodPair of methods) {
-            // Income query (uses lowercase for adverts)
-            let incomeQuery = `
-                SELECT COALESCE(SUM(i.amount), 0) as total
-                FROM invoices i
-                JOIN adverts a ON i.advert_id = a.id
-                WHERE a.payment_method = $1
-            `;
-            const incomeParams = [methodPair.advertMethod];
-            let paramIndex = 2;
-
-            if (startDate) {
-                incomeQuery += ` AND i.generated_at >= $${paramIndex}`;
-                incomeParams.push(startDate);
-                paramIndex++;
-            }
-            if (endDate) {
-                incomeQuery += ` AND i.generated_at < $${paramIndex}::date + INTERVAL '1 day'`;
-                incomeParams.push(endDate);
-            }
-
-            const incomeResult = await pool.query(incomeQuery, incomeParams);
-            const income = parseFloat(incomeResult.rows[0].total);
-
-            // Expense query (uses capitalized for expenses)
-            let expenseQuery = `
-                SELECT COALESCE(SUM(amount), 0) as total
-                FROM expenses
-                WHERE payment_method = $1 AND status = 'Approved'
-            `;
-            const expenseParams = [methodPair.expenseMethod];
-            paramIndex = 2;
-
-            if (startDate) {
-                expenseQuery += ` AND expense_date >= $${paramIndex}`;
-                expenseParams.push(startDate);
-                paramIndex++;
-            }
-            if (endDate) {
-                expenseQuery += ` AND expense_date < $${paramIndex}::date + INTERVAL '1 day'`;
-                expenseParams.push(endDate);
-            }
-
-            const expenseResult = await pool.query(expenseQuery, expenseParams);
-            const expense = parseFloat(expenseResult.rows[0].total);
-
-            summary.push({
-                method: methodPair.display,
-                income,
-                expense,
-                net: income - expense
+        // Validate: Approver cannot be the raiser
+        if (expense.raised_by_user_id === approverId) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({
+                success: false,
+                message: 'You cannot approve your own expense/requisition'
             });
         }
 
+        // Update status
+        const updateResult = await client.query(
+            `UPDATE expenses 
+            SET status = 'Approved', approved_by_user_id = $1, approved_at = CURRENT_TIMESTAMP 
+            WHERE id = $2 
+            RETURNING *`,
+            [approverId, id]
+        );
+
+        // Log to history
+        await client.query(
+            `INSERT INTO expense_status_history 
+            (expense_id, old_status, new_status, changed_by_user_id, comment) 
+            VALUES ($1, 'Pending', 'Approved', $2, 'Approved by Admin')`,
+            [id, approverId]
+        );
+
+        await client.query('COMMIT');
+
         res.json({
             success: true,
-            data: summary
+            message: 'Expense approved successfully',
+            data: updateResult.rows[0]
         });
     } catch (error) {
-        console.error('Get payment method summary error:', error);
+        await client.query('ROLLBACK');
+        console.error('Approve expense error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error fetching payment method summary'
+            message: 'Server error approving expense'
+        });
+    } finally {
+        client.release();
+    }
+};
+
+/**
+ * Reject expense/requisition
+ */
+const rejectExpense = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { id } = req.params;
+        const { comment } = req.body;
+        const rejectorId = req.user.id;
+
+        await client.query('BEGIN');
+
+        // Check if expense exists and is pending
+        const checkResult = await client.query('SELECT * FROM expenses WHERE id = $1', [id]);
+
+        if (checkResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'Expense not found' });
+        }
+
+        const expense = checkResult.rows[0];
+
+        if (expense.status !== 'Pending') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Expense is not pending' });
+        }
+
+        // Update status
+        const updateResult = await client.query(
+            `UPDATE expenses 
+            SET status = 'Rejected', rejection_comment = $1 
+            WHERE id = $2 
+            RETURNING *`,
+            [comment, id]
+        );
+
+        // Log to history
+        await client.query(
+            `INSERT INTO expense_status_history 
+            (expense_id, old_status, new_status, changed_by_user_id, comment) 
+            VALUES ($1, 'Pending', 'Rejected', $2, $3)`,
+            [id, rejectorId, comment]
+        );
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: 'Expense rejected successfully',
+            data: updateResult.rows[0]
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Reject expense error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error rejecting expense'
+        });
+    } finally {
+        client.release();
+    }
+};
+
+/**
+ * Get expense history
+ */
+const getExpenseHistory = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // First check access rights
+        const expenseCheck = await pool.query('SELECT raised_by_user_id FROM expenses WHERE id = $1', [id]);
+        if (expenseCheck.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Expense not found' });
+        }
+
+        if (req.user.role === 'sales_rep' && expenseCheck.rows[0].raised_by_user_id !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
+        const result = await pool.query(
+            `SELECT h.*, u.full_name as changed_by_name
+            FROM expense_status_history h
+            JOIN users u ON h.changed_by_user_id = u.id
+            WHERE h.expense_id = $1
+            ORDER BY h.created_at DESC`,
+            [id]
+        );
+
+        res.json({
+            success: true,
+            data: result.rows
+        });
+    } catch (error) {
+        console.error('Get expense history error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error fetching expense history'
         });
     }
 };
 
-exports.getFinancialOverview = getFinancialOverview;
-exports.getIncomeBreakdown = getIncomeBreakdown;
-exports.getExpenseBreakdown = getExpenseBreakdown;
-exports.getPaymentMethodSummary = getPaymentMethodSummary;
+/**
+ * Delete Expense (Super Admin Only)
+ */
+const deleteExpense = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { id } = req.params;
+
+        await client.query('BEGIN');
+
+        // Delete history first (foreign key constraint)
+        await client.query('DELETE FROM expense_status_history WHERE expense_id = $1', [id]);
+
+        // Delete the expense
+        const result = await client.query('DELETE FROM expenses WHERE id = $1 RETURNING *', [id]);
+
+        if (result.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({
+                success: false,
+                message: 'Expense not found'
+            });
+        }
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: 'Expense deleted successfully',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Delete expense error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error deleting expense'
+        });
+    } finally {
+        client.release();
+    }
+};
+
+module.exports = {
+    createExpense,
+    createRequisition,
+    getExpenses,
+    getExpenseById,
+    approveExpense,
+    rejectExpense,
+    getExpenseHistory,
+    deleteExpense
+};
