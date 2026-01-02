@@ -9,12 +9,8 @@ const createExpense = async (req, res) => {
         const { reason, amount, payment_method, details, category, expense_date } = req.body;
         const raised_by_user_id = req.user.id;
 
-        console.log('DEBUG: createExpense Body:', req.body);
-
         // Use provided date or default to current date
         const finalDate = expense_date || new Date();
-
-        console.log('DEBUG: finalDate used for insert:', finalDate);
 
         await client.query('BEGIN');
 
@@ -28,7 +24,6 @@ const createExpense = async (req, res) => {
         );
 
         const expense = expenseResult.rows[0];
-        console.log('DEBUG: Expense Created in DB:', expense);
 
         // Log to history
         await client.query(
@@ -66,8 +61,6 @@ const createRequisition = async (req, res) => {
     try {
         const { reason, amount, payment_method, details, category, expense_date } = req.body;
         const raised_by_user_id = req.user.id;
-
-        console.log('DEBUG: createRequisition Body:', req.body);
 
         // Use provided date or default to current date
         const finalDate = expense_date || new Date();
@@ -198,14 +191,6 @@ const getExpenses = async (req, res) => {
         }
 
         const result = await pool.query(query, params);
-
-        if (result.rows.length > 0) {
-            console.log('DEBUG: First fetched expense:', {
-                id: result.rows[0].id,
-                created_at: result.rows[0].created_at,
-                expense_date: result.rows[0].expense_date
-            });
-        }
         console.log(`✅ Found ${result.rows.length} expenses matching criteria (Page ${page})`);
 
         res.json({
