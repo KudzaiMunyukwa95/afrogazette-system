@@ -1,5 +1,4 @@
-const { Pool } = require('pg');
-console.log('DEBUG: Loading financeController.js');
+const pool = require('../config/database');
 
 /**
  * Get Financial Overview (KPIs)
