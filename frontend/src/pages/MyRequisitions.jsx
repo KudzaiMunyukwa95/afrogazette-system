@@ -124,7 +124,7 @@ const MyRequisitions = () => {
                                             <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-3">
                                                 <span className="flex items-center gap-1">
                                                     <Calendar className="w-4 h-4" />
-                                                    {format(new Date(req.created_at), 'MMM d, yyyy')}
+                                                    {format(new Date(req.expense_date || req.created_at), 'MMM d, yyyy')}
                                                 </span>
                                                 <span className="flex items-center gap-1">
                                                     <DollarSign className="w-4 h-4" />
