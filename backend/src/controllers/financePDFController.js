@@ -277,17 +277,7 @@ const downloadFinancialReport = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
 
-        // Fetch Income Details
-        let incomeQuery = `
-            SELECT i.generated_at as date, 
-                   COALESCE(c.name, a.client_name, 'Unknown Client') as description, 
-                   a.payment_method as method, 
-                   i.amount
-            FROM invoices i
-            JOIN adverts a ON i.advert_id = a.id
-            LEFT JOIN clients c ON a.client_id = c.id
-            WHERE i.amount > 0
-        `;
+
         // query params
         const params = [];
         let paramCount = 1;
