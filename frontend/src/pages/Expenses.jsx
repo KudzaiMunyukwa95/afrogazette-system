@@ -217,7 +217,7 @@ const Expenses = () => {
                                     {expenses.map((expense) => (
                                         <tr key={expense.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {format(new Date(expense.created_at), 'MMM d, yyyy')}
+                                                {format(new Date(expense.expense_date || expense.created_at), 'MMM d, yyyy')}
                                             </td>
                                             <td className="px-6 py-4 text-sm font-medium text-gray-900">
                                                 {expense.reason}
