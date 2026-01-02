@@ -20,10 +20,39 @@ const FinancialReports = () => {
         start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
         end: format(endOfMonth(new Date()), 'yyyy-MM-dd')
     });
+    const [activeFilter, setActiveFilter] = useState('thisMonth');
 
     useEffect(() => {
         fetchReportData();
     }, [customDates]);
+
+    const handleQuickFilter = (type) => {
+        setActiveFilter(type);
+        const now = new Date();
+
+        switch (type) {
+            case 'today':
+                setCustomDates({
+                    start: format(now, 'yyyy-MM-dd'),
+                    end: format(now, 'yyyy-MM-dd')
+                });
+                break;
+            case 'thisMonth':
+                setCustomDates({
+                    start: format(startOfMonth(now), 'yyyy-MM-dd'),
+                    end: format(endOfMonth(now), 'yyyy-MM-dd')
+                });
+                break;
+            case 'lastMonth':
+                const lastMonth = new Date();
+                lastMonth.setMonth(lastMonth.getMonth() - 1);
+                setCustomDates({
+                    start: format(startOfMonth(lastMonth), 'yyyy-MM-dd'),
+                    end: format(endOfMonth(lastMonth), 'yyyy-MM-dd')
+                });
+                break;
+        }
+    };
 
     const fetchReportData = async () => {
         try {
@@ -100,81 +129,88 @@ const FinancialReports = () => {
                         <p className="text-gray-500">Detailed financial analysis and reporting.</p>
                     </div>
 
-                    <div className="flex flex-col gap-3">
-                        {/* Quick Filters */}
-                        <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
+                        {/* Quick Filters - Pill Style */}
+                        <div className="bg-gray-100 p-1 rounded-lg flex gap-1">
                             <button
-                                onClick={() => setCustomDates({
-                                    start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
-                                    end: format(endOfMonth(new Date()), 'yyyy-MM-dd')
-                                })}
-                                className="px-3 py-1 text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors"
+                                onClick={() => handleQuickFilter('today')}
+                                className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${activeFilter === 'today'
+                                        ? 'bg-white text-gray-900 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-900'
+                                    }`}
+                            >
+                                Today
+                            </button>
+                            <button
+                                onClick={() => handleQuickFilter('thisMonth')}
+                                className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${activeFilter === 'thisMonth'
+                                        ? 'bg-white text-gray-900 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-900'
+                                    }`}
                             >
                                 This Month
                             </button>
                             <button
-                                onClick={() => {
-                                    const lastMonth = new Date();
-                                    lastMonth.setMonth(lastMonth.getMonth() - 1);
-                                    setCustomDates({
-                                        start: format(startOfMonth(lastMonth), 'yyyy-MM-dd'),
-                                        end: format(endOfMonth(lastMonth), 'yyyy-MM-dd')
-                                    });
-                                }}
-                                className="px-3 py-1 text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors"
+                                onClick={() => handleQuickFilter('lastMonth')}
+                                className={`px-4 py-1.5 text-xs font-medium rounded-md transition-all ${activeFilter === 'lastMonth'
+                                        ? 'bg-white text-gray-900 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-900'
+                                    }`}
                             >
                                 Last Month
                             </button>
-                            <button
-                                onClick={() => setCustomDates({
-                                    start: format(new Date(), 'yyyy-MM-dd'),
-                                    end: format(new Date(), 'yyyy-MM-dd')
-                                })}
-                                className="px-3 py-1 text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors"
-                            >
-                                Today
-                            </button>
                         </div>
 
-                        <div className="flex flex-wrap gap-3 items-center">
-                            <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm relative">
-                                {loading && data && (
-                                    <div className="absolute right-2 top-1.5">
-                                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-500 border-t-transparent"></div>
-                                    </div>
-                                )}
+                        {/* Date Range & Actions */}
+                        <div className="flex items-center gap-3">
+                            <div className={`flex items-center gap-2 bg-white px-3 py-2 rounded-lg border transition-colors ${activeFilter === 'custom' ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-200'}`}>
+                                <Calendar className="w-4 h-4 text-gray-400" />
                                 <input
                                     type="date"
                                     name="start"
                                     value={customDates.start}
-                                    onChange={handleDateChange}
-                                    className="px-3 py-1.5 border-none text-sm focus:ring-0 text-gray-600"
+                                    onChange={(e) => {
+                                        setActiveFilter('custom');
+                                        handleDateChange(e);
+                                    }}
+                                    className="border-none p-0 text-sm focus:ring-0 text-gray-600 w-28"
                                 />
                                 <span className="text-gray-400">-</span>
                                 <input
                                     type="date"
                                     name="end"
                                     value={customDates.end}
-                                    onChange={handleDateChange}
-                                    className="px-3 py-1.5 border-none text-sm focus:ring-0 text-gray-600"
+                                    onChange={(e) => {
+                                        setActiveFilter('custom');
+                                        handleDateChange(e);
+                                    }}
+                                    className="border-none p-0 text-sm focus:ring-0 text-gray-600 w-28"
                                 />
                             </div>
 
                             <button
                                 onClick={handleDownloadPDF}
                                 disabled={generatingPdf}
-                                className="flex items-center px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-70"
+                                className="flex items-center justify-center w-10 h-10 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-70"
+                                title="Export PDF"
                             >
                                 {generatingPdf ? (
-                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
                                 ) : (
-                                    <Download className="w-4 h-4 mr-2" />
+                                    <Download className="w-4 h-4" />
                                 )}
-                                Export PDF
                             </button>
                         </div>
                     </div>
                 </div>
+
+                {/* Loading Indicator Overlay */}
+                {loading && data && (
+                    <div className="fixed top-20 right-6 z-50 bg-white px-4 py-2 rounded-full shadow-lg border border-gray-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-600 border-t-transparent"></div>
+                        <span className="text-sm font-medium text-gray-700">Updating...</span>
+                    </div>
+                )}
 
                 {/* Executive Summary */}
                 <div className={`transition-opacity duration-200 ${loading && data ? 'opacity-50 pointer-events-none' : ''}`}>
