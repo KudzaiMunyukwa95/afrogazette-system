@@ -12,19 +12,21 @@ const getFinancialOverview = async (req, res) => {
         const params = [];
         let paramCount = 1;
 
+        console.log('DEBUG: getFinancialOverview Params:', { startDate, endDate });
+
         if (startDate) {
-            dateFilter += ` AND created_at >= $${paramCount}`;
+            dateFilter += ` AND expense_date >= $${paramCount}`;
             params.push(startDate);
             paramCount++;
         }
         if (endDate) {
-            dateFilter += ` AND created_at < $${paramCount}::date + INTERVAL '1 day'`;
+            dateFilter += ` AND expense_date < $${paramCount}::date + INTERVAL '1 day'`;
             params.push(endDate);
             paramCount++;
         }
 
         // 1. Total Income (from invoices)
-        let invoiceDateFilter = dateFilter.replace(/created_at/g, 'generated_at');
+        let invoiceDateFilter = dateFilter.replace(/expense_date/g, 'generated_at');
         const incomeQuery = `
             SELECT COALESCE(SUM(amount), 0) as total_income
             FROM invoices
@@ -39,6 +41,7 @@ const getFinancialOverview = async (req, res) => {
             FROM expenses
             WHERE status = 'Approved' ${dateFilter}
         `;
+        console.log('DEBUG: expenseQuery:', expenseQuery);
         const expenseResult = await pool.query(expenseQuery, params);
         const totalExpenses = parseFloat(expenseResult.rows[0].total_expenses);
 
@@ -167,12 +170,12 @@ const getExpenseBreakdown = async (req, res) => {
         let paramCount = 1;
 
         if (startDate) {
-            dateFilter += ` AND created_at >= $${paramCount}`;
+            dateFilter += ` AND expense_date >= $${paramCount}`;
             params.push(startDate);
             paramCount++;
         }
         if (endDate) {
-            dateFilter += ` AND created_at < $${paramCount}::date + INTERVAL '1 day'`;
+            dateFilter += ` AND expense_date < $${paramCount}::date + INTERVAL '1 day'`;
             params.push(endDate);
             paramCount++;
         }
