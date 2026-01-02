@@ -6,18 +6,21 @@ const pool = require('../config/database');
 const createExpense = async (req, res) => {
     const client = await pool.connect();
     try {
-        const { reason, amount, payment_method, details, category } = req.body;
+        const { reason, amount, payment_method, details, category, expense_date } = req.body;
         const raised_by_user_id = req.user.id;
+
+        // Use provided date or default to current date
+        const finalDate = expense_date || new Date();
 
         await client.query('BEGIN');
 
         // Create expense record
         const expenseResult = await client.query(
             `INSERT INTO expenses 
-            (reason, amount, payment_method, details, category, type, status, raised_by_user_id) 
-            VALUES ($1, $2, $3, $4, $5, 'DirectExpense', 'Pending', $6) 
+            (reason, amount, payment_method, details, category, type, status, raised_by_user_id, expense_date) 
+            VALUES ($1, $2, $3, $4, $5, 'DirectExpense', 'Pending', $6, $7) 
             RETURNING *`,
-            [reason, amount, payment_method, details, category, raised_by_user_id]
+            [reason, amount, payment_method, details, category, raised_by_user_id, finalDate]
         );
 
         const expense = expenseResult.rows[0];
@@ -56,18 +59,21 @@ const createExpense = async (req, res) => {
 const createRequisition = async (req, res) => {
     const client = await pool.connect();
     try {
-        const { reason, amount, payment_method, details, category } = req.body;
+        const { reason, amount, payment_method, details, category, expense_date } = req.body;
         const raised_by_user_id = req.user.id;
+
+        // Use provided date or default to current date
+        const finalDate = expense_date || new Date();
 
         await client.query('BEGIN');
 
         // Create requisition record
         const expenseResult = await client.query(
             `INSERT INTO expenses 
-            (reason, amount, payment_method, details, category, type, status, raised_by_user_id) 
-            VALUES ($1, $2, $3, $4, $5, 'Requisition', 'Pending', $6) 
+            (reason, amount, payment_method, details, category, type, status, raised_by_user_id, expense_date) 
+            VALUES ($1, $2, $3, $4, $5, 'Requisition', 'Pending', $6, $7) 
             RETURNING *`,
-            [reason, amount, payment_method, details, category, raised_by_user_id]
+            [reason, amount, payment_method, details, category, raised_by_user_id, finalDate]
         );
 
         const expense = expenseResult.rows[0];
