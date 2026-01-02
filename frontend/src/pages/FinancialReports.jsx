@@ -1,241 +1,319 @@
-import React, { useState, useEffect } from 'react';
-import Layout from '../components/Layout';
-import FinanceNav from '../components/FinanceNav';
-import { financeAPI } from '../services/api';
-import { useToast } from '../components/Toast';
-import {
-    Download, Calendar, TrendingUp,
-    TrendingDown, DollarSign, FileText
-} from 'lucide-react';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+const pool = require('../config/database');
+// Force deploy fix for syntax error
 
-const FinancialReports = () => {
-    const { showToast } = useToast();
-    const [loading, setLoading] = useState(true);
-    const [generatingPdf, setGeneratingPdf] = useState(false);
-    const [data, setData] = useState(null);
-    const [incomeData, setIncomeData] = useState(null);
-    const [expenseData, setExpenseData] = useState(null);
-    const [customDates, setCustomDates] = useState({
-        start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
-        end: format(endOfMonth(new Date()), 'yyyy-MM-dd')
-    });
+/**
+ * Get Financial Overview (KPIs)
+ */
+const getFinancialOverview = async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
 
-    useEffect(() => {
-        fetchReportData();
-    }, [customDates]);
+        // Base date filter
+        let dateFilter = '';
+        const params = [];
+        let paramCount = 1;
 
-    const fetchReportData = async () => {
-        try {
-            setLoading(true);
-            const params = { startDate: customDates.start, endDate: customDates.end };
+        console.log('DEBUG: getFinancialOverview Params:', { startDate, endDate });
 
-            const [overviewRes, incomeRes, expenseRes, paymentRes] = await Promise.all([
-                financeAPI.getFinancialOverview(params),
-                financeAPI.getIncomeBreakdown(params),
-                financeAPI.getExpenseBreakdown(params),
-                financeAPI.getPaymentMethodSummary(params)
-            ]);
-
-            setData({
-                ...overviewRes.data.data,
-                paymentSummary: paymentRes.data.data
-            });
-            setIncomeData(incomeRes.data.data);
-            setExpenseData(expenseRes.data.data);
-        } catch (error) {
-            console.error('Error fetching report data:', error);
-            showToast('Failed to load report data', 'error');
-        } finally {
-            setLoading(false);
+        if (startDate) {
+            dateFilter += ` AND expense_date >= $${paramCount}`;
+            params.push(startDate);
+            paramCount++;
         }
-    };
-
-    const handleDateChange = (e) => {
-        setCustomDates({ ...customDates, [e.target.name]: e.target.value });
-    };
-
-    const handleDownloadPDF = async () => {
-        try {
-            setGeneratingPdf(true);
-            const params = { startDate: customDates.start, endDate: customDates.end };
-            const response = await financeAPI.downloadFinancialReport(params);
-
-            // Create blob link to download
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `AfroGazette_Financial_Report_${customDates.start}_${customDates.end}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-
-            showToast('Report downloaded successfully', 'success');
-        } catch (error) {
-            console.error('Error downloading PDF:', error);
-            showToast('Failed to download report', 'error');
-        } finally {
-            setGeneratingPdf(false);
+        if (endDate) {
+            dateFilter += ` AND expense_date < $${paramCount}::date + INTERVAL '1 day'`;
+            params.push(endDate);
+            paramCount++;
         }
-    };
 
-    if (loading && !data) {
-        return (
-            <Layout>
-                <FinanceNav />
-                <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
-                </div>
-            </Layout>
-        );
+        // 1. Total Income (from invoices)
+        let invoiceDateFilter = dateFilter.replace(/expense_date/g, 'generated_at');
+        const incomeQuery = `
+            SELECT COALESCE(SUM(amount), 0) as total_income
+            FROM invoices
+            WHERE 1=1 ${invoiceDateFilter}
+        `;
+        const incomeResult = await pool.query(incomeQuery, params);
+        const totalIncome = parseFloat(incomeResult.rows[0].total_income);
+
+        // 2. Total Expenses (Approved only)
+        const expenseQuery = `
+            SELECT COALESCE(SUM(amount), 0) as total_expenses
+            FROM expenses
+            WHERE status = 'Approved' ${dateFilter}
+        `;
+        const expenseResult = await pool.query(expenseQuery, params);
+        const totalExpenses = parseFloat(expenseResult.rows[0].total_expenses);
+
+        // 3. Pending Items (ALL TIME - Should not be filtered by date)
+        const pendingQuery = `
+            SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total_amount
+            FROM expenses
+            WHERE status = 'Pending'
+        `;
+        // Use empty params for pending query as it has no placeholders
+        const pendingResult = await pool.query(pendingQuery);
+
+        // 4. Payment Method Breakdown (Expenses)
+        const paymentMethodQuery = `
+            SELECT payment_method, COALESCE(SUM(amount), 0) as total
+            FROM expenses
+            WHERE status = 'Approved' ${dateFilter}
+            GROUP BY payment_method
+        `;
+        const paymentMethodResult = await pool.query(paymentMethodQuery, params);
+
+        // Calculate Net Position
+        const netPosition = totalIncome - totalExpenses;
+        const margin = totalIncome > 0 ? (netPosition / totalIncome) * 100 : 0;
+
+        res.json({
+            success: true,
+            data: {
+                totalIncome,
+                totalExpenses,
+                netPosition,
+                margin: parseFloat(margin.toFixed(2)),
+                pending: {
+                    count: parseInt(pendingResult.rows[0].count),
+                    amount: parseFloat(pendingResult.rows[0].total_amount)
+                },
+                paymentMethods: paymentMethodResult.rows
+            }
+        });
+    } catch (error) {
+        console.error('Get financial overview error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error fetching financial overview'
+        });
     }
-
-    return (
-        <Layout>
-            <FinanceNav />
-            <div className="p-6 max-w-7xl mx-auto">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Financial Reports</h1>
-                        <p className="text-gray-500">Detailed financial analysis and reporting.</p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3 items-center">
-                        <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-                            <input
-                                type="date"
-                                name="start"
-                                value={customDates.start}
-                                onChange={handleDateChange}
-                                className="px-3 py-1.5 border-none text-sm focus:ring-0 text-gray-600"
-                            />
-                            <span className="text-gray-400">-</span>
-                            <input
-                                type="date"
-                                name="end"
-                                value={customDates.end}
-                                onChange={handleDateChange}
-                                className="px-3 py-1.5 border-none text-sm focus:ring-0 text-gray-600"
-                            />
-                        </div>
-
-                        <button
-                            onClick={handleDownloadPDF}
-                            disabled={generatingPdf}
-                            className="flex items-center px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-70"
-                        >
-                            {generatingPdf ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                            ) : (
-                                <Download className="w-4 h-4 mr-2" />
-                            )}
-                            Export PDF
-                        </button>
-                    </div>
-                </div>
-
-                {/* Executive Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                        <p className="text-sm text-gray-500 font-medium mb-1">Total Income</p>
-                        <p className="text-2xl font-bold text-gray-900">${data?.totalIncome?.toFixed(2)}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                        <p className="text-sm text-gray-500 font-medium mb-1">Total Expenses</p>
-                        <p className="text-2xl font-bold text-gray-900">${data?.totalExpenses?.toFixed(2)}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                        <p className="text-sm text-gray-500 font-medium mb-1">Net Position</p>
-                        <p className={`text-2xl font-bold ${data?.netPosition >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            ${data?.netPosition?.toFixed(2)}
-                        </p>
-                    </div>
-                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                        <p className="text-sm text-gray-500 font-medium mb-1">Net Margin</p>
-                        <p className={`text-2xl font-bold ${data?.netPosition >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {data?.margin?.toFixed(1)}%
-                        </p>
-                    </div>
-                </div>
-
-                {/* Payment Method Summary Table */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-8">
-                    <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                        <h3 className="text-lg font-semibold text-gray-900">Summary by Payment Method</h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Income</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Expenses</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Net Position</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {data?.paymentSummary?.map((item) => (
-                                    <tr key={item.method} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{item.method}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">${item.income.toFixed(2)}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">${item.expense.toFixed(2)}</td>
-                                        <td className={`px-6 py-4 whitespace-nowrap text-right text-sm font-bold ${item.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            ${item.net.toFixed(2)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Income Breakdown */}
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                                <TrendingUp className="w-5 h-5 text-green-600" />
-                                Income Breakdown
-                            </h3>
-                        </div>
-                        <div className="p-6">
-                            <h4 className="text-sm font-medium text-gray-500 uppercase mb-3">By Category</h4>
-                            <div className="space-y-3 mb-6">
-                                {incomeData?.byCategory?.map((item, index) => (
-                                    <div key={index} className="flex justify-between items-center">
-                                        <span className="text-gray-700 capitalize">{item.category.replace(/_/g, ' ')}</span>
-                                        <span className="font-medium text-gray-900">${Number(item.total).toFixed(2)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Expense Breakdown */}
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                                <TrendingDown className="w-5 h-5 text-red-600" />
-                                Expense Breakdown
-                            </h3>
-                        </div>
-                        <div className="p-6">
-                            <h4 className="text-sm font-medium text-gray-500 uppercase mb-3">By Category</h4>
-                            <div className="space-y-3 mb-6">
-                                {expenseData?.byCategory?.map((item, index) => (
-                                    <div key={index} className="flex justify-between items-center">
-                                        <span className="text-gray-700">{item.category}</span>
-                                        <span className="font-medium text-gray-900">${Number(item.total).toFixed(2)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </Layout>
-    );
 };
 
-export default FinancialReports;
+/**
+ * Get Income Breakdown
+ */
+const getIncomeBreakdown = async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+
+        let dateFilter = '';
+        const params = [];
+        let paramCount = 1;
+
+        if (startDate) {
+            dateFilter += ` AND i.generated_at >= $${paramCount}`;
+            params.push(startDate);
+            paramCount++;
+        }
+        if (endDate) {
+            dateFilter += ` AND i.generated_at < $${paramCount}::date + INTERVAL '1 day'`;
+            params.push(endDate);
+            paramCount++;
+        }
+
+        // Breakdown by Payment Method
+        const paymentMethodQuery = `
+            SELECT a.payment_method, COALESCE(SUM(i.amount), 0) as total
+            FROM invoices i
+            JOIN adverts a ON i.advert_id = a.id
+            WHERE 1=1 ${dateFilter}
+            GROUP BY a.payment_method
+        `;
+        const paymentMethodResult = await pool.query(paymentMethodQuery, params);
+
+        // Breakdown by Category
+        const typeQuery = `
+            SELECT a.category, COALESCE(SUM(i.amount), 0) as total
+            FROM invoices i
+            JOIN adverts a ON i.advert_id = a.id
+            WHERE 1=1 ${dateFilter}
+            GROUP BY a.category
+        `;
+        const typeResult = await pool.query(typeQuery, params);
+
+        // Time Series (Daily)
+        const timeSeriesQuery = `
+            SELECT DATE(i.generated_at) as date, COALESCE(SUM(i.amount), 0) as total
+            FROM invoices i
+            WHERE 1=1 ${dateFilter}
+            GROUP BY DATE(i.generated_at)
+            ORDER BY DATE(i.generated_at)
+        `;
+        const timeSeriesResult = await pool.query(timeSeriesQuery, params);
+
+        res.json({
+            success: true,
+            data: {
+                byPaymentMethod: paymentMethodResult.rows,
+                byCategory: typeResult.rows,
+                timeSeries: timeSeriesResult.rows
+            }
+        });
+    } catch (error) {
+        console.error('Get income breakdown error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error fetching income breakdown'
+        });
+    }
+};
+
+/**
+ * Get Expense Breakdown
+ */
+const getExpenseBreakdown = async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+
+        let dateFilter = '';
+        const params = [];
+        let paramCount = 1;
+
+        if (startDate) {
+            dateFilter += ` AND expense_date >= $${paramCount}`;
+            params.push(startDate);
+            paramCount++;
+        }
+        if (endDate) {
+            dateFilter += ` AND expense_date < $${paramCount}::date + INTERVAL '1 day'`;
+            params.push(endDate);
+            paramCount++;
+        }
+
+        const approvedFilter = " AND status = 'Approved'";
+
+        // Breakdown by Category
+        const categoryQuery = `
+            SELECT category, COALESCE(SUM(amount), 0) as total
+            FROM expenses
+            WHERE 1=1 ${approvedFilter} ${dateFilter}
+            GROUP BY category
+        `;
+        const categoryResult = await pool.query(categoryQuery, params);
+
+        // Breakdown by Payment Method
+        const paymentMethodQuery = `
+            SELECT payment_method, COALESCE(SUM(amount), 0) as total
+            FROM expenses
+            WHERE 1=1 ${approvedFilter} ${dateFilter}
+            GROUP BY payment_method
+        `;
+        const paymentMethodResult = await pool.query(paymentMethodQuery, params);
+
+        // Time Series (Daily)
+        const timeSeriesQuery = `
+            SELECT DATE(expense_date) as date, COALESCE(SUM(amount), 0) as total
+            FROM expenses
+            WHERE 1=1 ${approvedFilter} ${dateFilter}
+            GROUP BY DATE(expense_date)
+            ORDER BY DATE(expense_date)
+        `;
+        const timeSeriesResult = await pool.query(timeSeriesQuery, params);
+
+        res.json({
+            success: true,
+            data: {
+                byCategory: categoryResult.rows,
+                byPaymentMethod: paymentMethodResult.rows,
+                timeSeries: timeSeriesResult.rows
+            }
+        });
+    } catch (error) {
+        console.error('Get expense breakdown error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error fetching expense breakdown'
+        });
+    }
+};
+
+/**
+ * Get Payment Method Summary (Income vs Expense vs Net)
+ * Note: adverts uses payment_method_enum ('cash', 'ecocash', 'innbucks')
+ *       expenses uses payment_method_type ('Cash', 'EcoCash', 'Innbucks')
+ */
+const getPaymentMethodSummary = async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+
+        const methods = [
+            { advertMethod: 'cash', expenseMethod: 'Cash', display: 'Cash' },
+            { advertMethod: 'ecocash', expenseMethod: 'EcoCash', display: 'EcoCash' },
+            { advertMethod: 'innbucks', expenseMethod: 'Innbucks', display: 'Innbucks' }
+        ];
+        const summary = [];
+
+        for (const methodPair of methods) {
+            // Income query (uses lowercase for adverts)
+            let incomeQuery = `
+                SELECT COALESCE(SUM(i.amount), 0) as total
+                FROM invoices i
+                JOIN adverts a ON i.advert_id = a.id
+                WHERE a.payment_method = $1
+            `;
+            const incomeParams = [methodPair.advertMethod];
+            let paramIndex = 2;
+
+            if (startDate) {
+                incomeQuery += ` AND i.generated_at >= $${paramIndex}`;
+                incomeParams.push(startDate);
+                paramIndex++;
+            }
+            if (endDate) {
+                incomeQuery += ` AND i.generated_at < $${paramIndex}::date + INTERVAL '1 day'`;
+                incomeParams.push(endDate);
+            }
+
+            const incomeResult = await pool.query(incomeQuery, incomeParams);
+            const income = parseFloat(incomeResult.rows[0].total);
+
+            // Expense query (uses capitalized for expenses)
+            let expenseQuery = `
+                SELECT COALESCE(SUM(amount), 0) as total
+                FROM expenses
+                WHERE payment_method = $1 AND status = 'Approved'
+            `;
+            const expenseParams = [methodPair.expenseMethod];
+            paramIndex = 2;
+
+            if (startDate) {
+                expenseQuery += ` AND expense_date >= $${paramIndex}`;
+                expenseParams.push(startDate);
+                paramIndex++;
+            }
+            if (endDate) {
+                expenseQuery += ` AND expense_date < $${paramIndex}::date + INTERVAL '1 day'`;
+                expenseParams.push(endDate);
+            }
+
+            const expenseResult = await pool.query(expenseQuery, expenseParams);
+            const expense = parseFloat(expenseResult.rows[0].total);
+
+            summary.push({
+                method: methodPair.display,
+                income,
+                expense,
+                net: income - expense
+            });
+        }
+
+        res.json({
+            success: true,
+            data: summary
+        });
+    } catch (error) {
+        console.error('Get payment method summary error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error fetching payment method summary'
+        });
+    }
+};
+
+module.exports = {
+    getFinancialOverview,
+    getIncomeBreakdown,
+    getExpenseBreakdown,
+    getPaymentMethodSummary
+};
