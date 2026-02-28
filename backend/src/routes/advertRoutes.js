@@ -38,7 +38,15 @@ router.post(
     body('amountPaid')
       .isFloat({ min: 0 })
       .withMessage('Amount paid must be a positive number'),
-    body('startDate').isISO8601().withMessage('Valid start date is required')
+    body('startDate').isISO8601().withMessage('Valid start date is required'),
+    body('destinationType')
+      .optional()
+      .isIn(['groups', 'channel'])
+      .withMessage('Valid destination type is required'),
+    body('advertType')
+      .optional()
+      .isIn(['text_ad', 'group_link_ad', 'picture_ad', 'website_ad', 'feature'])
+      .withMessage('Valid advert type is required')
   ],
   validate,
   advertController.createAdvert
