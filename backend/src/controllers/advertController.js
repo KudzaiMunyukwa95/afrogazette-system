@@ -18,6 +18,7 @@ const createAdvert = async (req, res) => {
       amountPaid,
       startDate,
       advertType = 'text_ad',
+      destinationType = 'groups',
       paymentMethod = 'cash'
     } = req.body;
 
@@ -41,15 +42,23 @@ const createAdvert = async (req, res) => {
       finalClientName = clientResult.rows[0].name;
     }
 
+    // Calculate 10% commission
+    const commissionAmount = (parseFloat(amountPaid) * 0.1).toFixed(2);
+
     // Insert advert with pending status
     const result = await pool.query(
       `INSERT INTO adverts (
         client_id, client_name, category, caption, media_url, days_paid,
-        payment_date, amount_paid, start_date, sales_rep_id, status, advert_type, payment_method
+        payment_date, amount_paid, start_date, sales_rep_id, status, 
+        advert_type, destination_type, payment_method, commission_amount
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12, $13, $14)
       RETURNING *`,
-      [clientId || null, finalClientName, category, caption, mediaUrl, daysPaid, paymentDate, parseFloat(amountPaid).toFixed(2), startDate, salesRepId, advertType, paymentMethod]
+      [
+        clientId || null, finalClientName, category, caption, mediaUrl, daysPaid,
+        paymentDate, parseFloat(amountPaid).toFixed(2), startDate, salesRepId,
+        advertType, destinationType, paymentMethod, commissionAmount
+      ]
     );
 
     const newAdvert = result.rows[0];
@@ -509,7 +518,8 @@ const updateAdvert = async (req, res) => {
 
     const allowedFields = [
       'client_name', 'category', 'caption', 'media_url',
-      'days_paid', 'payment_date', 'amount_paid', 'start_date'
+      'days_paid', 'payment_date', 'amount_paid', 'start_date',
+      'destination_type', 'advert_type'
     ];
 
     for (const [key, value] of Object.entries(updates)) {
