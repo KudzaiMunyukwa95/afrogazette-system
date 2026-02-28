@@ -236,9 +236,11 @@ const PendingApprovals = () => {
             className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
           >
             <option value="">Choose a time slot...</option>
-            {slots.map(slot => (
-              <option key={slot.id} value={slot.id}>{slot.slot_label}</option>
-            ))}
+            {slots
+              .filter(slot => slot.slot_type === selectedAdvert.destination_type)
+              .map(slot => (
+                <option key={slot.id} value={slot.id}>{slot.slot_label}</option>
+              ))}
           </select>
 
           {/* Availability Status */}
