@@ -18,7 +18,7 @@ const MyRequisitions = () => {
     const [formData, setFormData] = useState({
         reason: '',
         amount: '',
-        category: 'Transport',
+        category: 'Transport & Travel',
         payment_method: 'Cash',
         details: '',
         expense_date: new Date().toISOString().split('T')[0]
@@ -61,7 +61,7 @@ const MyRequisitions = () => {
             setFormData({
                 reason: '',
                 amount: '',
-                category: 'Transport',
+                category: 'Transport & Travel',
                 payment_method: 'cash',
                 details: '',
                 expense_date: new Date().toISOString().split('T')[0]
@@ -227,11 +227,16 @@ const MyRequisitions = () => {
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
                                         required
                                     >
-                                        <option value="Transport">Transport</option>
-                                        <option value="Marketing">Marketing</option>
+                                        <option value="Transport & Travel">Transport & Travel</option>
+                                        <option value="Airtime & Data">Airtime & Data</option>
+                                        <option value="Electronic Equipment">Electronic Equipment</option>
                                         <option value="Office Supplies">Office Supplies</option>
-                                        <option value="Utilities">Utilities</option>
-                                        <option value="Salaries">Salaries</option>
+                                        <option value="Marketing & Branding">Marketing & Branding</option>
+                                        <option value="Rent & Utilities">Rent & Utilities</option>
+                                        <option value="Subscriptions & Software">Subscriptions & Software</option>
+                                        <option value="Staff Salaries & Allowances">Staff Salaries & Allowances</option>
+                                        <option value="Repairs & Maintenance">Repairs & Maintenance</option>
+                                        <option value="Professional Fees">Professional Fees</option>
                                         <option value="Other">Other</option>
                                     </select>
                                 </div>
