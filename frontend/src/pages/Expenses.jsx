@@ -324,9 +324,16 @@ const Expenses = () => {
                                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
                                     >
-                                        <option value="Transport">Transport</option>
-                                        <option value="Data/Airtime">Data/Airtime</option>
-                                        <option value="Equipment">Equipment</option>
+                                        <option value="Transport & Travel">Transport & Travel</option>
+                                        <option value="Airtime & Data">Airtime & Data</option>
+                                        <option value="Electronic Equipment">Electronic Equipment</option>
+                                        <option value="Office Supplies">Office Supplies</option>
+                                        <option value="Marketing & Branding">Marketing & Branding</option>
+                                        <option value="Rent & Utilities">Rent & Utilities</option>
+                                        <option value="Subscriptions & Software">Subscriptions & Software</option>
+                                        <option value="Staff Salaries & Allowances">Staff Salaries & Allowances</option>
+                                        <option value="Repairs & Maintenance">Repairs & Maintenance</option>
+                                        <option value="Professional Fees">Professional Fees</option>
                                         <option value="Other">Other</option>
                                     </select>
                                 </div>
