@@ -222,7 +222,7 @@ const generateInvoicePDF = (invoiceData, filePath) => new Promise(async (resolve
         doc.text(titleCase(invoiceData.category), colCategoryX, rowY, { width: 90 });
 
         const periodText = invoiceData.start_date
-            ? `${formatDate(invoiceData.start_date)}\n→ ${formatDate(invoiceData.end_date)}`
+            ? `${formatDate(invoiceData.start_date)} to\n${formatDate(invoiceData.end_date)}`
             : '—';
         doc.text(periodText, colPeriodX, rowY, { width: 85 });
 
