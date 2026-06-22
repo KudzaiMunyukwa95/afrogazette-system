@@ -9,8 +9,8 @@ const company = {
     tin: process.env.COMPANY_TIN || '2001743610',
     // VAT registration: leave empty if not VAT-registered. When empty,
     // invoices will omit the VAT line and print a "Not VAT-registered" note.
-    vatNumber: process.env.COMPANY_VAT_NUMBER || '',
-    vatRate: parseFloat(process.env.COMPANY_VAT_RATE || '0'), // e.g. 0.15 for 15%
+    vatNumber: process.env.COMPANY_VAT_NUMBER || '', // not VAT-registered
+    vatRate: 0,
     address: {
         line1: process.env.COMPANY_ADDR_LINE1 || 'Office 4, Karimapondo Building',
         line2: process.env.COMPANY_ADDR_LINE2 || '78 Leopold Takawira',

@@ -105,8 +105,7 @@ const generateInvoicePDF = (invoiceData, filePath) => new Promise(async (resolve
             company.address.line1,
             `${company.address.line2}, ${company.address.city}, ${company.address.country}`,
             `${company.phone}  |  ${company.email}`,
-            `TIN: ${company.tin}   |   Reg No: ${company.registrationNumber}`,
-            company.vatNumber ? `VAT No: ${company.vatNumber}` : 'Not VAT-registered'
+            `TIN: ${company.tin}   |   Reg No: ${company.registrationNumber}`
         ];
         headerLines.forEach(line => {
             doc.text(line, rightColX, y, { width: rightColWidth, align: 'right' });
@@ -239,32 +238,12 @@ const generateInvoicePDF = (invoiceData, filePath) => new Promise(async (resolve
         // TOTALS
         // =========================================================
         const amount = Number(invoiceData.amount || 0);
-        const isVatRegistered = !!company.vatNumber && company.vatRate > 0;
-        // VAT-inclusive pricing: subtotal is back-calculated when VAT applies.
-        const subtotal = isVatRegistered ? amount / (1 + company.vatRate) : amount;
-        const vat = isVatRegistered ? amount - subtotal : 0;
 
         const totalsLeft = pageWidth - margin - 230;
         const totalsValueRight = pageWidth - margin - 10;
         let ty = rowBottom + 18;
 
-        const totalLine = (label, value, labelColor = TEXT_GRAY, valueColor = TEXT_DARK, bold = false) => {
-            doc.font('Helvetica').fontSize(10).fillColor(labelColor)
-                .text(label, totalsLeft, ty, { width: 130 });
-            doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(10).fillColor(valueColor)
-                .text(value, totalsValueRight - 100, ty, { width: 100, align: 'right' });
-            ty += 18;
-        };
-
-        totalLine('Subtotal', money(subtotal));
-        if (isVatRegistered) {
-            totalLine(`VAT (${(company.vatRate * 100).toFixed(0)}%)`, money(vat));
-        } else {
-            totalLine('VAT', 'N/A (not VAT-registered)', TEXT_GRAY, TEXT_GRAY);
-        }
-        ty += 4;
-
-        // Grand total banner
+        // Grand total banner — no VAT split (income tax only, not VAT-registered)
         doc.rect(totalsLeft - 10, ty, 240, 38).fill(BRAND_RED);
         doc.font('Helvetica-Bold').fontSize(11).fillColor(WHITE)
             .text('TOTAL PAID', totalsLeft, ty + 13, { width: 130 });
@@ -319,12 +298,7 @@ const generateInvoicePDF = (invoiceData, filePath) => new Promise(async (resolve
         let fpY = footerY + 13;
         doc.text(`Registration No: ${company.registrationNumber}   •   TIN: ${company.tin}`, fpX, fpY, { width: fpWidth });
         fpY += 11;
-        doc.text(
-            company.vatNumber
-                ? `VAT Registration No: ${company.vatNumber}   •   VAT Rate: ${(company.vatRate * 100).toFixed(0)}%`
-                : `This entity is not currently VAT-registered.`,
-            fpX, fpY, { width: fpWidth }
-        );
+        doc.text('Registered for Income Tax only. Not registered for VAT.', fpX, fpY, { width: fpWidth });
         fpY += 11;
         doc.text(`${company.website}   •   ${company.email}   •   ${company.phone}`, fpX, fpY, { width: fpWidth });
         fpY += 14;
