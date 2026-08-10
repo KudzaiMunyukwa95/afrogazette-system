@@ -4,6 +4,46 @@ const { createNotification, notifyAdmins } = require('./notificationController')
 const { vetAdvert } = require('../services/aiVettingService');
 
 /**
+ * Check an advert's eligibility before booking it — pure vetting call,
+ * no advert row is created. Any authenticated user (sales rep or admin)
+ * can use this to test content before committing to the full booking form.
+ */
+const checkAdvertEligibility = async (req, res) => {
+  try {
+    const { category, clientName, adContent, mediaUrl } = req.body;
+
+    const trimmedContent = (adContent || '').trim();
+    if (trimmedContent.length < 10 || trimmedContent.length > 2000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ad content must be between 10 and 2000 characters'
+      });
+    }
+
+    if (!category) {
+      return res.status(400).json({ success: false, message: 'Category is required' });
+    }
+
+    const vetting = await vetAdvert(
+      { category, clientName: clientName || 'Unnamed client', adContent: trimmedContent },
+      mediaUrl
+    );
+
+    if (vetting.status !== 'ok') {
+      return res.status(502).json({
+        success: false,
+        message: `Vetting engine error: ${vetting.error}`
+      });
+    }
+
+    res.json({ success: true, data: vetting.result });
+  } catch (error) {
+    console.error('Check advert eligibility error:', error);
+    res.status(500).json({ success: false, message: 'Server error checking advert eligibility' });
+  }
+};
+
+/**
  * Create new advert (sales rep)
  */
 const createAdvert = async (req, res) => {
@@ -72,30 +112,11 @@ const createAdvert = async (req, res) => {
       ]
     );
 
-    let newAdvert = result.rows[0];
+    const newAdvert = result.rows[0];
 
-    // Run the advert through the AI vetting engine. Never blocks creation —
-    // a vetting failure just leaves the advert unscanned for the admin to
-    // review manually, same as before this existed.
-    if (newAdvert.ad_content) {
-      const vetting = await vetAdvert(
-        { category: newAdvert.category, clientName: newAdvert.client_name, adContent: newAdvert.ad_content },
-        newAdvert.media_url
-      );
-
-      if (vetting.status === 'ok') {
-        const { verdict, reasoning, flags, rewrite } = vetting.result;
-        const updated = await pool.query(
-          `UPDATE adverts
-           SET ai_verdict = $1, ai_reasoning = $2, ai_flags = $3, ai_rewrite = $4,
-               ai_scanned_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-           WHERE id = $5
-           RETURNING *`,
-          [verdict, reasoning, flags, rewrite, newAdvert.id]
-        );
-        newAdvert = updated.rows[0];
-      }
-    }
+    // Note: booking does NOT auto-vet. Vetting is a deliberate action —
+    // either the rep runs it ahead of time via Check Advert, or an admin
+    // runs it from Pending Approvals via Rescan. Not every ad needs it.
 
     // Notify admins about new pending advert
     await notifyAdmins(
@@ -988,6 +1009,7 @@ const rescanAdvert = async (req, res) => {
 };
 
 module.exports = {
+  checkAdvertEligibility,
   createAdvert,
   getAdverts,
   getPendingAdverts,

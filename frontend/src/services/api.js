@@ -100,6 +100,9 @@ export const userAPI = {
 
 // Advert APIs
 export const advertAPI = {
+  // NEW: Check advert eligibility before booking — no advert is created
+  checkEligibility: (data) => api.post('/adverts/check', data),
+
   create: (advertData) => api.post('/adverts', advertData),
   getAll: (params) => api.get('/adverts', { params }),
   getPending: () => api.get('/adverts/pending'),

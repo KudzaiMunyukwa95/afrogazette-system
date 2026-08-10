@@ -57,6 +57,24 @@ router.post(
 );
 
 /**
+ * @route   POST /api/adverts/check
+ * @desc    Check advert eligibility before booking — no advert is created
+ * @access  Any authenticated user
+ */
+router.post(
+  '/check',
+  [
+    body('category').isIn(VALID_CATEGORIES).withMessage('Valid category is required'),
+    body('adContent')
+      .isLength({ min: 10, max: 2000 })
+      .withMessage('Ad content must be between 10 and 2000 characters'),
+    body('mediaUrl').optional().isURL().withMessage('Valid URL is required')
+  ],
+  validate,
+  advertController.checkAdvertEligibility
+);
+
+/**
  * @route   GET /api/adverts
  * @desc    Get adverts (filtered by role)
  * @access  Sales Rep (own) / Admin (all)

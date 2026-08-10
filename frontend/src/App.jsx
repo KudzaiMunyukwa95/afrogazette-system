@@ -9,6 +9,7 @@ import PrivateRoute from './components/PrivateRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CreateAdvert from './pages/CreateAdvert';
+import CheckAdvert from './pages/CheckAdvert';
 import PendingApprovals from './pages/PendingApprovals';
 import Schedule from './pages/Schedule';
 import Users from './pages/Users';
@@ -57,6 +58,15 @@ function App() {
                 element={
                   <PrivateRoute>
                     <CreateAdvert />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/check-advert"
+                element={
+                  <PrivateRoute>
+                    <CheckAdvert />
                   </PrivateRoute>
                 }
               />

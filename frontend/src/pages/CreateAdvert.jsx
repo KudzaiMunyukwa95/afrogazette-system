@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { advertAPI } from '../services/api';
 import Layout from '../components/Layout';
 import ClientAutocomplete from '../components/ClientAutocomplete';
@@ -61,16 +61,19 @@ const PAYMENT_METHODS = [
 
 const CreateAdvert = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
 
+  const prefill = location.state?.prefill;
+
   const [formData, setFormData] = useState({
     clientId: null,
-    clientName: '',
-    category: '',
+    clientName: prefill?.clientName || '',
+    category: prefill?.category || '',
     advertType: 'text_ad',
     caption: '',
-    adContent: '',
+    adContent: prefill?.adContent || '',
     destinationType: 'groups', // default to groups
     daysPaid: '',
     paymentDate: '',
@@ -78,6 +81,15 @@ const CreateAdvert = () => {
     amountPaid: '',
     startDate: ''
   });
+
+  useEffect(() => {
+    if (prefill) {
+      // Clear the router state so a refresh/back doesn't silently re-apply
+      // stale prefill data over whatever the rep has since typed.
+      window.history.replaceState({}, document.title);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Get today's date in YYYY-MM-DD format
   const getTodayDate = () => {
@@ -152,6 +164,12 @@ const CreateAdvert = () => {
               <p className="text-sm text-gray-500">Create a new advertising campaign</p>
             </div>
           </div>
+
+          {prefill && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-800">
+              Ad content carried over from Check Advert — category and content are pre-filled below.
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
 
@@ -348,11 +366,18 @@ const CreateAdvert = () => {
                     onChange={handleChange}
                     rows={6}
                     maxLength={2000}
-                    placeholder="Paste the actual creative text the client wants posted to groups/channel. This is what gets AI-vetted and rewritten into house style — leave blank to skip vetting."
+                    placeholder="Paste the actual creative text the client wants posted to groups/channel."
                     className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    The real ad copy that goes to groups/channel — separate from the invoice description above. Runs through AI vetting on submit.
+                    The real ad copy that goes to groups/channel — separate from the invoice description above. Not sure it clears policy?{' '}
+                    <button
+                      type="button"
+                      onClick={() => navigate('/check-advert')}
+                      className="text-red-600 hover:text-red-700 font-medium underline"
+                    >
+                      Check it first
+                    </button>.
                   </p>
                 </div>
               </div>

@@ -18,7 +18,8 @@ import {
   Youtube,
   Globe,
   MessageCircle,
-  DollarSign
+  DollarSign,
+  ShieldCheck
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -35,6 +36,7 @@ const Layout = ({ children }) => {
       // Admin Navigation
       return [
         { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
+        { name: 'Check Advert', href: '/check-advert', icon: ShieldCheck, current: currentPath === '/check-advert' },
         { name: 'Schedule', href: '/schedule', icon: Calendar, current: currentPath === '/schedule' },
         { name: 'All Adverts', href: '/all-adverts', icon: FileText, current: currentPath === '/all-adverts' },
         { name: 'Invoices', href: '/invoices', icon: FileText, current: currentPath === '/invoices' },
@@ -46,6 +48,7 @@ const Layout = ({ children }) => {
       // Sales Rep Navigation
       return [
         { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
+        { name: 'Check Advert', href: '/check-advert', icon: ShieldCheck, current: currentPath === '/check-advert' },
         { name: 'Create Advert', href: '/create-advert', icon: Plus, current: currentPath === '/create-advert' },
         { name: 'Calendar', href: '/calendar', icon: Calendar, current: currentPath === '/calendar' },
         { name: 'Adverts', href: '/my-adverts', icon: FileText, current: currentPath === '/my-adverts' },
