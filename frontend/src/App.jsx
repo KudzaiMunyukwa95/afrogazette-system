@@ -9,8 +9,7 @@ import PrivateRoute from './components/PrivateRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CreateAdvert from './pages/CreateAdvert';
-import CheckAdvert from './pages/CheckAdvert';
-import StandardizeAd from './pages/StandardizeAd';
+import AdvertTools from './pages/AdvertTools';
 import PendingApprovals from './pages/PendingApprovals';
 import Schedule from './pages/Schedule';
 import Users from './pages/Users';
@@ -64,19 +63,10 @@ function App() {
               />
 
               <Route
-                path="/check-advert"
+                path="/advert-tools"
                 element={
                   <PrivateRoute>
-                    <CheckAdvert />
-                  </PrivateRoute>
-                }
-              />
-
-              <Route
-                path="/standardize-ad"
-                element={
-                  <PrivateRoute>
-                    <StandardizeAd />
+                    <AdvertTools />
                   </PrivateRoute>
                 }
               />

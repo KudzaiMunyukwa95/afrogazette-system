@@ -5,8 +5,10 @@ import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
 import { whatsAppToHtml } from '../utils/whatsappFormat';
 import {
-  Wand2,
+  ShieldCheck,
   ShieldAlert,
+  ShieldQuestion,
+  Sparkles,
   Copy,
   ArrowRight,
   RefreshCw
@@ -42,13 +44,13 @@ const CATEGORIES = [
   { value: 'other', label: 'Other' }
 ];
 
-const VERDICT_PILL = {
-  accept: 'bg-green-100 text-green-700',
-  tweak: 'bg-amber-100 text-amber-700',
-  reject: 'bg-red-100 text-red-700'
+const VERDICT_META = {
+  accept: { label: 'Accepted', icon: ShieldCheck, pill: 'bg-green-100 text-green-700' },
+  reject: { label: 'Rejected', icon: ShieldAlert, pill: 'bg-red-100 text-red-700' },
+  tweak: { label: 'Needs a tweak', icon: ShieldQuestion, pill: 'bg-amber-100 text-amber-700' }
 };
 
-const StandardizeAd = () => {
+const AdvertTools = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const [working, setWorking] = useState(false);
@@ -60,7 +62,7 @@ const StandardizeAd = () => {
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleStandardize = async (e) => {
+  const handleRun = async (e) => {
     e.preventDefault();
 
     const trimmed = form.adContent.trim();
@@ -83,7 +85,7 @@ const StandardizeAd = () => {
       });
       setResult(response.data.data);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Error standardizing advert');
+      toast.error(err.response?.data?.message || 'Error checking advert');
     } finally {
       setWorking(false);
     }
@@ -111,23 +113,26 @@ const StandardizeAd = () => {
     });
   };
 
+  const meta = result ? (VERDICT_META[result.verdict] || VERDICT_META.tweak) : null;
+  const Icon = meta?.icon;
+
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 py-4 md:py-8">
         <div className="max-w-3xl mx-auto mobile-container space-y-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-              <Wand2 className="h-6 w-6 mr-2 text-red-600" />
-              Standardize Ad Copy
+              <ShieldCheck className="h-6 w-6 mr-2 text-red-600" />
+              Advert Tools
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              Paste a client's raw ad text and get back clean, consistent, WhatsApp-ready copy —
-              bold and italic already formatted for paste, same voice every time. Works in Shona or English;
-              the rewrite stays in whatever language the client wrote in.
+              Check a client's ad against policy and get clean, WhatsApp-ready standardized copy in one step —
+              use this before booking whenever you're unsure. No advert is created here. Works in Shona or
+              English; the rewrite stays in whatever language the client wrote in.
             </p>
           </div>
 
-          <form onSubmit={handleStandardize} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 space-y-4">
+          <form onSubmit={handleRun} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
@@ -161,7 +166,7 @@ const StandardizeAd = () => {
 
             <div>
               <div className="flex items-baseline justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">Client's Raw Ad Text *</label>
+                <label className="block text-sm font-medium text-gray-700">Client's Ad Content *</label>
                 <span className="text-xs font-medium text-gray-400">{form.adContent.length}/2000</span>
               </div>
               <textarea
@@ -171,7 +176,7 @@ const StandardizeAd = () => {
                 required
                 rows={8}
                 maxLength={2000}
-                placeholder="Paste exactly what the client sent you, emoji and all."
+                placeholder="Paste the exact creative text the client wants posted to groups/channel."
                 className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
               />
             </div>
@@ -184,76 +189,72 @@ const StandardizeAd = () => {
               {working ? (
                 <>
                   <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
-                  Standardizing...
+                  Running...
                 </>
               ) : (
-                'Standardize This Ad'
+                'Check & Standardize'
               )}
             </button>
           </form>
 
-          {result && result.verdict === 'reject' && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-5">
-              <div className="flex items-start">
-                <ShieldAlert className="h-6 w-6 mr-3 flex-shrink-0 text-red-600" />
-                <div>
-                  <h2 className="font-bold text-red-800">Can't standardize this one</h2>
-                  <p className="text-sm text-red-700 mt-1">
-                    This content violates policy, so there's no rewrite to give you — standardizing it would just
-                    produce a cleaner-looking version of the same problem. Use{' '}
-                    <button
-                      type="button"
-                      onClick={() => navigate('/check-advert')}
-                      className="underline font-medium"
-                    >
-                      Check Advert
-                    </button>{' '}
-                    for the full reasoning.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {result && result.verdict !== 'reject' && result.rewrite && (
+          {result && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${VERDICT_PILL[result.verdict]}`}>
-                  {result.verdict === 'tweak' ? 'Standardized — minor flag noted below' : 'Standardized'}
+              <div className="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${meta.pill}`}>
+                  <Icon className="h-3.5 w-3.5 mr-1" />
+                  {meta.label}
                 </span>
-                <button
-                  onClick={handleCopy}
-                  type="button"
-                  className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900"
-                >
-                  <Copy className="h-4 w-4 mr-1.5" />
-                  Copy for WhatsApp
-                </button>
               </div>
 
-              <div className="p-5">
-                <p
-                  className="text-base text-gray-900 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: whatsAppToHtml(result.rewrite) }}
-                />
+              <div className="p-5 space-y-4">
+                <p className="text-sm text-gray-700 leading-relaxed">{result.reasoning}</p>
+
+                {result.flags && result.flags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {result.flags.map((flag, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                        {flag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {result.rewrite && (
+                  <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center text-xs font-bold text-gray-500 uppercase tracking-wide">
+                        <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                        Standardized rewrite
+                      </div>
+                      <button
+                        onClick={handleCopy}
+                        type="button"
+                        className="flex items-center text-xs font-medium text-gray-600 hover:text-gray-900"
+                      >
+                        <Copy className="h-3.5 w-3.5 mr-1" />
+                        Copy
+                      </button>
+                    </div>
+                    <p
+                      className="text-sm text-gray-900 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: whatsAppToHtml(result.rewrite) }}
+                    />
+                  </div>
+                )}
               </div>
 
-              {result.verdict === 'tweak' && (
-                <div className="px-5 pb-4 text-sm text-amber-700 bg-amber-50 border-t border-amber-100 pt-3">
-                  {result.reasoning}
+              {result.verdict !== 'reject' && (
+                <div className="p-5 pt-0">
+                  <button
+                    onClick={handleContinueToBooking}
+                    type="button"
+                    className="w-full flex justify-center items-center px-4 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black btn-touch"
+                  >
+                    Continue to booking with this content
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </button>
                 </div>
               )}
-
-              <div className="p-5 pt-0">
-                <button
-                  onClick={handleContinueToBooking}
-                  type="button"
-                  className="w-full flex justify-center items-center px-4 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black btn-touch"
-                >
-                  Continue to booking with this content
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </button>
-              </div>
             </div>
           )}
         </div>
@@ -262,4 +263,4 @@ const StandardizeAd = () => {
   );
 };
 
-export default StandardizeAd;
+export default AdvertTools;

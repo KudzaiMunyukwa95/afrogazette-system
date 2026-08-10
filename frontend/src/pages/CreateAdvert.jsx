@@ -373,7 +373,7 @@ const CreateAdvert = () => {
                     The real ad copy that goes to groups/channel — separate from the invoice description above. Not sure it clears policy?{' '}
                     <button
                       type="button"
-                      onClick={() => navigate('/check-advert')}
+                      onClick={() => navigate('/advert-tools')}
                       className="text-red-600 hover:text-red-700 font-medium underline"
                     >
                       Check it first

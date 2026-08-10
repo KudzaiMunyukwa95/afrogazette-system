@@ -20,7 +20,8 @@ import {
   MessageCircle,
   DollarSign,
   ShieldCheck,
-  Wand2
+  MoreHorizontal,
+  ChevronDown
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -28,41 +29,49 @@ const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
-  // Different navigation based on user role
+  // Primary = the handful of things done every single day, always one tap
+  // away (bottom bar on mobile, inline on desktop). Secondary = everything
+  // else, tucked behind "More" so the common case stays uncluttered.
   const getNavigation = () => {
     const currentPath = location.pathname;
+    const withCurrent = (items) => items.map(item => ({ ...item, current: currentPath === item.href }));
 
     if (user && user.role === 'admin') {
-      // Admin Navigation
-      return [
-        { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
-        { name: 'Check Advert', href: '/check-advert', icon: ShieldCheck, current: currentPath === '/check-advert' },
-        { name: 'Standardize Ad', href: '/standardize-ad', icon: Wand2, current: currentPath === '/standardize-ad' },
-        { name: 'Schedule', href: '/schedule', icon: Calendar, current: currentPath === '/schedule' },
-        { name: 'All Adverts', href: '/all-adverts', icon: FileText, current: currentPath === '/all-adverts' },
-        { name: 'Invoices', href: '/invoices', icon: FileText, current: currentPath === '/invoices' },
-        { name: 'Pending Approvals', href: '/pending-approvals', icon: Clock, current: currentPath === '/pending-approvals' },
-        { name: 'Finance', href: '/finance/overview', icon: DollarSign, current: currentPath.startsWith('/finance') },
-        { name: 'Users', href: '/users', icon: Users, current: currentPath === '/users' },
-      ];
-    } else {
-      // Sales Rep Navigation
-      return [
-        { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
-        { name: 'Check Advert', href: '/check-advert', icon: ShieldCheck, current: currentPath === '/check-advert' },
-        { name: 'Standardize Ad', href: '/standardize-ad', icon: Wand2, current: currentPath === '/standardize-ad' },
-        { name: 'Create Advert', href: '/create-advert', icon: Plus, current: currentPath === '/create-advert' },
-        { name: 'Calendar', href: '/calendar', icon: Calendar, current: currentPath === '/calendar' },
-        { name: 'Adverts', href: '/my-adverts', icon: FileText, current: currentPath === '/my-adverts' },
-        { name: 'Clients', href: '/my-clients', icon: Users, current: currentPath === '/my-clients' },
-        { name: 'Invoices', href: '/invoices', icon: FileText, current: currentPath === '/invoices' },
-        { name: 'Requisitions', href: '/finance/my-requisitions', icon: DollarSign, current: currentPath === '/finance/my-requisitions' },
-      ];
+      return {
+        primary: withCurrent([
+          { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
+          { name: 'Approvals', href: '/pending-approvals', icon: Clock },
+          { name: 'Adverts', href: '/all-adverts', icon: FileText },
+          { name: 'Advert Tools', href: '/advert-tools', icon: ShieldCheck }
+        ]),
+        secondary: withCurrent([
+          { name: 'Schedule', href: '/schedule', icon: Calendar },
+          { name: 'Invoices', href: '/invoices', icon: FileText },
+          { name: 'Finance', href: '/finance/overview', icon: DollarSign, current: currentPath.startsWith('/finance') },
+          { name: 'Users', href: '/users', icon: Users }
+        ])
+      };
     }
+
+    return {
+      primary: withCurrent([
+        { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
+        { name: 'Advert Tools', href: '/advert-tools', icon: ShieldCheck },
+        { name: 'New Advert', href: '/create-advert', icon: Plus },
+        { name: 'Adverts', href: '/my-adverts', icon: FileText }
+      ]),
+      secondary: withCurrent([
+        { name: 'Calendar', href: '/calendar', icon: Calendar },
+        { name: 'Clients', href: '/my-clients', icon: Users },
+        { name: 'Invoices', href: '/invoices', icon: FileText },
+        { name: 'Requisitions', href: '/finance/my-requisitions', icon: DollarSign }
+      ])
+    };
   };
 
-  const navigation = getNavigation();
+  const { primary, secondary } = getNavigation();
 
   const handleLogout = () => {
     logout();
@@ -72,10 +81,11 @@ const Layout = ({ children }) => {
   const handleNavigation = (href) => {
     navigate(href);
     setIsMobileMenuOpen(false);
+    setIsMoreMenuOpen(false);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col pb-16 lg:pb-0">
       {/* Fixed Header */}
       <header className="bg-black border-b border-gray-800 fixed top-0 left-0 right-0 z-50">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
@@ -96,9 +106,9 @@ const Layout = ({ children }) => {
                 </button>
               </div>
 
-              {/* Desktop Navigation */}
-              <nav className="hidden lg:flex space-x-1">
-                {navigation.map((item) => {
+              {/* Desktop Navigation — primary items inline, rest behind More */}
+              <nav className="hidden lg:flex items-center space-x-1">
+                {primary.map((item) => {
                   const Icon = item.icon;
                   return (
                     <button
@@ -117,6 +127,49 @@ const Layout = ({ children }) => {
                     </button>
                   );
                 })}
+
+                {/* More dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsMoreMenuOpen(prev => !prev)}
+                    className={`
+                      flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 whitespace-nowrap
+                      ${secondary.some(item => item.current)
+                        ? 'bg-red-600 text-white'
+                        : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                      }
+                    `}
+                  >
+                    <MoreHorizontal className="h-4 w-4 mr-2" />
+                    More
+                    <ChevronDown className="h-3.5 w-3.5 ml-1" />
+                  </button>
+
+                  {isMoreMenuOpen && (
+                    <>
+                      {/* Invisible backdrop — closes the dropdown on outside click */}
+                      <div className="fixed inset-0 z-10" onClick={() => setIsMoreMenuOpen(false)} />
+                      <div className="absolute left-0 top-full mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-20">
+                        {secondary.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <button
+                              key={item.name}
+                              onClick={() => handleNavigation(item.href)}
+                              className={`
+                                w-full flex items-center px-4 py-2.5 text-sm font-medium text-left transition-colors duration-200
+                                ${item.current ? 'text-red-600 bg-red-50' : 'text-gray-700 hover:bg-gray-50'}
+                              `}
+                            >
+                              <Icon className="h-4 w-4 mr-2.5" />
+                              {item.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
               </nav>
             </div>
 
@@ -172,11 +225,13 @@ const Layout = ({ children }) => {
           </div>
         </div>
 
-        {/* Mobile Navigation - Improved Spacing & Tap Targets */}
+        {/* Mobile Menu — secondary items + account. Primary items live in the
+            bottom tab bar, so this only opens for the occasional stuff. */}
         {isMobileMenuOpen && (
           <div className="md:hidden bg-gray-900 border-t border-gray-800 animate-in slide-in-from-top-2 duration-200">
             <div className="mobile-container py-4 space-y-2">
-              {navigation.map((item) => {
+              <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">More</p>
+              {secondary.map((item) => {
                 const Icon = item.icon;
                 return (
                   <button
@@ -299,6 +354,32 @@ const Layout = ({ children }) => {
           </div>
         </div>
       </footer>
+
+      {/* Mobile Bottom Tab Bar — the 4 things reps touch every day, always
+          one tap away, no menu required. Desktop keeps the top nav. */}
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-black border-t border-gray-800 grid grid-cols-4"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {primary.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.name}
+              onClick={() => handleNavigation(item.href)}
+              className={`
+                flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors duration-200 tap-target
+                ${item.current ? 'text-red-500' : 'text-gray-400 hover:text-white'}
+              `}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="text-[11px] font-medium leading-none truncate max-w-full px-1">
+                {item.name}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 };
