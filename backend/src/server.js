@@ -76,6 +76,7 @@ app.get('/health', (req, res) => {
   res.json({
     success: true,
     message: 'AfroGazette API is running',
+    build: 'nav-v2-2026-08-10',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
@@ -86,7 +87,7 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'AfroGazette API Server',
-    version: '1.0.0',
+    version: '1.0.1-nav-v2',
     endpoints: {
       health: '/health',
       auth: '/api/auth/*',

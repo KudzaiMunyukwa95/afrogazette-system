@@ -350,6 +350,7 @@ const Layout = ({ children }) => {
             <div className="text-center md:text-right text-gray-500 text-xs">
               <p>&copy; {new Date().getFullYear()} AfroGazette News.</p>
               <p>All rights reserved.</p>
+              <p className="mt-1 opacity-50">Build: nav-v2</p>
             </div>
           </div>
         </div>
