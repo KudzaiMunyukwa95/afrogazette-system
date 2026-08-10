@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import { advertAPI, slotAPI } from '../services/api';
+import { whatsAppToHtml } from '../utils/whatsappFormat';
 import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
 import {
@@ -265,7 +266,10 @@ const PendingApprovals = () => {
               <Sparkles className="h-3 w-3 mr-1" />
               Suggested standardized rewrite
             </div>
-            <p className="text-sm whitespace-pre-wrap">{advert.ai_rewrite}</p>
+            <p
+              className="text-sm leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: whatsAppToHtml(advert.ai_rewrite) }}
+            />
           </div>
         )}
       </div>

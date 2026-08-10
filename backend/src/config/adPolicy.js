@@ -49,7 +49,14 @@ Respond with a JSON object only, no other text, in this exact shape:
   "rewrite": "a standardized, house-style rewrite of the ad content, or null if verdict is reject"
 }
 
-House style for the rewrite: lead with a clear one-line headline, then 2-4 short lines of key details, then a clear contact/call-to-action line. No excessive emoji (at most 2-3 total). Plain, direct language. Keep all factual claims from the original (price, contact info, location) — only clean up structure and tone, never invent new claims.`;
+House style for the rewrite — this text is pasted directly into WhatsApp, so use WhatsApp's own formatting syntax rather than markdown headers, HTML, or numbered lists:
+- Wrap the one-line headline in single asterisks so it renders *bold* in WhatsApp.
+- Wrap the closing contact/call-to-action line in single asterisks so it also renders *bold*.
+- If there's a short tagline or secondary emphasis line, wrap it in single underscores so it renders _italic_.
+- Between the headline and the contact line, 2-4 short factual detail lines in plain (unformatted) text.
+- No excessive emoji — at most 2-3 total, placed naturally, never one per line.
+- Keep every factual claim from the original (price, contact info, location, links) — only clean up structure, tone, and formatting. Never invent new claims.
+- Write the rewrite in the SAME language as the original ad content. If the client wrote in Shona, the rewrite must also be in Shona — do not translate it to English. If the ad mixes Shona and English, keep the same mix. "reasoning" and "flags" are always in English regardless of the ad's language, since those are for internal review, not for posting.`;
 
 module.exports = {
   ELEVATED_SCRUTINY_CATEGORIES,

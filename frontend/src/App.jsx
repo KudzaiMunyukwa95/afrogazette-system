@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CreateAdvert from './pages/CreateAdvert';
 import CheckAdvert from './pages/CheckAdvert';
+import StandardizeAd from './pages/StandardizeAd';
 import PendingApprovals from './pages/PendingApprovals';
 import Schedule from './pages/Schedule';
 import Users from './pages/Users';
@@ -67,6 +68,15 @@ function App() {
                 element={
                   <PrivateRoute>
                     <CheckAdvert />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/standardize-ad"
+                element={
+                  <PrivateRoute>
+                    <StandardizeAd />
                   </PrivateRoute>
                 }
               />

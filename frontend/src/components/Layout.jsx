@@ -19,7 +19,8 @@ import {
   Globe,
   MessageCircle,
   DollarSign,
-  ShieldCheck
+  ShieldCheck,
+  Wand2
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -37,6 +38,7 @@ const Layout = ({ children }) => {
       return [
         { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
         { name: 'Check Advert', href: '/check-advert', icon: ShieldCheck, current: currentPath === '/check-advert' },
+        { name: 'Standardize Ad', href: '/standardize-ad', icon: Wand2, current: currentPath === '/standardize-ad' },
         { name: 'Schedule', href: '/schedule', icon: Calendar, current: currentPath === '/schedule' },
         { name: 'All Adverts', href: '/all-adverts', icon: FileText, current: currentPath === '/all-adverts' },
         { name: 'Invoices', href: '/invoices', icon: FileText, current: currentPath === '/invoices' },
@@ -49,6 +51,7 @@ const Layout = ({ children }) => {
       return [
         { name: 'Dashboard', href: '/dashboard', icon: BarChart3, current: currentPath === '/dashboard' },
         { name: 'Check Advert', href: '/check-advert', icon: ShieldCheck, current: currentPath === '/check-advert' },
+        { name: 'Standardize Ad', href: '/standardize-ad', icon: Wand2, current: currentPath === '/standardize-ad' },
         { name: 'Create Advert', href: '/create-advert', icon: Plus, current: currentPath === '/create-advert' },
         { name: 'Calendar', href: '/calendar', icon: Calendar, current: currentPath === '/calendar' },
         { name: 'Adverts', href: '/my-adverts', icon: FileText, current: currentPath === '/my-adverts' },
