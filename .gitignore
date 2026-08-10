@@ -3,3 +3,14 @@
 .RData
 .Ruserdata
 .positai
+
+# Dependencies
+node_modules/
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Build output
+frontend/dist/

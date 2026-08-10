@@ -1,6 +1,7 @@
 const pool = require('../config/database');
 const { calculateRemainingDays } = require('../services/schedulingService');
 const { createNotification, notifyAdmins } = require('./notificationController');
+const { vetAdvert } = require('../services/aiVettingService');
 
 /**
  * Create new advert (sales rep)
@@ -12,6 +13,7 @@ const createAdvert = async (req, res) => {
       clientName,
       category,
       caption,
+      adContent,
       mediaUrl,
       daysPaid,
       paymentDate,
@@ -57,20 +59,43 @@ const createAdvert = async (req, res) => {
     // Insert advert with pending status
     const result = await pool.query(
       `INSERT INTO adverts (
-        client_id, client_name, category, caption, media_url, days_paid,
-        payment_date, amount_paid, start_date, sales_rep_id, status, 
+        client_id, client_name, category, caption, ad_content, media_url, days_paid,
+        payment_date, amount_paid, start_date, sales_rep_id, status,
         advert_type, destination_type, payment_method, commission_amount
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', $12, $13, $14, $15)
       RETURNING *`,
       [
-        clientId || null, finalClientName, category, trimmedCaption, mediaUrl, daysPaid,
+        clientId || null, finalClientName, category, trimmedCaption, (adContent || '').trim() || null, mediaUrl, daysPaid,
         paymentDate, parseFloat(amountPaid).toFixed(2), startDate, salesRepId,
         advertType, destinationType, paymentMethod, commissionAmount
       ]
     );
 
-    const newAdvert = result.rows[0];
+    let newAdvert = result.rows[0];
+
+    // Run the advert through the AI vetting engine. Never blocks creation —
+    // a vetting failure just leaves the advert unscanned for the admin to
+    // review manually, same as before this existed.
+    if (newAdvert.ad_content) {
+      const vetting = await vetAdvert(
+        { category: newAdvert.category, clientName: newAdvert.client_name, adContent: newAdvert.ad_content },
+        newAdvert.media_url
+      );
+
+      if (vetting.status === 'ok') {
+        const { verdict, reasoning, flags, rewrite } = vetting.result;
+        const updated = await pool.query(
+          `UPDATE adverts
+           SET ai_verdict = $1, ai_reasoning = $2, ai_flags = $3, ai_rewrite = $4,
+               ai_scanned_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $5
+           RETURNING *`,
+          [verdict, reasoning, flags, rewrite, newAdvert.id]
+        );
+        newAdvert = updated.rows[0];
+      }
+    }
 
     // Notify admins about new pending advert
     await notifyAdmins(
@@ -526,7 +551,7 @@ const updateAdvert = async (req, res) => {
     let paramCount = 1;
 
     const allowedFields = [
-      'client_name', 'category', 'caption', 'media_url',
+      'client_name', 'category', 'caption', 'ad_content', 'media_url',
       'days_paid', 'payment_date', 'amount_paid', 'start_date',
       'destination_type', 'advert_type'
     ];
@@ -908,6 +933,60 @@ const getAdvertHistory = async (req, res) => {
   }
 };
 
+/**
+ * Re-run AI vetting on an advert (admin only) — use after a sales rep
+ * edits ad_content, or to re-check an advert scanned under an older policy.
+ */
+const rescanAdvert = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const advertResult = await pool.query('SELECT * FROM adverts WHERE id = $1', [id]);
+    if (advertResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Advert not found' });
+    }
+
+    const advert = advertResult.rows[0];
+    if (!advert.ad_content) {
+      return res.status(400).json({
+        success: false,
+        message: 'Advert has no ad content to scan. Add ad content before rescanning.'
+      });
+    }
+
+    const vetting = await vetAdvert(
+      { category: advert.category, clientName: advert.client_name, adContent: advert.ad_content },
+      advert.media_url
+    );
+
+    if (vetting.status !== 'ok') {
+      return res.status(502).json({
+        success: false,
+        message: `Vetting engine error: ${vetting.error}`
+      });
+    }
+
+    const { verdict, reasoning, flags, rewrite } = vetting.result;
+    const updated = await pool.query(
+      `UPDATE adverts
+       SET ai_verdict = $1, ai_reasoning = $2, ai_flags = $3, ai_rewrite = $4,
+           ai_scanned_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5
+       RETURNING *`,
+      [verdict, reasoning, flags, rewrite, id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Advert rescanned successfully',
+      data: { advert: updated.rows[0] }
+    });
+  } catch (error) {
+    console.error('Rescan advert error:', error);
+    res.status(500).json({ success: false, message: 'Server error rescanning advert' });
+  }
+};
+
 module.exports = {
   createAdvert,
   getAdverts,
@@ -918,5 +997,6 @@ module.exports = {
   extendAdvert,
   declineAdvert,           // NEW
   permanentlyDeleteAdvert, // NEW
-  getAdvertHistory         // NEW
+  getAdvertHistory,        // NEW
+  rescanAdvert             // NEW
 };

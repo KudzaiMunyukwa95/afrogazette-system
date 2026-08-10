@@ -70,6 +70,7 @@ const CreateAdvert = () => {
     category: '',
     advertType: 'text_ad',
     caption: '',
+    adContent: '',
     destinationType: 'groups', // default to groups
     daysPaid: '',
     paymentDate: '',
@@ -329,6 +330,29 @@ const CreateAdvert = () => {
                   />
                   <p className="mt-1 text-xs text-gray-500">
                     Required. 10–200 characters. This appears on the client&apos;s invoice — be specific.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-baseline justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Ad Content <span className="text-gray-400 font-normal">(optional)</span>
+                    </label>
+                    <span className="text-xs font-medium text-gray-400">
+                      {formData.adContent.length}/2000
+                    </span>
+                  </div>
+                  <textarea
+                    name="adContent"
+                    value={formData.adContent}
+                    onChange={handleChange}
+                    rows={6}
+                    maxLength={2000}
+                    placeholder="Paste the actual creative text the client wants posted to groups/channel. This is what gets AI-vetted and rewritten into house style — leave blank to skip vetting."
+                    className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    The real ad copy that goes to groups/channel — separate from the invoice description above. Runs through AI vetting on submit.
                   </p>
                 </div>
               </div>

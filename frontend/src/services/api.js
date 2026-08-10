@@ -117,7 +117,10 @@ export const advertAPI = {
   }),
 
   // NEW: Get admin action history for an advert
-  getHistory: (id) => api.get(`/adverts/${id}/history`)
+  getHistory: (id) => api.get(`/adverts/${id}/history`),
+
+  // NEW: Re-run AI vetting on an advert
+  rescan: (id) => api.post(`/adverts/${id}/rescan`)
 };
 
 // Slot APIs

@@ -58,7 +58,19 @@ JWT_SECRET=your-super-secret-key
 PORT=5000
 NODE_ENV=production
 FRONTEND_URL=https://your-frontend-url.onrender.com
+ANTHROPIC_API_KEY=your-anthropic-api-key
 ```
+
+`ANTHROPIC_API_KEY` powers the AI advert vetting engine (see below) — adverts created without it just skip scanning silently.
+
+## 🛡️ AI Advert Vetting
+
+Every advert with `ad_content` filled in is automatically scanned against `backend/src/config/adPolicy.js` on creation, using Claude to catch the categories of advertiser that already got the channel banned once — unverifiable health/cure claims, herbalist or "prophet" claims dressed up in religious language, and lending offers with no verifiable business behind them. The result is stored on the advert (`ai_verdict`, `ai_reasoning`, `ai_flags`, `ai_rewrite`) and shown to admins in Pending Approvals — it does not auto-approve or auto-reject anything; a human still makes the call.
+
+- Run migration `backend/migrations/004_ai_vetting.sql` against the database before deploying this (adds the `ad_content`/`ai_*` columns).
+- Edit `backend/src/config/adPolicy.js` to change what gets flagged — it's a plain policy file, not buried in the model call.
+- Admins can re-run the scan from Pending Approvals ("Rescan") after a sales rep edits the ad content.
+- If `ANTHROPIC_API_KEY` is missing or the API call fails, the advert is simply left unscanned (`ai_verdict` stays null) — creation is never blocked by a vetting failure.
 
 Run migrations:
 ```bash

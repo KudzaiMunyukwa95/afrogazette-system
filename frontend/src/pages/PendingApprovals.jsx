@@ -17,7 +17,12 @@ import {
   FileText,
   Target,
   ArrowLeft,
-  ChevronRight
+  ChevronRight,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldQuestion,
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 
 const PendingApprovals = () => {
@@ -36,6 +41,7 @@ const PendingApprovals = () => {
   const [declineNotes, setDeclineNotes] = useState('');
   const [declining, setDeclining] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, advertId: null });
+  const [rescanning, setRescanning] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -174,6 +180,98 @@ const PendingApprovals = () => {
     }
   };
 
+  const handleRescan = async () => {
+    if (!selectedAdvert) return;
+    setRescanning(true);
+    try {
+      const response = await advertAPI.rescan(selectedAdvert.id);
+      const updated = response.data.data.advert;
+      setSelectedAdvert(updated);
+      setAdverts(prev => prev.map(a => (a.id === updated.id ? updated : a)));
+      toast.success('Advert rescanned');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error rescanning advert');
+    } finally {
+      setRescanning(false);
+    }
+  };
+
+  const VERDICT_STYLES = {
+    accept: { label: 'AI: Accept', icon: ShieldCheck, className: 'bg-green-50 text-green-700 border-green-200' },
+    reject: { label: 'AI: Reject', icon: ShieldAlert, className: 'bg-red-50 text-red-700 border-red-200' },
+    tweak: { label: 'AI: Needs Tweak', icon: ShieldQuestion, className: 'bg-amber-50 text-amber-700 border-amber-200' }
+  };
+
+  const AIReviewCard = ({ advert }) => {
+    if (!advert.ad_content) {
+      return (
+        <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-4 text-sm text-gray-500">
+          No ad content was submitted for this advert, so it hasn&apos;t been AI-vetted. Add ad content and rescan before posting.
+        </div>
+      );
+    }
+
+    if (!advert.ai_verdict) {
+      return (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-sm text-gray-500">Not yet scanned</span>
+          <button
+            onClick={handleRescan}
+            disabled={rescanning}
+            className="flex items-center text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${rescanning ? 'animate-spin' : ''}`} />
+            Scan now
+          </button>
+        </div>
+      );
+    }
+
+    const style = VERDICT_STYLES[advert.ai_verdict] || VERDICT_STYLES.tweak;
+    const Icon = style.icon;
+
+    return (
+      <div className={`border rounded-xl p-4 space-y-3 ${style.className}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center font-bold text-sm">
+            <Icon className="h-4 w-4 mr-2" />
+            {style.label}
+          </div>
+          <button
+            onClick={handleRescan}
+            disabled={rescanning}
+            className="flex items-center text-xs font-medium opacity-70 hover:opacity-100 disabled:opacity-40"
+          >
+            <RefreshCw className={`h-3 w-3 mr-1 ${rescanning ? 'animate-spin' : ''}`} />
+            Rescan
+          </button>
+        </div>
+
+        <p className="text-sm leading-relaxed">{advert.ai_reasoning}</p>
+
+        {advert.ai_flags && advert.ai_flags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {advert.ai_flags.map((flag, i) => (
+              <span key={i} className="px-2 py-0.5 bg-white bg-opacity-60 rounded-full text-xs font-medium">
+                {flag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {advert.ai_rewrite && (
+          <div className="bg-white bg-opacity-70 rounded-lg p-3">
+            <div className="flex items-center text-xs font-bold mb-1 opacity-70">
+              <Sparkles className="h-3 w-3 mr-1" />
+              Suggested standardized rewrite
+            </div>
+            <p className="text-sm whitespace-pre-wrap">{advert.ai_rewrite}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -226,6 +324,9 @@ const PendingApprovals = () => {
             </div>
           </div>
         </div>
+
+        {/* AI Vetting Review */}
+        <AIReviewCard advert={selectedAdvert} />
 
         {/* Slot Selection Card */}
         <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
@@ -328,7 +429,12 @@ const PendingApprovals = () => {
                     >
                       <div className="flex justify-between items-start mb-2">
                         <span className="font-bold text-gray-900">{advert.client_name}</span>
-                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                        <div className="flex items-center gap-1">
+                          {advert.ai_verdict === 'reject' && <ShieldAlert className="h-4 w-4 text-red-500" />}
+                          {advert.ai_verdict === 'tweak' && <ShieldQuestion className="h-4 w-4 text-amber-500" />}
+                          {advert.ai_verdict === 'accept' && <ShieldCheck className="h-4 w-4 text-green-500" />}
+                          <ChevronRight className="h-4 w-4 text-gray-400" />
+                        </div>
                       </div>
                       <p className="text-sm text-gray-600 line-clamp-2 mb-2">{advert.caption}</p>
                       <div className="flex items-center justify-between text-xs text-gray-500">
