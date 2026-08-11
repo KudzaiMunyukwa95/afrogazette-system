@@ -152,6 +152,23 @@ const Dashboard = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50">
+        {/* Greeting scrolls away normally — it's a one-time header, not
+            something worth pinning. The filter bar below it is what sticks. */}
+        <div className="max-w-7xl mx-auto mobile-container pt-5 md:pt-8">
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-5 md:mb-6"
+          >
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+              {getGreeting()} <span className="inline-block">👋</span>
+            </h1>
+            <p className="text-sm md:text-base text-gray-500 mt-1">
+              Here's your performance overview.
+            </p>
+          </motion.div>
+        </div>
+
         {/* Sticky filter bar — the one control worth keeping in reach while
             scrolling a long dashboard, like a segmented control in a native app */}
         <div className="sticky top-16 z-30 bg-gray-50/85 backdrop-blur-md border-b border-gray-200/70">
@@ -217,19 +234,6 @@ const Dashboard = () => {
         </div>
 
         <div className="max-w-7xl mx-auto mobile-container py-5 md:py-8">
-          <motion.div
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 md:mb-8"
-          >
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-              {getGreeting()} <span className="inline-block">👋</span>
-            </h1>
-            <p className="text-sm md:text-base text-gray-500 mt-1">
-              Here's your performance overview.
-            </p>
-          </motion.div>
-
           {isAdmin() ? (
             <AdminDashboard data={data} timeFilter={timeFilter} targetData={targetData} targetLoading={targetLoading} />
           ) : (
