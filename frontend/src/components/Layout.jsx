@@ -24,7 +24,8 @@ import {
   MoreHorizontal,
   ChevronDown,
   Target,
-  MessageSquare
+  MessageSquare,
+  Activity
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -50,6 +51,7 @@ const Layout = ({ children }) => {
           { name: 'Advert Tools', href: '/advert-tools', icon: ShieldCheck }
         ]),
         secondary: withCurrent([
+          { name: 'Analytics', href: '/analytics', icon: Activity },
           { name: 'Schedule', href: '/schedule', icon: Calendar },
           { name: 'Invoices', href: '/invoices', icon: FileText },
           { name: 'Finance', href: '/finance/overview', icon: DollarSign, current: currentPath.startsWith('/finance') },
@@ -68,6 +70,7 @@ const Layout = ({ children }) => {
         { name: 'Adverts', href: '/my-adverts', icon: FileText }
       ]),
       secondary: withCurrent([
+        { name: 'Analytics', href: '/analytics', icon: Activity },
         { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquare },
         { name: 'Calendar', href: '/calendar', icon: Calendar },
         { name: 'Clients', href: '/my-clients', icon: Users },

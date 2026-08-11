@@ -27,6 +27,7 @@ import FinancialReports from './pages/FinancialReports';
 import Profile from './pages/Profile';
 import Targets from './pages/Targets';
 import SalesKit from './pages/SalesKit';
+import Analytics from './pages/Analytics';
 
 function App() {
   return (
@@ -114,6 +115,15 @@ function App() {
                 element={
                   <PrivateRoute>
                     <SalesKit />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/analytics"
+                element={
+                  <PrivateRoute>
+                    <Analytics />
                   </PrivateRoute>
                 }
               />

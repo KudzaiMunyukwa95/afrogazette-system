@@ -154,6 +154,20 @@ export const ratesAPI = {
   get: () => api.get('/rates')
 };
 
+// Deep analytics — real-time snapshot plus over-time reports. Sales reps get
+// their own numbers automatically; admins can pass repId to drill into one
+// rep, or omit it for company-wide.
+export const reportsAPI = {
+  getRealtime: (repId) => api.get('/reports/realtime', { params: repId ? { repId } : {} }),
+  getFlightMix: (params) => api.get('/reports/flight-mix', { params }),
+  getOccupancy: (params) => api.get('/reports/occupancy', { params }),
+  getRetention: (params) => api.get('/reports/retention', { params }),
+  getMargin: (params) => api.get('/reports/margin', { params }),
+  getTargetHistory: (repId) => api.get('/reports/target-history', { params: repId ? { repId } : {} }),
+  getCompetitors: (params) => api.get('/reports/competitors', { params }),
+  logCompetitor: (data) => api.post('/reports/competitors', data)
+};
+
 // Invoice APIs
 export const invoiceAPI = {
   getAll: () => api.get('/invoices'),
