@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
-import { analyticsAPI } from '../services/api';
+import { analyticsAPI, targetAPI } from '../services/api';
 import { motion } from 'framer-motion';
 import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import {
@@ -21,12 +21,35 @@ const Dashboard = () => {
   const [data, setData] = useState(null);
   const [timeFilter, setTimeFilter] = useState('month'); // today, week, month, lastMonth, custom
   const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' });
+  const [targetData, setTargetData] = useState(null);
+  const [targetLoading, setTargetLoading] = useState(true);
 
   useEffect(() => {
     // For custom filter, don't fetch automatically until applied manually
     if (timeFilter === 'custom') return;
     fetchDashboardData();
   }, [timeFilter]);
+
+  // Target is always "this calendar month" — independent of the time filter
+  // above, which is for the rest of the dashboard's stats/charts.
+  useEffect(() => {
+    fetchTargetData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchTargetData = async () => {
+    try {
+      setTargetLoading(true);
+      const response = isAdmin()
+        ? await targetAPI.getCompany()
+        : await targetAPI.getMine();
+      setTargetData(response.data.data);
+    } catch (error) {
+      console.error('Error fetching target data:', error);
+    } finally {
+      setTargetLoading(false);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -189,9 +212,9 @@ const Dashboard = () => {
           </div>
 
           {isAdmin() ? (
-            <AdminDashboard data={data} timeFilter={timeFilter} />
+            <AdminDashboard data={data} timeFilter={timeFilter} targetData={targetData} targetLoading={targetLoading} />
           ) : (
-            <SalesRepDashboard data={data} timeFilter={timeFilter} />
+            <SalesRepDashboard data={data} timeFilter={timeFilter} targetData={targetData} targetLoading={targetLoading} />
           )}
         </div>
       </div>
@@ -254,10 +277,87 @@ const KPICard = ({ title, value, icon: Icon, trend, color = 'red', prefix = '', 
   </motion.div>
 );
 
-const SalesRepDashboard = ({ data, timeFilter, extraContent }) => {
-  // Format advert types for chart
-  const advertTypeData = data?.advertTypes?.map(item => ({
-    name: (item.name || 'text_ad').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+// Target progress bar — a loader that fills to % attained vs target.
+// Color signals pace, not just raw %: on the second half of the month,
+// under half attained turns amber/red so a rep sees they're behind before
+// month-end, not just a number that eventually catches up or doesn't.
+const TargetProgressBar = ({ label, target, attained, loading, subtitle }) => {
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl p-4 md:p-6 border border-gray-100 shadow-sm animate-pulse">
+        <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+        <div className="h-3 bg-gray-200 rounded-full w-full"></div>
+      </div>
+    );
+  }
+
+  if (!target || target <= 0) {
+    return (
+      <div className="bg-white rounded-xl p-4 md:p-6 border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-2 mb-1">
+          <Target className="h-4 w-4 text-gray-400" />
+          <h3 className="text-sm font-semibold text-gray-700">{label}</h3>
+        </div>
+        <p className="text-sm text-gray-500">
+          No target set for this month yet
+          {subtitle ? ` — ${subtitle}` : ''}.
+        </p>
+      </div>
+    );
+  }
+
+  const percent = Math.min(100, Math.round((attained / target) * 100));
+  const dayOfMonth = new Date().getDate();
+  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  const monthProgress = (dayOfMonth / daysInMonth) * 100;
+  const behindPace = monthProgress > 50 && percent < monthProgress - 15;
+
+  const barColor = percent >= 100 ? 'bg-green-500' : behindPace ? 'bg-amber-500' : 'bg-red-600';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-xl p-4 md:p-6 border border-gray-100 shadow-sm"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-red-600" />
+          <h3 className="text-sm font-semibold text-gray-700">{label}</h3>
+        </div>
+        <span className="text-sm font-bold text-gray-900">{percent}%</span>
+      </div>
+
+      <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${percent}%` }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+          className={`h-full rounded-full ${barColor}`}
+        />
+      </div>
+
+      <div className="flex items-center justify-between text-xs md:text-sm">
+        <span className="text-gray-600">
+          <span className="font-semibold text-gray-900">${Number(attained).toLocaleString()}</span> attained
+        </span>
+        <span className="text-gray-500">of ${Number(target).toLocaleString()} target</span>
+      </div>
+
+      {behindPace && percent < 100 && (
+        <p className="text-xs text-amber-700 mt-2">
+          {Math.round(monthProgress)}% of the month has passed — pace up to catch the target.
+        </p>
+      )}
+    </motion.div>
+  );
+};
+
+const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetLoading, targetLabel = "This Month's Target" }) => {
+  // Where adverts ran — groups vs channel (replaces the old text/picture/
+  // group-link "advert type" split now that every advert is just a post)
+  const destinationData = data?.advertTypes?.map(item => ({
+    name: (item.name || 'groups').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
     value: parseInt(item.value)
   })) || [];
 
@@ -287,6 +387,15 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent }) => {
 
   return (
     <div className="space-y-8">
+      {/* Monthly Target */}
+      <TargetProgressBar
+        label={targetLabel}
+        target={targetData?.target}
+        attained={targetData?.attained}
+        loading={targetLoading}
+        subtitle="ask an admin to set one"
+      />
+
       {/* KPI Cards - 2 columns on mobile, 3 on desktop */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
         <KPICard
@@ -331,18 +440,18 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent }) => {
 
       {/* Charts Section - Mobile Optimized */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {/* Advert Type Breakdown - Mobile Optimized */}
+        {/* Destination Breakdown - Mobile Optimized */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-xl p-4 md:p-6 border border-gray-100 shadow-sm"
         >
-          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Advert Type Breakdown</h3>
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Where Adverts Ran</h3>
           <div className="mobile-chart">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={advertTypeData}
+                  data={destinationData}
                   cx="50%"
                   cy="50%"
                   labelLine={!isMobile}
@@ -351,7 +460,7 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent }) => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {advertTypeData.map((entry, index) => (
+                  {destinationData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -445,7 +554,7 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent }) => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Where</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days Left</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
@@ -460,7 +569,7 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent }) => {
                       {advert.client_name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {(advert.advert_type || 'text_ad').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      {(advert.destination_type || 'groups').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {advert.days_paid} days
@@ -499,9 +608,9 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent }) => {
                   <span className="table-card-value font-semibold">{advert.client_name}</span>
                 </div>
                 <div className="table-card-row">
-                  <span className="table-card-label">Type</span>
+                  <span className="table-card-label">Where</span>
                   <span className="table-card-value">
-                    {(advert.advert_type || 'text_ad').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    {(advert.destination_type || 'groups').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                   </span>
                 </div>
                 <div className="table-card-row">
@@ -535,8 +644,88 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent }) => {
   );
 };
 
-const AdminDashboard = ({ data, timeFilter }) => {
+const AdminDashboard = ({ data, timeFilter, targetData, targetLoading }) => {
   const salesRepPerformance = data?.salesRepPerformance || [];
+
+  // Per-rep monthly target breakdown — always "this calendar month",
+  // independent of the leaderboard's timeFilter below.
+  const repTargets = (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.25 }}
+      className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
+    >
+      <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center">
+        <h3 className="text-base md:text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <Target className="h-5 w-5 text-red-600" />
+          Rep Targets — This Month
+        </h3>
+        <a
+          href="/targets"
+          className="text-xs font-medium px-3 py-1.5 bg-red-50 text-red-700 rounded-full hover:bg-red-100 transition-colors"
+        >
+          Edit targets
+        </a>
+      </div>
+
+      {targetLoading ? (
+        <div className="p-6 text-center text-gray-500 text-sm">Loading targets…</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rep</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attained</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {(targetData?.reps || []).length > 0 ? (
+                targetData.reps.map((rep) => {
+                  const pct = rep.percent == null ? null : Math.min(100, rep.percent);
+                  return (
+                    <tr key={rep.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{rep.fullName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        ${Number(rep.attained).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {rep.target > 0 ? `$${Number(rep.target).toLocaleString()}` : (
+                          <span className="text-gray-400 italic">not set</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {pct == null ? (
+                          <span className="text-xs text-gray-400">—</span>
+                        ) : (
+                          <div className="flex items-center gap-2 w-32">
+                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${pct >= 100 ? 'bg-green-500' : 'bg-red-500'}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-semibold text-gray-700 w-9 text-right">{rep.percent}%</span>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="4" className="px-6 py-8 text-center text-gray-500">No sales reps yet</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </motion.div>
+  );
 
   const leaderboard = (
     <motion.div
@@ -604,7 +793,21 @@ const AdminDashboard = ({ data, timeFilter }) => {
     </motion.div>
   );
 
-  return <SalesRepDashboard data={data} timeFilter={timeFilter} extraContent={leaderboard} />;
+  return (
+    <SalesRepDashboard
+      data={data}
+      timeFilter={timeFilter}
+      targetData={targetData}
+      targetLoading={targetLoading}
+      targetLabel="Company Target — This Month"
+      extraContent={
+        <>
+          {repTargets}
+          {leaderboard}
+        </>
+      }
+    />
+  );
 };
 
 export default Dashboard;

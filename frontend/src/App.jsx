@@ -25,6 +25,8 @@ import Requisitions from './pages/Requisitions';
 import MyRequisitions from './pages/MyRequisitions';
 import FinancialReports from './pages/FinancialReports';
 import Profile from './pages/Profile';
+import Targets from './pages/Targets';
+import SalesKit from './pages/SalesKit';
 
 function App() {
   return (
@@ -94,6 +96,24 @@ function App() {
                 element={
                   <PrivateRoute adminOnly>
                     <Users />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/targets"
+                element={
+                  <PrivateRoute adminOnly>
+                    <Targets />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/sales-kit"
+                element={
+                  <PrivateRoute>
+                    <SalesKit />
                   </PrivateRoute>
                 }
               />

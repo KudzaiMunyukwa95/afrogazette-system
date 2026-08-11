@@ -121,15 +121,16 @@ const getDashboard = async (req, res) => {
       LIMIT 10
     `, [startDate.toISOString(), endDate.toISOString()]);
 
-    // Advert Type Breakdown (Global)
+    // Destination Breakdown (Global) — groups vs channel, replaces the old
+    // text/picture/group-link advert-type split now that "a post is a post"
     const advertTypes = await pool.query(`
-      SELECT 
-        advert_type as name,
+      SELECT
+        destination_type as name,
         COUNT(*) as value
       FROM adverts
       WHERE COALESCE(approved_at, created_at) >= $1
         AND COALESCE(approved_at, created_at) < $2
-      GROUP BY advert_type
+      GROUP BY destination_type
       ORDER BY value DESC
     `, [startDate.toISOString(), endDate.toISOString()]);
 
@@ -335,16 +336,17 @@ const getMyDashboard = async (req, res) => {
       LIMIT 10
     `, [salesRepId, startDate.toISOString(), endDate.toISOString()]);
 
-    // Advert Type Breakdown
+    // Destination Breakdown — groups vs channel, replaces the old
+    // text/picture/group-link advert-type split now that "a post is a post"
     const advertTypes = await pool.query(`
-      SELECT 
-        advert_type as name,
+      SELECT
+        destination_type as name,
         COUNT(*) as value
       FROM adverts
       WHERE sales_rep_id = $1
         AND COALESCE(approved_at, created_at) >= $2
         AND COALESCE(approved_at, created_at) < $3
-      GROUP BY advert_type
+      GROUP BY destination_type
       ORDER BY value DESC
     `, [salesRepId, startDate.toISOString(), endDate.toISOString()]);
 

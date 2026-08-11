@@ -1,23 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { advertAPI } from '../services/api';
+import { advertAPI, ratesAPI } from '../services/api';
 import Layout from '../components/Layout';
 import ClientAutocomplete from '../components/ClientAutocomplete';
 import { useToast } from '../components/Toast';
 import {
   ArrowLeft,
   Save,
-  Tag,
   Calendar,
-  DollarSign,
-  Clock,
-  FileText,
   Smartphone,
   Radio,
+  Layers,
   CheckCircle,
-  User,
-  CreditCard,
-  Layers
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -59,11 +53,28 @@ const PAYMENT_METHODS = [
   { value: 'bank_transfer', label: 'Bank Transfer' }
 ];
 
+// Fallback if /api/rates hasn't loaded yet — mirrors backend/src/config/ratePolicy.js.
+// Kept in sync manually; the live rate card always wins once it loads.
+const FALLBACK_FLIGHTS = [
+  { key: 'daily', label: 'Daily', days: 1 },
+  { key: 'weekly', label: 'Weekly', days: 5 },
+  { key: 'monthly', label: 'Monthly', days: 25 }
+];
+const FALLBACK_PRICES = {
+  groups: { daily: 6, weekly: 28, monthly: 65 },
+  channel: { daily: 6, weekly: 28, monthly: 70 }
+};
+const FALLBACK_BOTH = { daily: 10, weekly: 50, monthly: 127 };
+
 const CreateAdvert = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
+
+  const [flights, setFlights] = useState(FALLBACK_FLIGHTS);
+  const [prices, setPrices] = useState(FALLBACK_PRICES);
+  const [bothPrices, setBothPrices] = useState(FALLBACK_BOTH);
 
   const prefill = location.state?.prefill;
 
@@ -71,16 +82,18 @@ const CreateAdvert = () => {
     clientId: null,
     clientName: prefill?.clientName || '',
     category: prefill?.category || '',
-    advertType: 'text_ad',
     caption: '',
     adContent: prefill?.adContent || '',
-    destinationType: 'groups', // default to groups
-    daysPaid: '',
+    destinationType: 'groups', // 'groups' | 'channel' | 'both'
+    flightKey: 'daily',
+    daysPaid: 1,
     paymentDate: '',
     paymentMethod: 'cash',
     amountPaid: '',
     startDate: ''
   });
+
+  const [amountTouched, setAmountTouched] = useState(false);
 
   useEffect(() => {
     if (prefill) {
@@ -91,7 +104,41 @@ const CreateAdvert = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Get today's date in YYYY-MM-DD format
+  useEffect(() => {
+    ratesAPI.get()
+      .then(res => {
+        const { flights: f, prices: p, bothPrices: b } = res.data.data;
+        if (f) setFlights(f);
+        if (p) setPrices(p);
+        if (b) setBothPrices(b);
+      })
+      .catch(() => {
+        // Silent — fallback constants above keep the form usable even if
+        // the rates endpoint is briefly unreachable.
+      });
+  }, []);
+
+  // Suggested price for the current destination + flight selection.
+  const suggestedAmount = () => {
+    const key = formData.flightKey;
+    if (formData.destinationType === 'both') return bothPrices[key] ?? '';
+    const table = prices[formData.destinationType] || prices.groups;
+    return table[key] ?? '';
+  };
+
+  // Auto-fill days + amount whenever destination or flight changes, unless
+  // the rep has manually edited the amount (e.g. a fill-rate discount) —
+  // in that case we don't clobber their edit on an unrelated change.
+  useEffect(() => {
+    const flight = flights.find(f => f.key === formData.flightKey);
+    setFormData(prev => ({
+      ...prev,
+      daysPaid: flight ? flight.days : prev.daysPaid,
+      amountPaid: amountTouched ? prev.amountPaid : String(suggestedAmount())
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.destinationType, formData.flightKey, flights, prices, bothPrices]);
+
   const getTodayDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -100,23 +147,48 @@ const CreateAdvert = () => {
     return `${year}-${month}-${day}`;
   };
 
-  // Calculate commission (10%)
-  const calculateCommission = (amount) => {
-    return (parseFloat(amount) * 0.10).toFixed(2);
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    if (name === 'amountPaid') setAmountTouched(true);
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
+
+  // Splits a combined "Both" price across the two component adverts,
+  // proportional to each platform's own standalone price for that flight —
+  // keeps per-platform revenue reporting honest without hardcoding a split
+  // per tier. E.g. monthly: groups $65 + channel $70 = $135 standalone,
+  // bundle is $127, so groups gets 65/135 of $127 and channel gets 70/135.
+  const splitBothAmount = (totalAmount) => {
+    const key = formData.flightKey;
+    const groupsSolo = prices.groups?.[key] || 1;
+    const channelSolo = prices.channel?.[key] || 1;
+    const sum = groupsSolo + channelSolo;
+    const total = parseFloat(totalAmount) || 0;
+    const groupsShare = (total * groupsSolo) / sum;
+    return {
+      groups: groupsShare.toFixed(2),
+      channel: (total - groupsShare).toFixed(2)
+    };
+  };
+
+  const buildPayload = (destinationType, amountPaid, bundleRef) => ({
+    clientId: formData.clientId,
+    clientName: formData.clientName,
+    category: formData.category,
+    caption: formData.caption,
+    adContent: formData.adContent,
+    destinationType,
+    daysPaid: formData.daysPaid,
+    paymentDate: formData.paymentDate,
+    amountPaid,
+    startDate: formData.startDate,
+    paymentMethod: formData.paymentMethod,
+    ...(bundleRef ? { bundleRef } : {})
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate start date is not in the past
     const today = getTodayDate();
     if (formData.startDate < today) {
       toast.error('Start date cannot be in the past');
@@ -134,9 +206,23 @@ const CreateAdvert = () => {
       return;
     }
 
+    if (!formData.amountPaid || parseFloat(formData.amountPaid) <= 0) {
+      toast.error('Amount paid is required');
+      return;
+    }
+
     try {
       setLoading(true);
-      await advertAPI.create(formData);
+
+      if (formData.destinationType === 'both') {
+        const bundleRef = `bundle-${Date.now()}`;
+        const split = splitBothAmount(formData.amountPaid);
+        await advertAPI.create(buildPayload('groups', split.groups, bundleRef));
+        await advertAPI.create(buildPayload('channel', split.channel, bundleRef));
+      } else {
+        await advertAPI.create(buildPayload(formData.destinationType, formData.amountPaid));
+      }
+
       toast.success('Advert created successfully');
       navigate('/dashboard');
     } catch (error) {
@@ -145,6 +231,14 @@ const CreateAdvert = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const perUnit = (amount, flightKey) => {
+    const flight = flights.find(f => f.key === flightKey);
+    const posts = flight?.days || 1;
+    const val = parseFloat(amount);
+    if (!val || !posts) return null;
+    return (val / posts).toFixed(2);
   };
 
   return (
@@ -180,112 +274,108 @@ const CreateAdvert = () => {
                 <h2 className="text-lg font-semibold text-gray-900">Where to post?</h2>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className={`
-                  flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 tap-target
-                  ${formData.destinationType === 'groups'
-                    ? 'border-red-500 bg-red-50'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                  }
-                `}>
-                  <input
-                    type="radio"
-                    name="destinationType"
-                    value="groups"
-                    checked={formData.destinationType === 'groups'}
-                    onChange={handleChange}
-                    className="sr-only"
-                  />
-                  <div className="flex items-start space-x-3">
-                    <Smartphone className={`h-5 w-5 mt-1 ${formData.destinationType === 'groups' ? 'text-red-600' : 'text-gray-400'}`} />
-                    <div>
-                      <div className={`font-semibold text-sm mb-1 ${formData.destinationType === 'groups' ? 'text-red-900' : 'text-gray-900'}`}>
-                        WhatsApp Groups
-                      </div>
-                      <div className={`text-xs ${formData.destinationType === 'groups' ? 'text-red-700' : 'text-gray-600'}`}>
-                        Post to multiple community groups
-                      </div>
-                    </div>
-                  </div>
-                </label>
-
-                <label className={`
-                  flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 tap-target
-                  ${formData.destinationType === 'channel'
-                    ? 'border-red-500 bg-red-50'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                  }
-                `}>
-                  <input
-                    type="radio"
-                    name="destinationType"
-                    value="channel"
-                    checked={formData.destinationType === 'channel'}
-                    onChange={handleChange}
-                    className="sr-only"
-                  />
-                  <div className="flex items-start space-x-3">
-                    <Radio className={`h-5 w-5 mt-1 ${formData.destinationType === 'channel' ? 'text-red-600' : 'text-gray-400'}`} />
-                    <div>
-                      <div className={`font-semibold text-sm mb-1 ${formData.destinationType === 'channel' ? 'text-red-900' : 'text-gray-900'}`}>
-                        WhatsApp Channel
-                      </div>
-                      <div className={`text-xs ${formData.destinationType === 'channel' ? 'text-red-700' : 'text-gray-600'}`}>
-                        Broadcast to official channel
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { id: 'groups', label: 'WhatsApp Groups', desc: 'Post to all 300 groups', icon: Smartphone },
+                  { id: 'channel', label: 'WhatsApp Channel', desc: 'Broadcast to the 40k channel', icon: Radio },
+                  { id: 'both', label: 'Both', desc: 'Groups + channel, one price', icon: Layers }
+                ].map(({ id, label, desc, icon: Icon }) => (
+                  <label
+                    key={id}
+                    className={`
+                      flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 tap-target
+                      ${formData.destinationType === id
+                        ? 'border-red-500 bg-red-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                      }
+                    `}
+                  >
+                    <input
+                      type="radio"
+                      name="destinationType"
+                      value={id}
+                      checked={formData.destinationType === id}
+                      onChange={handleChange}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start space-x-3">
+                      <Icon className={`h-5 w-5 mt-1 ${formData.destinationType === id ? 'text-red-600' : 'text-gray-400'}`} />
+                      <div>
+                        <div className={`font-semibold text-sm mb-1 ${formData.destinationType === id ? 'text-red-900' : 'text-gray-900'}`}>
+                          {label}
+                        </div>
+                        <div className={`text-xs ${formData.destinationType === id ? 'text-red-700' : 'text-gray-600'}`}>
+                          {desc}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </label>
+                  </label>
+                ))}
               </div>
             </div>
 
-            {/* Step 2: Advert Details */}
+            {/* Step 2: Flight length */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
               <div className="flex items-center space-x-2 mb-4">
                 <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-sm">2</div>
+                <h2 className="text-lg font-semibold text-gray-900">How long?</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {flights.map((flight) => {
+                  const amount = formData.destinationType === 'both'
+                    ? bothPrices[flight.key]
+                    : (prices[formData.destinationType] || prices.groups)[flight.key];
+                  const per = perUnit(amount, flight.key);
+                  const selected = formData.flightKey === flight.key;
+                  return (
+                    <label
+                      key={flight.key}
+                      className={`
+                        relative flex flex-col p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 tap-target
+                        ${selected ? 'border-red-500 bg-red-50' : 'border-gray-200 bg-white hover:border-gray-300'}
+                      `}
+                    >
+                      <input
+                        type="radio"
+                        name="flightKey"
+                        value={flight.key}
+                        checked={selected}
+                        onChange={handleChange}
+                        className="sr-only"
+                      />
+                      <span className={`text-sm font-semibold ${selected ? 'text-red-900' : 'text-gray-900'}`}>
+                        {flight.label}
+                      </span>
+                      <span className={`text-xs mt-0.5 ${selected ? 'text-red-700' : 'text-gray-500'}`}>
+                        {flight.days} post{flight.days > 1 ? 's' : ''}
+                      </span>
+                      {amount != null && (
+                        <span className={`text-lg font-bold mt-2 ${selected ? 'text-red-600' : 'text-gray-900'}`}>
+                          ${amount}
+                          {per && flight.days > 1 && (
+                            <span className="text-xs font-normal text-gray-500 ml-1">(${per} ea)</span>
+                          )}
+                        </span>
+                      )}
+                      {selected && <CheckCircle className="absolute top-3 right-3 h-4 w-4 text-red-600" />}
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-xs text-gray-500">
+                Price auto-fills below from the current rate card. Edit it directly for a negotiated or fill-rate discount — it's reviewed at approval either way.
+              </p>
+            </div>
+
+            {/* Step 3: Advert Details */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-sm">3</div>
                 <h2 className="text-lg font-semibold text-gray-900">Advert Details</h2>
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Advert Type</label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {[
-                      { id: 'text_ad', label: 'Text Ad' },
-                      { id: 'group_link_ad', label: 'Group Link' },
-                      { id: 'picture_ad', label: 'Picture Ad' },
-                      { id: 'website_ad', label: 'Website Ad' },
-                      { id: 'feature', label: 'Feature' }
-                    ].map((type) => (
-                      <label
-                        key={type.id}
-                        className={`
-                          relative flex flex-col items-center justify-center p-3 border-2 rounded-lg cursor-pointer text-center transition-all duration-200 tap-target
-                          ${formData.advertType === type.id
-                            ? 'border-red-500 bg-red-50'
-                            : 'border-gray-200 bg-white hover:border-gray-300'
-                          }
-                        `}
-                      >
-                        <input
-                          type="radio"
-                          name="advertType"
-                          value={type.id}
-                          checked={formData.advertType === type.id}
-                          onChange={handleChange}
-                          className="sr-only"
-                        />
-                        <span className={`text-sm font-medium ${formData.advertType === type.id ? 'text-red-900' : 'text-gray-900'}`}>
-                          {type.label}
-                        </span>
-                        {formData.advertType === type.id && (
-                          <CheckCircle className="absolute top-1 right-1 h-3 w-3 text-red-600" />
-                        )}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Client Name *</label>
@@ -383,16 +473,19 @@ const CreateAdvert = () => {
               </div>
             </div>
 
-            {/* Step 3: Payment & Schedule */}
+            {/* Step 4: Payment & Schedule */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
               <div className="flex items-center space-x-2 mb-4">
-                <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-sm">3</div>
+                <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-sm">4</div>
                 <h2 className="text-lg font-semibold text-gray-900">Payment & Schedule</h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Days Paid *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Days / Posts Paid
+                    <span className="ml-1 text-xs font-normal text-gray-400">(from flight above)</span>
+                  </label>
                   <input
                     type="number"
                     name="daysPaid"
@@ -416,9 +509,9 @@ const CreateAdvert = () => {
                     step="0.01"
                     className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   />
-                  {formData.amountPaid && (
-                    <p className="text-sm text-green-600 font-medium mt-1">
-                      Commission: ${calculateCommission(formData.amountPaid)}
+                  {formData.destinationType === 'both' && formData.amountPaid && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Splits as ${splitBothAmount(formData.amountPaid).groups} groups / ${splitBothAmount(formData.amountPaid).channel} channel for reporting.
                     </p>
                   )}
                 </div>
@@ -479,7 +572,7 @@ const CreateAdvert = () => {
                 ) : (
                   <Save className="h-5 w-5 mr-2" />
                 )}
-                Create Advert
+                {formData.destinationType === 'both' ? 'Create Both Adverts' : 'Create Advert'}
               </button>
             </div>
 

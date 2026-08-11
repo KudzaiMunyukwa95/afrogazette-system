@@ -47,10 +47,10 @@ router.post(
       .optional()
       .isIn(['groups', 'channel'])
       .withMessage('Valid destination type is required'),
-    body('advertType')
+    body('bundleRef')
       .optional()
-      .isIn(['text_ad', 'group_link_ad', 'picture_ad', 'website_ad', 'feature'])
-      .withMessage('Valid advert type is required')
+      .isLength({ max: 40 })
+      .withMessage('bundleRef must be 40 characters or fewer')
   ],
   validate,
   advertController.createAdvert

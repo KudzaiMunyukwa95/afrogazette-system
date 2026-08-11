@@ -21,7 +21,9 @@ import {
   DollarSign,
   ShieldCheck,
   MoreHorizontal,
-  ChevronDown
+  ChevronDown,
+  Target,
+  MessageSquareText
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -50,6 +52,8 @@ const Layout = ({ children }) => {
           { name: 'Schedule', href: '/schedule', icon: Calendar },
           { name: 'Invoices', href: '/invoices', icon: FileText },
           { name: 'Finance', href: '/finance/overview', icon: DollarSign, current: currentPath.startsWith('/finance') },
+          { name: 'Targets', href: '/targets', icon: Target },
+          { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquareText },
           { name: 'Users', href: '/users', icon: Users }
         ])
       };
@@ -63,6 +67,7 @@ const Layout = ({ children }) => {
         { name: 'Adverts', href: '/my-adverts', icon: FileText }
       ]),
       secondary: withCurrent([
+        { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquareText },
         { name: 'Calendar', href: '/calendar', icon: Calendar },
         { name: 'Clients', href: '/my-clients', icon: Users },
         { name: 'Invoices', href: '/invoices', icon: FileText },

@@ -136,10 +136,22 @@ export const slotAPI = {
 };
 
 // Analytics APIs
-// Analytics APIs
 export const analyticsAPI = {
   getDashboard: (params) => api.get('/analytics/dashboard', { params }),
   getMyDashboard: (params) => api.get('/analytics/my-dashboard', { params })
+};
+
+// Target APIs
+export const targetAPI = {
+  getMine: (month) => api.get('/targets/mine', { params: month ? { month } : {} }),
+  getCompany: (month) => api.get('/targets/company', { params: month ? { month } : {} }),
+  getAll: (month) => api.get('/targets/all', { params: month ? { month } : {} }),
+  set: (userId, targetAmount, month) => api.put(`/targets/${userId}`, { targetAmount, month })
+};
+
+// Rate card APIs — single source of truth lives in backend config/ratePolicy.js
+export const ratesAPI = {
+  get: () => api.get('/rates')
 };
 
 // Invoice APIs

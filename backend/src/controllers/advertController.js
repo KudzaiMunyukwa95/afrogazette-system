@@ -2,6 +2,7 @@ const pool = require('../config/database');
 const { calculateRemainingDays } = require('../services/schedulingService');
 const { createNotification, notifyAdmins } = require('./notificationController');
 const { vetAdvert } = require('../services/aiVettingService');
+const { commissionRateForDays } = require('../config/ratePolicy');
 
 /**
  * Check an advert's eligibility before booking it — pure vetting call,
@@ -59,10 +60,14 @@ const createAdvert = async (req, res) => {
       paymentDate,
       amountPaid,
       startDate,
-      advertType = 'text_ad',
       destinationType = 'groups',
-      paymentMethod = 'cash'
+      paymentMethod = 'cash',
+      bundleRef = null
     } = req.body;
+
+    // Ad format (text/picture/group-link) no longer exists as a client choice —
+    // every advert is just "a post" now. The column stays for historical rows.
+    const advertType = 'post';
 
     const salesRepId = req.user.id;
     let finalClientName = clientName;
@@ -93,22 +98,23 @@ const createAdvert = async (req, res) => {
       finalClientName = clientResult.rows[0].name;
     }
 
-    // Calculate 10% commission
-    const commissionAmount = (parseFloat(amountPaid) * 0.1).toFixed(2);
+    // Commission tier depends on how long the booking is — a single day
+    // closes itself, a monthly pack is real conversion work. See ratePolicy.js.
+    const commissionAmount = (parseFloat(amountPaid) * commissionRateForDays(daysPaid)).toFixed(2);
 
     // Insert advert with pending status
     const result = await pool.query(
       `INSERT INTO adverts (
         client_id, client_name, category, caption, ad_content, media_url, days_paid,
         payment_date, amount_paid, start_date, sales_rep_id, status,
-        advert_type, destination_type, payment_method, commission_amount
+        advert_type, destination_type, payment_method, commission_amount, bundle_ref
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', $12, $13, $14, $15)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', $12, $13, $14, $15, $16)
       RETURNING *`,
       [
         clientId || null, finalClientName, category, trimmedCaption, (adContent || '').trim() || null, mediaUrl, daysPaid,
         paymentDate, parseFloat(amountPaid).toFixed(2), startDate, salesRepId,
-        advertType, destinationType, paymentMethod, commissionAmount
+        advertType, destinationType, paymentMethod, commissionAmount, bundleRef
       ]
     );
 
@@ -400,7 +406,7 @@ const approveAdvert = async (req, res) => {
 
     // Generate Invoice
     const invoiceNumber = `AG-INV-${Date.now().toString().slice(-6)}`;
-    const commissionAmount = (parseFloat(advert.amount_paid) * 0.10).toFixed(2); // 10% commission
+    const commissionAmount = (parseFloat(advert.amount_paid) * commissionRateForDays(advert.days_paid)).toFixed(2);
 
     await client.query(`
       INSERT INTO invoices (
