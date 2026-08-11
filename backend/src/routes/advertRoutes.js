@@ -31,10 +31,10 @@ router.post(
       .withMessage('Valid category is required'),
     body('caption').notEmpty().withMessage('Caption is required'),
     body('adContent')
-      .optional()
+      .optional({ checkFalsy: true })
       .isLength({ min: 10, max: 2000 })
       .withMessage('Ad content must be between 10 and 2000 characters'),
-    body('mediaUrl').optional().isURL().withMessage('Valid URL is required'),
+    body('mediaUrl').optional({ checkFalsy: true }).isURL().withMessage('Valid URL is required'),
     body('daysPaid')
       .isInt({ min: 1 })
       .withMessage('Days paid must be at least 1'),
