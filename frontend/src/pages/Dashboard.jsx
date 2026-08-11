@@ -3,17 +3,47 @@ import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { analyticsAPI, targetAPI } from '../services/api';
 import { motion } from 'framer-motion';
-import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import {
   PieChart, Pie, BarChart, Bar, LineChart, Line, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import {
   TrendingUp, TrendingDown, Users, DollarSign, FileText,
-  Clock, CheckCircle, AlertTriangle, Calendar, Target
+  Clock, CheckCircle, AlertTriangle, Calendar, Target, Sparkles
 } from 'lucide-react';
 
 const COLORS = ['#E63946', '#457B9D', '#F1FAEE', '#A8DADC', '#1D3557'];
+
+// Tailwind's JIT compiler only includes classes it can see as literal
+// strings — `text-${color}-600` inside a plain (non-template) string never
+// interpolated in the first place, so KPI icon colors have silently never
+// applied. Static per-variant classes are both the fix and the only way
+// dynamic-by-name Tailwind color classes work reliably at all.
+const COLOR_VARIANTS = {
+  green: { tile: 'bg-emerald-50', icon: 'text-emerald-600', ring: 'ring-emerald-100' },
+  blue: { tile: 'bg-blue-50', icon: 'text-blue-600', ring: 'ring-blue-100' },
+  purple: { tile: 'bg-violet-50', icon: 'text-violet-600', ring: 'ring-violet-100' },
+  yellow: { tile: 'bg-amber-50', icon: 'text-amber-600', ring: 'ring-amber-100' },
+  red: { tile: 'bg-red-50', icon: 'text-red-600', ring: 'ring-red-100' }
+};
+
+const tooltipStyle = {
+  borderRadius: 12,
+  border: '1px solid #F1F1F1',
+  boxShadow: '0 8px 24px -8px rgba(0,0,0,0.15)',
+  fontSize: 13
+};
+
+// Staggers direct children in by a hair each — the whole dashboard arrives
+// as one composed motion instead of everything popping in at once.
+const staggerContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06 } }
+};
+const staggerItem = {
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } }
+};
 
 const Dashboard = () => {
   const { user, isAdmin } = useAuth();
@@ -69,9 +99,6 @@ const Dashboard = () => {
         ? await analyticsAPI.getDashboard(params)
         : await analyticsAPI.getMyDashboard(params);
 
-      // Debug: Log the response to see data structure
-      console.log('Dashboard API Response:', response.data.data);
-
       setData(response.data.data);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -82,32 +109,22 @@ const Dashboard = () => {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-
-    // Debug: Log user object to see what's available
-    console.log('User object:', user);
-
-    // Try multiple possible field names
     const firstName = user?.full_name?.split(' ')[0] ||
       user?.fullName?.split(' ')[0] ||
       user?.name?.split(' ')[0] ||
       user?.email?.split('@')[0] ||
       'User';
 
-    if (hour >= 5 && hour < 12) return `Good morning, ${firstName} 👋`;
-    if (hour >= 12 && hour < 17) return `Good afternoon, ${firstName} 👋`;
-    if (hour >= 17 && hour < 24) return `Good evening, ${firstName} 👋`;
-    return `Hello, ${firstName} 👋`;
+    if (hour >= 5 && hour < 12) return `Good morning, ${firstName}`;
+    if (hour >= 12 && hour < 17) return `Good afternoon, ${firstName}`;
+    if (hour >= 17 && hour < 24) return `Good evening, ${firstName}`;
+    return `Hello, ${firstName}`;
   };
 
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600 font-medium">Loading dashboard...</p>
-          </div>
-        </div>
+        <DashboardSkeleton />
       </Layout>
     );
   }
@@ -115,14 +132,14 @@ const Dashboard = () => {
   if (!data) {
     return (
       <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
           <div className="text-center">
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto" />
             <h3 className="mt-2 text-lg font-medium text-gray-900">Failed to load dashboard</h3>
             <p className="mt-1 text-gray-500">Please try refreshing the page.</p>
             <button
               onClick={fetchDashboardData}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              className="mt-4 px-5 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 active:scale-95 transition-all"
             >
               Retry
             </button>
@@ -134,26 +151,13 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-4 md:py-8">
-        <div className="max-w-7xl mx-auto mobile-container">
-          {/* Personalized Greeting */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 md:mb-8"
-          >
-            <h1 className="font-bold text-gray-900 mb-2">
-              {getGreeting()}
-            </h1>
-            <p className="text-sm md:text-base text-gray-600">
-              Here's your performance overview.
-            </p>
-          </motion.div>
-
-          {/* Time Filter Tabs - Swipeable on Mobile */}
-          <div className="mb-6 md:mb-8">
-            <div className="-mx-4 md:mx-0 mb-4">
-              <div className="swipeable flex gap-2 px-4 md:px-0 pb-2 overflow-x-auto">
+      <div className="min-h-screen bg-gray-50">
+        {/* Sticky filter bar — the one control worth keeping in reach while
+            scrolling a long dashboard, like a segmented control in a native app */}
+        <div className="sticky top-16 z-30 bg-gray-50/85 backdrop-blur-md border-b border-gray-200/70">
+          <div className="max-w-7xl mx-auto mobile-container py-3">
+            <div className="-mx-4 md:mx-0">
+              <div className="swipeable flex gap-2 px-4 md:px-0 overflow-x-auto">
                 {[
                   { id: 'today', label: 'Today' },
                   { id: 'week', label: 'Last 7 Days' },
@@ -164,10 +168,11 @@ const Dashboard = () => {
                   <button
                     key={filter.id}
                     onClick={() => setTimeFilter(filter.id)}
-                    className={`px-4 md:px-6 py-2 md:py-2.5 rounded-lg text-sm md:text-base font-medium transition-all whitespace-nowrap tap-target ${timeFilter === filter.id
-                      ? 'bg-red-600 text-white shadow-lg shadow-red-200'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-                      }`}
+                    className={`px-4 md:px-5 py-2 md:py-2.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap tap-target active:scale-95 ${
+                      timeFilter === filter.id
+                        ? 'bg-red-600 text-white shadow-md shadow-red-200'
+                        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                    }`}
                   >
                     {filter.label}
                   </button>
@@ -175,12 +180,11 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Custom Date Inputs */}
             {timeFilter === 'custom' && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
-                className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row items-end gap-4"
+                className="mt-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row items-end gap-4"
               >
                 <div className="w-full md:w-auto">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
@@ -203,13 +207,28 @@ const Dashboard = () => {
                 <button
                   onClick={fetchDashboardData}
                   disabled={!customDateRange.start || !customDateRange.end}
-                  className="w-full md:w-auto px-6 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full md:w-auto px-6 py-2.5 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
                 >
                   Apply Range
                 </button>
               </motion.div>
             )}
           </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto mobile-container py-5 md:py-8">
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 md:mb-8"
+          >
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+              {getGreeting()} <span className="inline-block">👋</span>
+            </h1>
+            <p className="text-sm md:text-base text-gray-500 mt-1">
+              Here's your performance overview.
+            </p>
+          </motion.div>
 
           {isAdmin() ? (
             <AdminDashboard data={data} timeFilter={timeFilter} targetData={targetData} targetLoading={targetLoading} />
@@ -222,6 +241,36 @@ const Dashboard = () => {
   );
 };
 
+// Skeleton loading state — mirrors the real layout's shape so there's no
+// jarring pop-in once data lands, and no blank-screen-with-spinner feel.
+const DashboardSkeleton = () => (
+  <div className="min-h-screen bg-gray-50">
+    <div className="sticky top-16 z-30 bg-gray-50/85 backdrop-blur-md border-b border-gray-200/70">
+      <div className="max-w-7xl mx-auto mobile-container py-3">
+        <div className="flex gap-2 overflow-x-hidden">
+          {[0, 1, 2, 3, 4].map(i => (
+            <div key={i} className="h-9 w-24 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />
+          ))}
+        </div>
+      </div>
+    </div>
+    <div className="max-w-7xl mx-auto mobile-container py-5 md:py-8 space-y-6 md:space-y-8">
+      <div className="h-8 w-56 bg-gray-200 rounded-lg animate-pulse" />
+      <div className="h-28 bg-gray-200 rounded-2xl animate-pulse" />
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
+        {[0, 1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="h-32 bg-gray-200 rounded-2xl animate-pulse" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        {[0, 1].map(i => (
+          <div key={i} className="h-72 bg-gray-200 rounded-2xl animate-pulse" />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 // Animated Counter Component
 const AnimatedCounter = ({ value, prefix = '', suffix = '' }) => {
   const [count, setCount] = useState(0);
@@ -231,7 +280,7 @@ const AnimatedCounter = ({ value, prefix = '', suffix = '' }) => {
     const end = parseInt(value);
     if (start === end) return;
 
-    const duration = 1000;
+    const duration = 900;
     const increment = end / (duration / 16);
 
     const timer = setInterval(() => {
@@ -247,54 +296,59 @@ const AnimatedCounter = ({ value, prefix = '', suffix = '' }) => {
     return () => clearInterval(timer);
   }, [value]);
 
-  return <span>{prefix}{count.toLocaleString()}{suffix}</span>;
+  return <span className="tabular-nums">{prefix}{count.toLocaleString()}{suffix}</span>;
 };
 
-// Modern KPI Card - Mobile Optimized
-const KPICard = ({ title, value, icon: Icon, trend, color = 'red', prefix = '', suffix = '' }) => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.95 }}
-    animate={{ opacity: 1, scale: 1 }}
-    whileHover={{ scale: 1.02, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}
-    className="bg-white rounded-xl p-4 md:p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all"
-  >
-    <div className="flex items-center justify-between mb-3 md:mb-4">
-      <div className={`p-2 md:p-3 rounded-lg bg-${color}-50`}>
-        <Icon className="icon-md md:h-6 md:w-6 text-${color}-600" />
-      </div>
-      {trend && (
-        <div className={`flex items-center text-xs md:text-sm font-medium ${trend > 0 ? 'text-green-600' : 'text-red-600'
-          }`}>
-          {trend > 0 ? <TrendingUp className="h-3 w-3 md:h-4 md:w-4 mr-1" /> : <TrendingDown className="h-3 w-3 md:h-4 md:w-4 mr-1" />}
-          {Math.abs(trend)}%
+// KPI Card — icon in a soft-tinted tile, tap feedback for mobile, real
+// (static, JIT-safe) color variants instead of the old broken template string.
+const KPICard = ({ title, value, icon: Icon, trend, color = 'red', prefix = '', suffix = '' }) => {
+  const variant = COLOR_VARIANTS[color] || COLOR_VARIANTS.red;
+  return (
+    <motion.div
+      variants={staggerItem}
+      whileTap={{ scale: 0.97 }}
+      whileHover={{ y: -2 }}
+      className="bg-white rounded-2xl p-4 md:p-6 border border-gray-100 shadow-sm hover:shadow-lg hover:shadow-gray-200/60 transition-shadow"
+    >
+      <div className="flex items-center justify-between mb-3 md:mb-4">
+        <div className={`p-2.5 md:p-3 rounded-xl ${variant.tile} ring-4 ${variant.ring}`}>
+          <Icon className={`h-4 w-4 md:h-5 md:w-5 ${variant.icon}`} />
         </div>
-      )}
-    </div>
-    <h3 className="text-xs md:text-sm font-medium text-gray-600 mb-1">{title}</h3>
-    <p className="text-xl md:text-3xl font-bold text-gray-900">
-      <AnimatedCounter value={value} prefix={prefix} suffix={suffix} />
-    </p>
-  </motion.div>
-);
+        {trend != null && (
+          <div className={`flex items-center text-xs md:text-sm font-semibold ${trend > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            {trend > 0 ? <TrendingUp className="h-3.5 w-3.5 mr-0.5" /> : <TrendingDown className="h-3.5 w-3.5 mr-0.5" />}
+            {Math.abs(trend)}%
+          </div>
+        )}
+      </div>
+      <h3 className="text-xs md:text-sm font-medium text-gray-500 mb-1">{title}</h3>
+      <p className="text-xl md:text-3xl font-bold text-gray-900 tracking-tight">
+        <AnimatedCounter value={value} prefix={prefix} suffix={suffix} />
+      </p>
+    </motion.div>
+  );
+};
 
 // Target progress bar — a loader that fills to % attained vs target.
 // Color signals pace, not just raw %: on the second half of the month,
 // under half attained turns amber/red so a rep sees they're behind before
 // month-end, not just a number that eventually catches up or doesn't.
+// This is the dashboard's centerpiece, so it gets the most visual weight —
+// gradient fill, a glow once complete, larger type than the KPI cards below it.
 const TargetProgressBar = ({ label, target, attained, loading, subtitle }) => {
   if (loading) {
     return (
-      <div className="bg-white rounded-xl p-4 md:p-6 border border-gray-100 shadow-sm animate-pulse">
-        <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
-        <div className="h-3 bg-gray-200 rounded-full w-full"></div>
+      <div className="bg-white rounded-2xl p-5 md:p-7 border border-gray-100 shadow-sm animate-pulse">
+        <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
+        <div className="h-4 bg-gray-200 rounded-full w-full"></div>
       </div>
     );
   }
 
   if (!target || target <= 0) {
     return (
-      <div className="bg-white rounded-xl p-4 md:p-6 border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-2 mb-1">
+      <div className="bg-white rounded-2xl p-5 md:p-7 border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-2 mb-1.5">
           <Target className="h-4 w-4 text-gray-400" />
           <h3 className="text-sm font-semibold text-gray-700">{label}</h3>
         </div>
@@ -311,44 +365,64 @@ const TargetProgressBar = ({ label, target, attained, loading, subtitle }) => {
   const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
   const monthProgress = (dayOfMonth / daysInMonth) * 100;
   const behindPace = monthProgress > 50 && percent < monthProgress - 15;
+  const complete = percent >= 100;
 
-  const barColor = percent >= 100 ? 'bg-green-500' : behindPace ? 'bg-amber-500' : 'bg-red-600';
+  const fillGradient = complete
+    ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+    : behindPace
+      ? 'bg-gradient-to-r from-amber-500 to-amber-400'
+      : 'bg-gradient-to-r from-red-600 to-red-500';
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl p-4 md:p-6 border border-gray-100 shadow-sm"
+      variants={staggerItem}
+      className={`relative bg-white rounded-2xl p-5 md:p-7 border shadow-sm overflow-hidden ${
+        complete ? 'border-emerald-200 shadow-emerald-100' : 'border-gray-100'
+      }`}
     >
-      <div className="flex items-center justify-between mb-3">
+      {complete && (
+        <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-emerald-100/60 blur-2xl pointer-events-none" />
+      )}
+
+      <div className="relative flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Target className="h-4 w-4 text-red-600" />
+          <div className={`p-1.5 rounded-lg ${complete ? 'bg-emerald-50' : 'bg-red-50'}`}>
+            {complete
+              ? <Sparkles className="h-4 w-4 text-emerald-600" />
+              : <Target className="h-4 w-4 text-red-600" />}
+          </div>
           <h3 className="text-sm font-semibold text-gray-700">{label}</h3>
         </div>
-        <span className="text-sm font-bold text-gray-900">{percent}%</span>
+        <span className={`text-2xl md:text-3xl font-bold tabular-nums tracking-tight ${complete ? 'text-emerald-600' : 'text-gray-900'}`}>
+          {percent}%
+        </span>
       </div>
 
-      <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+      <div className="relative h-3.5 bg-gray-100 rounded-full overflow-hidden mb-3">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${percent}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className={`h-full rounded-full ${barColor}`}
+          transition={{ duration: 0.9, ease: 'easeOut' }}
+          className={`h-full rounded-full ${fillGradient}`}
         />
       </div>
 
-      <div className="flex items-center justify-between text-xs md:text-sm">
+      <div className="relative flex items-center justify-between text-xs md:text-sm">
         <span className="text-gray-600">
-          <span className="font-semibold text-gray-900">${Number(attained).toLocaleString()}</span> attained
+          <span className="font-semibold text-gray-900 tabular-nums">${Number(attained).toLocaleString()}</span> attained
         </span>
-        <span className="text-gray-500">of ${Number(target).toLocaleString()} target</span>
+        <span className="text-gray-500 tabular-nums">of ${Number(target).toLocaleString()} target</span>
       </div>
 
-      {behindPace && percent < 100 && (
-        <p className="text-xs text-amber-700 mt-2">
+      {complete ? (
+        <p className="relative text-xs text-emerald-700 font-medium mt-3">
+          Target hit — nice work. 🎉
+        </p>
+      ) : behindPace ? (
+        <p className="relative text-xs text-amber-700 mt-3">
           {Math.round(monthProgress)}% of the month has passed — pace up to catch the target.
         </p>
-      )}
+      ) : null}
     </motion.div>
   );
 };
@@ -361,7 +435,6 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
     value: parseInt(item.value)
   })) || [];
 
-  // Format payment methods for chart
   const paymentMethodData = data?.paymentMethods?.map(item => {
     let methodLabel = item.method || 'cash';
     if (methodLabel === 'omarimoney') methodLabel = 'Omari';
@@ -371,13 +444,11 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
     };
   }) || [];
 
-  // Format sales trend data
   const salesTrendData = data?.salesTrend?.map(item => ({
     day: item.day,
     sales: parseFloat(item.sales || 0)
   })) || [];
 
-  // Format top clients data
   const topClients = data?.topClients?.map(item => ({
     name: item.name,
     spent: parseFloat(item.spent || 0)
@@ -386,8 +457,12 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
   const isMobile = window.innerWidth < 768;
 
   return (
-    <div className="space-y-8">
-      {/* Monthly Target */}
+    <motion.div
+      variants={staggerContainer}
+      initial="hidden"
+      animate="show"
+      className="space-y-6 md:space-y-8"
+    >
       <TargetProgressBar
         label={targetLabel}
         target={targetData?.target}
@@ -396,56 +471,17 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
         subtitle="ask an admin to set one"
       />
 
-      {/* KPI Cards - 2 columns on mobile, 3 on desktop */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
-        <KPICard
-          title="Total Sales"
-          value={data?.summary?.total_sales || 0}
-          icon={DollarSign}
-          color="green"
-          prefix="$"
-        />
-        <KPICard
-          title="Commission Earned"
-          value={data?.summary?.total_commission || 0}
-          icon={TrendingUp}
-          color="blue"
-          prefix="$"
-        />
-        <KPICard
-          title="Total Clients"
-          value={data?.summary?.total_adverts || 0}
-          icon={Users}
-          color="purple"
-        />
-        <KPICard
-          title="Active Adverts"
-          value={data?.summary?.active_count || 0}
-          icon={CheckCircle}
-          color="green"
-        />
-        <KPICard
-          title="Pending Approvals"
-          value={data?.summary?.pending_count || 0}
-          icon={Clock}
-          color="yellow"
-        />
-        <KPICard
-          title="Expiring Soon"
-          value={data?.expiringSoon?.length || 0}
-          icon={AlertTriangle}
-          color="red"
-        />
+        <KPICard title="Total Sales" value={data?.summary?.total_sales || 0} icon={DollarSign} color="green" prefix="$" />
+        <KPICard title="Commission Earned" value={data?.summary?.total_commission || 0} icon={TrendingUp} color="blue" prefix="$" />
+        <KPICard title="Total Clients" value={data?.summary?.total_adverts || 0} icon={Users} color="purple" />
+        <KPICard title="Active Adverts" value={data?.summary?.active_count || 0} icon={CheckCircle} color="green" />
+        <KPICard title="Pending Approvals" value={data?.summary?.pending_count || 0} icon={Clock} color="yellow" />
+        <KPICard title="Expiring Soon" value={data?.expiringSoon?.length || 0} icon={AlertTriangle} color="red" />
       </div>
 
-      {/* Charts Section - Mobile Optimized */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {/* Destination Breakdown - Mobile Optimized */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl p-4 md:p-6 border border-gray-100 shadow-sm"
-        >
+        <motion.div variants={staggerItem} className="bg-white rounded-2xl p-4 md:p-6 border border-gray-100 shadow-sm">
           <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Where Adverts Ran</h3>
           <div className="mobile-chart">
             <ResponsiveContainer width="100%" height="100%">
@@ -464,20 +500,14 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={tooltipStyle} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </motion.div>
 
-        {/* Payment Method Analytics - Mobile Optimized */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl p-4 md:p-6 border border-gray-100 shadow-sm"
-        >
+        <motion.div variants={staggerItem} className="bg-white rounded-2xl p-4 md:p-6 border border-gray-100 shadow-sm">
           <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Payment Methods</h3>
           <div className="mobile-chart">
             <ResponsiveContainer width="100%" height="100%">
@@ -485,70 +515,53 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                 <XAxis dataKey="method" tick={{ fontSize: window.innerWidth < 768 ? 10 : 12 }} />
                 <YAxis tick={{ fontSize: window.innerWidth < 768 ? 10 : 12 }} />
-                <Tooltip />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(230,57,70,0.06)' }} />
                 <Bar dataKey="amount" fill="#E63946" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </motion.div>
 
-        {/* Sales Trend */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm"
-        >
+        <motion.div variants={staggerItem} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">7-Day Sales Trend</h3>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={salesTrendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="day" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Line type="monotone" dataKey="sales" stroke="#E63946" strokeWidth={3} dot={{ r: 4 }} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Line type="monotone" dataKey="sales" stroke="#E63946" strokeWidth={3} dot={{ r: 4, fill: '#E63946' }} activeDot={{ r: 6 }} />
             </LineChart>
           </ResponsiveContainer>
         </motion.div>
 
-        {/* Top Clients */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm"
-        >
+        <motion.div variants={staggerItem} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Top 5 Clients by Spend</h3>
-          <div className="space-y-3">
-            {topClients.map((client, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-sm">
+          <div className="space-y-2.5">
+            {topClients.length > 0 ? topClients.map((client, index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 flex-shrink-0 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-sm">
                     {index + 1}
                   </div>
-                  <span className="font-medium text-gray-900">{client.name}</span>
+                  <span className="font-medium text-gray-900 truncate">{client.name}</span>
                 </div>
-                <span className="font-bold text-gray-900">${client.spent}</span>
+                <span className="font-bold text-gray-900 tabular-nums flex-shrink-0">${client.spent}</span>
               </div>
-            ))}
+            )) : (
+              <p className="text-sm text-gray-500 text-center py-6">No client spend yet this period</p>
+            )}
           </div>
         </motion.div>
       </div>
 
       {extraContent}
 
-      {/* Active Adverts Section - Mobile Optimized */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
-      >
+      <motion.div variants={staggerItem} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-4 md:p-6 border-b border-gray-100">
           <h3 className="text-base md:text-lg font-semibold text-gray-900">Active Advert Slots</h3>
         </div>
 
-        {/* Desktop Table View */}
         <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -564,7 +577,7 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
             <tbody className="bg-white divide-y divide-gray-200">
               {data?.active && data.active.length > 0 ? (
                 data.active.slice(0, 10).map((advert, index) => (
-                  <tr key={advert.id || index} className="hover:bg-gray-50">
+                  <tr key={advert.id || index} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                       {advert.client_name}
                     </td>
@@ -577,11 +590,11 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {advert.remaining_days || 'N/A'} days
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 tabular-nums">
                       ${Number(advert.amount_paid || 0).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                         Active
                       </span>
                     </td>
@@ -598,7 +611,6 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
           </table>
         </div>
 
-        {/* Mobile Card View */}
         <div className="md:hidden p-4 space-y-3">
           {data?.active && data.active.length > 0 ? (
             data.active.slice(0, 10).map((advert, index) => (
@@ -623,11 +635,11 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
                 </div>
                 <div className="table-card-row">
                   <span className="table-card-label">Price</span>
-                  <span className="table-card-value font-semibold">${Number(advert.amount_paid || 0).toFixed(2)}</span>
+                  <span className="table-card-value font-semibold tabular-nums">${Number(advert.amount_paid || 0).toFixed(2)}</span>
                 </div>
                 <div className="table-card-row">
                   <span className="table-card-label">Status</span>
-                  <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                     Active
                   </span>
                 </div>
@@ -640,7 +652,7 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
           )}
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -650,12 +662,7 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading }) => {
   // Per-rep monthly target breakdown — always "this calendar month",
   // independent of the leaderboard's timeFilter below.
   const repTargets = (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.25 }}
-      className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
-    >
+    <motion.div variants={staggerItem} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center">
         <h3 className="text-base md:text-lg font-semibold text-gray-900 flex items-center gap-2">
           <Target className="h-5 w-5 text-red-600" />
@@ -663,7 +670,7 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading }) => {
         </h3>
         <a
           href="/targets"
-          className="text-xs font-medium px-3 py-1.5 bg-red-50 text-red-700 rounded-full hover:bg-red-100 transition-colors"
+          className="text-xs font-medium px-3 py-1.5 bg-red-50 text-red-700 rounded-full hover:bg-red-100 active:scale-95 transition-all"
         >
           Edit targets
         </a>
@@ -687,12 +694,12 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading }) => {
                 targetData.reps.map((rep) => {
                   const pct = rep.percent == null ? null : Math.min(100, rep.percent);
                   return (
-                    <tr key={rep.id} className="hover:bg-gray-50">
+                    <tr key={rep.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{rep.fullName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 tabular-nums">
                         ${Number(rep.attained).toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 tabular-nums">
                         {rep.target > 0 ? `$${Number(rep.target).toLocaleString()}` : (
                           <span className="text-gray-400 italic">not set</span>
                         )}
@@ -704,11 +711,11 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading }) => {
                           <div className="flex items-center gap-2 w-32">
                             <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                               <div
-                                className={`h-full rounded-full ${pct >= 100 ? 'bg-green-500' : 'bg-red-500'}`}
+                                className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-red-500'}`}
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
-                            <span className="text-xs font-semibold text-gray-700 w-9 text-right">{rep.percent}%</span>
+                            <span className="text-xs font-semibold text-gray-700 w-9 text-right tabular-nums">{rep.percent}%</span>
                           </div>
                         )}
                       </td>
@@ -728,12 +735,7 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading }) => {
   );
 
   const leaderboard = (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.35 }}
-      className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
-    >
+    <motion.div variants={staggerItem} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center">
         <h3 className="text-base md:text-lg font-semibold text-gray-900 flex items-center gap-2">
           <Target className="h-5 w-5 text-red-600" />
@@ -759,23 +761,24 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading }) => {
           <tbody className="bg-white divide-y divide-gray-200">
             {salesRepPerformance.length > 0 ? (
               salesRepPerformance.map((rep, index) => (
-                <tr key={index} className="hover:bg-gray-50">
+                <tr key={index} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                      index === 0 ? 'bg-yellow-100 text-yellow-700' :
                       index === 1 ? 'bg-gray-100 text-gray-700' :
-                        index === 2 ? 'bg-orange-100 text-orange-700' :
-                          'bg-white text-gray-500 border border-gray-200'
-                      }`}>
+                      index === 2 ? 'bg-orange-100 text-orange-700' :
+                      'bg-white text-gray-500 border border-gray-200'
+                    }`}>
                       {index + 1}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="font-medium text-gray-900">{rep.name}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 tabular-nums">
                     {rep.total_adverts}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900 tabular-nums">
                     ${Number(rep.total_revenue).toFixed(2)}
                   </td>
                 </tr>

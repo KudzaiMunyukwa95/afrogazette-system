@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import {
@@ -23,7 +24,7 @@ import {
   MoreHorizontal,
   ChevronDown,
   Target,
-  MessageSquareText
+  MessageSquare
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -53,7 +54,7 @@ const Layout = ({ children }) => {
           { name: 'Invoices', href: '/invoices', icon: FileText },
           { name: 'Finance', href: '/finance/overview', icon: DollarSign, current: currentPath.startsWith('/finance') },
           { name: 'Targets', href: '/targets', icon: Target },
-          { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquareText },
+          { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquare },
           { name: 'Users', href: '/users', icon: Users }
         ])
       };
@@ -67,7 +68,7 @@ const Layout = ({ children }) => {
         { name: 'Adverts', href: '/my-adverts', icon: FileText }
       ]),
       secondary: withCurrent([
-        { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquareText },
+        { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquare },
         { name: 'Calendar', href: '/calendar', icon: Calendar },
         { name: 'Clients', href: '/my-clients', icon: Users },
         { name: 'Invoices', href: '/invoices', icon: FileText },
@@ -92,7 +93,7 @@ const Layout = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col pb-16 lg:pb-0">
       {/* Fixed Header */}
-      <header className="bg-black border-b border-gray-800 fixed top-0 left-0 right-0 z-50">
+      <header className="bg-black/95 backdrop-blur-xl border-b border-gray-800 fixed top-0 left-0 right-0 z-50">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16 gap-4">
             {/* Logo and Navigation */}
@@ -364,25 +365,35 @@ const Layout = ({ children }) => {
       {/* Mobile Bottom Tab Bar — the 4 things reps touch every day, always
           one tap away, no menu required. Desktop keeps the top nav. */}
       <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-black border-t border-gray-800 grid grid-cols-4"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-black/95 backdrop-blur-xl border-t border-gray-800 grid grid-cols-4"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {primary.map((item) => {
           const Icon = item.icon;
           return (
-            <button
+            <motion.button
               key={item.name}
               onClick={() => handleNavigation(item.href)}
+              whileTap={{ scale: 0.88 }}
               className={`
-                flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors duration-200 tap-target
-                ${item.current ? 'text-red-500' : 'text-gray-400 hover:text-white'}
+                relative flex flex-col items-center justify-center py-2.5 gap-0.5 tap-target
+                ${item.current ? 'text-red-500' : 'text-gray-400'}
               `}
             >
-              <Icon className="h-5 w-5" />
+              {item.current && (
+                <motion.span
+                  layoutId="mobileNavIndicator"
+                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                  className="absolute top-0 h-0.5 w-8 rounded-full bg-red-500"
+                />
+              )}
+              <motion.span animate={{ scale: item.current ? 1.08 : 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
+                <Icon className="h-5 w-5" />
+              </motion.span>
               <span className="text-[11px] font-medium leading-none truncate max-w-full px-1">
                 {item.name}
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </nav>

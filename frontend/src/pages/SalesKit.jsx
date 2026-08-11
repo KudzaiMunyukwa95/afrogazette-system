@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { ratesAPI } from '../services/api';
 import { useToast } from '../components/Toast';
-import { Copy, Check, MessageSquareText } from 'lucide-react';
+import { Copy, Check, MessageSquare } from 'lucide-react';
 
 const FALLBACK_PRICES = {
   groups: { daily: 6, weekly: 28, monthly: 65 },
@@ -167,7 +167,7 @@ Want me to hold one for you?`;
         <div className="bg-white border-b">
           <div className="px-4 py-4">
             <div className="flex items-center space-x-3">
-              <MessageSquareText className="h-6 w-6 text-red-500" />
+              <MessageSquare className="h-6 w-6 text-red-500" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Sales Kit</h1>
                 <p className="text-sm text-gray-600">
