@@ -24,12 +24,14 @@ const getActivityLog = async (req, res) => {
           aa.notes,
           aa.created_at,
           u.full_name AS actor_name,
+          raiser.full_name AS raised_by_name,
           a.id AS target_id,
           a.client_name AS target_label,
           a.amount_paid AS target_amount
         FROM admin_actions aa
         JOIN users u ON aa.admin_id = u.id
         LEFT JOIN adverts a ON aa.advert_id = a.id
+        LEFT JOIN users raiser ON a.sales_rep_id = raiser.id
         ORDER BY aa.created_at DESC
         LIMIT 200
       `);
@@ -49,12 +51,14 @@ const getActivityLog = async (req, res) => {
           NULL AS notes,
           h.created_at,
           u.full_name AS actor_name,
+          raiser.full_name AS raised_by_name,
           e.id AS target_id,
           e.reason AS target_label,
           e.amount AS target_amount
         FROM expense_status_history h
         JOIN users u ON h.changed_by_user_id = u.id
         LEFT JOIN expenses e ON h.expense_id = e.id
+        LEFT JOIN users raiser ON e.raised_by_user_id = raiser.id
         WHERE h.new_status IN ('Approved', 'Rejected')
         ORDER BY h.created_at DESC
         LIMIT 200

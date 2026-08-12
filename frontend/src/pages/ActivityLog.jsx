@@ -117,6 +117,10 @@ const ActivityLog = () => {
                           <span className="text-gray-500"> — ${Number(e.target_amount).toFixed(2)}</span>
                         )}
                       </p>
+                      <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        Raised by {e.raised_by_name || 'unknown'}
+                      </p>
                       {e.reason && <p className="text-sm text-gray-500 mt-1">"{e.reason}"</p>}
                       <p className="text-xs text-gray-400 mt-1.5">{new Date(e.created_at).toLocaleString()}</p>
                     </div>
