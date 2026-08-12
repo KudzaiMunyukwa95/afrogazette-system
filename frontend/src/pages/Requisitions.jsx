@@ -2,16 +2,14 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import FinanceNav from '../components/FinanceNav';
 import { financeAPI } from '../services/api';
-import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import {
-    CheckCircle, XCircle, Clock, AlertTriangle,
+    CheckCircle, XCircle, Clock,
     User, DollarSign, Calendar
 } from 'lucide-react';
 import { format } from 'date-fns';
 
 const Requisitions = () => {
-    const { user } = useAuth();
     const { success, error: showError } = useToast();
     const [loading, setLoading] = useState(true);
     const [requisitions, setRequisitions] = useState([]);
@@ -44,12 +42,7 @@ const Requisitions = () => {
         }
     };
 
-    const handleApprove = async (id, raisedById) => {
-        if (user.id === raisedById) {
-            showError('You are an admin and you cannot approve your own requisition');
-            return;
-        }
-
+    const handleApprove = async (id) => {
         try {
             setProcessingId(id);
             const response = await financeAPI.approveExpense(id);
@@ -154,29 +147,20 @@ const Requisitions = () => {
                                     )}
 
                                     <div className="flex gap-3 pt-4 border-t border-gray-100">
-                                        {user.id === req.raised_by_user_id ? (
-                                            <div className="w-full py-2 text-center text-sm text-gray-500 bg-gray-50 rounded-lg flex items-center justify-center gap-2">
-                                                <AlertTriangle className="w-4 h-4" />
-                                                Cannot approve own request
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <button
-                                                    onClick={() => openRejectModal(req.id)}
-                                                    disabled={processingId === req.id}
-                                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 font-medium"
-                                                >
-                                                    Reject
-                                                </button>
-                                                <button
-                                                    onClick={() => handleApprove(req.id, req.raised_by_user_id)}
-                                                    disabled={processingId === req.id}
-                                                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
-                                                >
-                                                    {processingId === req.id ? 'Processing...' : 'Approve'}
-                                                </button>
-                                            </>
-                                        )}
+                                        <button
+                                            onClick={() => openRejectModal(req.id)}
+                                            disabled={processingId === req.id}
+                                            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 font-medium"
+                                        >
+                                            Reject
+                                        </button>
+                                        <button
+                                            onClick={() => handleApprove(req.id)}
+                                            disabled={processingId === req.id}
+                                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
+                                        >
+                                            {processingId === req.id ? 'Processing...' : 'Approve'}
+                                        </button>
                                     </div>
                                 </div>
                             </div>

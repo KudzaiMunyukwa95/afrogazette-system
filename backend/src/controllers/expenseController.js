@@ -282,14 +282,9 @@ const approveExpense = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Expense is not pending' });
         }
 
-        // Validate: Approver cannot be the raiser
-        if (expense.raised_by_user_id === approverId) {
-            await client.query('ROLLBACK');
-            return res.status(403).json({
-                success: false,
-                message: 'You cannot approve your own expense/requisition'
-            });
-        }
+        // Self-approval is intentionally allowed — with a single admin,
+        // requiring a second approver would make the workflow unusable
+        // rather than add real segregation of duties.
 
         // Update status
         const updateResult = await client.query(
