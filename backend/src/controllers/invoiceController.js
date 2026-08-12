@@ -2,10 +2,10 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const QRCode = require('qrcode');
-const SVGtoPDF = require('svg-to-pdfkit');
 
 const pool = require('../config/database');
 const company = require('../config/company');
+const { renderLogo } = require('../utils/pdfLogo');
 
 // ---------- helpers -------------------------------------------------------
 
@@ -37,36 +37,6 @@ const titleCase = (s) => (s || '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
-const renderLogo = (doc, x, y, maxWidth, maxHeight) => {
-    const svgPath = path.join(__dirname, '../assets/logo.svg');
-    const pngPath = path.join(__dirname, '../assets/logo.png');
-
-    if (fs.existsSync(svgPath)) {
-        try {
-            let svg = fs.readFileSync(svgPath, 'utf8').replace(/<image[^>]*>/g, '');
-            SVGtoPDF(doc, svg, x, y, {
-                width: maxWidth,
-                height: maxHeight,
-                preserveAspectRatio: 'xMinYMid meet'
-            });
-            return true;
-        } catch (err) {
-            console.error('SVG logo render failed:', err.message);
-        }
-    }
-    if (fs.existsSync(pngPath)) {
-        try {
-            doc.image(pngPath, x, y, { fit: [maxWidth, maxHeight] });
-            return true;
-        } catch (err) {
-            console.error('PNG logo render failed:', err.message);
-        }
-    }
-    // Text fallback
-    doc.font('Helvetica-Bold').fontSize(22).fillColor(BRAND_RED).text('afro', x, y + 4, { continued: true });
-    doc.fillColor(BRAND_BLACK).text('gazette');
-    return false;
-};
 
 // ---------- PDF generator -------------------------------------------------
 

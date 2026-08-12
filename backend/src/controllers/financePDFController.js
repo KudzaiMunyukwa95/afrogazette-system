@@ -2,7 +2,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const pool = require('../config/database');
-const SVGtoPDF = require('svg-to-pdfkit');
+const { renderLogo } = require('../utils/pdfLogo');
 
 /**
  * Generate Financial Report PDF
@@ -47,35 +47,10 @@ const generateFinancialReportPDF = async (reportData, filePath) => {
                 const headerHeight = 80;
                 doc.rect(0, 0, pageWidth, headerHeight).fill(BRAND_BLACK);
 
-                // Logo
-                const logoSvgPath = path.join(__dirname, '../../../frontend/public/logo.svg');
-                const logoPngPath = path.join(__dirname, '../../../frontend/public/logo.png');
-                let logoRendered = false;
-
-                if (fs.existsSync(logoSvgPath)) {
-                    try {
-                        let svgContent = fs.readFileSync(logoSvgPath, 'utf8');
-                        svgContent = svgContent.replace(/<image[^>]*>/g, '');
-                        SVGtoPDF(doc, svgContent, marginX, 20, {
-                            width: 150,
-                            height: 40,
-                            preserveAspectRatio: 'xMinYMid meet'
-                        });
-                        logoRendered = true;
-                    } catch (err) { console.error('SVG logo error:', err); }
-                }
-
-                if (!logoRendered && fs.existsSync(logoPngPath)) {
-                    try {
-                        doc.image(logoPngPath, marginX, 20, { width: 150 });
-                        logoRendered = true;
-                    } catch (err) { console.error('PNG logo error:', err); }
-                }
-
-                if (!logoRendered) {
-                    doc.font('Helvetica-Bold').fontSize(24).fillColor(BRAND_RED).text('afro', marginX, 28, { continued: true });
-                    doc.fillColor(WHITE).text('gazette');
-                }
+                // Logo — shared helper so this can't drift from the invoice
+                // PDF's logo path again (see utils/pdfLogo.js for why the old
+                // frontend/public path never resolved in the deployed backend).
+                renderLogo(doc, marginX, 20, 150, 40, { fallbackTextColor: WHITE, brandRed: BRAND_RED });
 
                 // Company Details
                 doc.font('Helvetica').fontSize(9).fillColor(WHITE);
@@ -123,11 +98,19 @@ const generateFinancialReportPDF = async (reportData, filePath) => {
             };
 
             const drawTableRow = (columns, isEven) => {
-                checkSpace(20);
+                // Row height is measured, not assumed — a fixed 16pt advance
+                // let wrapped long text (long category names, in practice)
+                // bleed into the next row instead of pushing it down.
+                doc.font('Helvetica').fontSize(10);
+                const rowHeight = Math.max(16, ...columns.map(col =>
+                    doc.heightOfString(String(col.value), { width: col.width, align: col.align || 'left' })
+                ));
+
+                checkSpace(rowHeight + 4);
                 const startY = doc.y;
 
                 if (!isEven) {
-                    doc.rect(marginX, startY - 2, contentWidth, 16).fill(ROW_ALT_BG);
+                    doc.rect(marginX, startY - 2, contentWidth, rowHeight + 4).fill(ROW_ALT_BG);
                 }
 
                 doc.font('Helvetica').fontSize(10).fillColor(TEXT_DARK);
@@ -135,7 +118,7 @@ const generateFinancialReportPDF = async (reportData, filePath) => {
                     doc.text(col.value, col.x, startY, { width: col.width, align: col.align || 'left' });
                 });
 
-                doc.y = startY + 16;
+                doc.y = startY + rowHeight + 4;
             };
 
             // --- START GENERATION ---
