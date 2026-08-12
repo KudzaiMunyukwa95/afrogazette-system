@@ -302,11 +302,16 @@ const PendingApprovals = () => {
       <div className="p-4 space-y-4 overflow-y-auto flex-1">
         {/* Advert Details Card */}
         <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-1">
             <h3 className="font-bold text-gray-900">{selectedAdvert.client_name}</h3>
             <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full capitalize">
               {selectedAdvert.category.replace(/_/g, ' ')}
             </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
+            <User className="h-3 w-3" />
+            Raised by {selectedAdvert.sales_rep_name || 'Unknown rep'}
           </div>
 
           <div className="bg-gray-50 rounded-lg p-3 mb-3 text-sm text-gray-700 leading-relaxed">
@@ -324,7 +329,7 @@ const PendingApprovals = () => {
             </div>
             <div className="flex items-center text-gray-900 font-medium">
               <DollarSign className="h-4 w-4 mr-2 text-green-600" />
-              ${selectedAdvert.amount_paid}
+              ${Number(selectedAdvert.amount_paid || 0).toFixed(2)}
             </div>
           </div>
         </div>
@@ -441,9 +446,13 @@ const PendingApprovals = () => {
                         </div>
                       </div>
                       <p className="text-sm text-gray-600 line-clamp-2 mb-2">{advert.caption}</p>
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1.5">
+                        <User className="h-3 w-3" />
+                        {advert.sales_rep_name || 'Unknown rep'}
+                      </div>
                       <div className="flex items-center justify-between text-xs text-gray-500">
                         <span>{new Date(advert.start_date).toLocaleDateString()}</span>
-                        <span className="font-medium text-gray-900">${advert.amount_paid}</span>
+                        <span className="font-medium text-gray-900">${Number(advert.amount_paid || 0).toFixed(2)}</span>
                       </div>
                     </div>
                   ))}

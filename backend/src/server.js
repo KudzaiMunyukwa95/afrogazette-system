@@ -19,6 +19,7 @@ const financeRoutes = require('./routes/financeRoutes');
 const targetRoutes = require('./routes/targetRoutes');
 const rateRoutes = require('./routes/rateRoutes');
 const reportsRoutes = require('./routes/reportsRoutes');
+const activityRoutes = require('./routes/activityRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -374,6 +375,13 @@ try {
   console.log('✅ Reports routes mounted');
 } catch (error) {
   console.error('❌ Failed to mount reports routes:', error.message);
+}
+
+try {
+  app.use('/api/activity', activityRoutes);
+  console.log('✅ Activity routes mounted');
+} catch (error) {
+  console.error('❌ Failed to mount activity routes:', error.message);
 }
 
 // Manual update endpoint (for testing)

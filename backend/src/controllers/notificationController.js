@@ -111,6 +111,32 @@ const createNotification = async (userId, title, message, type = 'info', related
 };
 
 /**
+ * Marks every notification tied to a given advert as read (internal use).
+ * A "New Pending Advert" notification only makes sense while the advert is
+ * actually pending — without this, approving/declining/deleting an advert
+ * from the Approvals page (rather than by clicking the bell notification
+ * itself) left it sitting unread indefinitely, "lingering" after the
+ * underlying advert was already resolved.
+ */
+const resolveAdvertNotifications = async (advertId) => {
+    try {
+        // Scoped to the pending-alert type specifically — not every
+        // notification tied to this advert, so a fresh "Advert Approved" /
+        // "Advert Declined" notification created for the rep right after
+        // this call still arrives unread as intended.
+        await pool.query(`
+      UPDATE notifications
+      SET is_read = TRUE
+      WHERE related_id = $1 AND title = 'New Pending Advert' AND is_read = FALSE
+    `, [advertId]);
+        return true;
+    } catch (error) {
+        console.error('Resolve advert notifications error:', error);
+        return false;
+    }
+};
+
+/**
  * Helper to notify all admins (internal use)
  */
 const notifyAdmins = async (title, message, type = 'info', relatedId = null) => {
@@ -140,5 +166,6 @@ module.exports = {
     markAsRead,
     markAllAsRead,
     createNotification,
-    notifyAdmins
+    notifyAdmins,
+    resolveAdvertNotifications
 };

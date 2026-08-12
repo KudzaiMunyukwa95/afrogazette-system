@@ -28,6 +28,7 @@ import Profile from './pages/Profile';
 import Targets from './pages/Targets';
 import SalesKit from './pages/SalesKit';
 import Analytics from './pages/Analytics';
+import ActivityLog from './pages/ActivityLog';
 
 function App() {
   return (
@@ -124,6 +125,15 @@ function App() {
                 element={
                   <PrivateRoute>
                     <Analytics />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/activity-log"
+                element={
+                  <PrivateRoute adminOnly>
+                    <ActivityLog />
                   </PrivateRoute>
                 }
               />

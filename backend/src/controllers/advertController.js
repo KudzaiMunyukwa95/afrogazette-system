@@ -1,6 +1,6 @@
 const pool = require('../config/database');
 const { calculateRemainingDays } = require('../services/schedulingService');
-const { createNotification, notifyAdmins } = require('./notificationController');
+const { createNotification, notifyAdmins, resolveAdvertNotifications } = require('./notificationController');
 const { vetAdvert } = require('../services/aiVettingService');
 const { commissionRateForDays } = require('../config/ratePolicy');
 
@@ -404,6 +404,19 @@ const approveAdvert = async (req, res) => {
       `, [id, slotId, dateStr]);
     }
 
+    // Log to admin_actions so approvals show up in the activity log —
+    // previously only declines/deletes were logged, so the most common
+    // admin action had zero audit trail.
+    try {
+      await client.query(
+        `INSERT INTO admin_actions (advert_id, admin_id, action_type, notes)
+         VALUES ($1, $2, 'approved', $3)`,
+        [id, req.user.id, `Scheduled in slot ${slotId}, ${daysPaid} day(s) starting ${startDate.toISOString().split('T')[0]}`]
+      );
+    } catch (err) {
+      console.log('Admin actions table not available, approval not logged');
+    }
+
     // Generate Invoice
     const invoiceNumber = `AG-INV-${Date.now().toString().slice(-6)}`;
     const commissionAmount = (parseFloat(advert.amount_paid) * commissionRateForDays(advert.days_paid)).toFixed(2);
@@ -423,6 +436,10 @@ const approveAdvert = async (req, res) => {
       advert.sales_rep_id,
       req.user.id
     ]);
+
+    // Clear the now-stale "New Pending Advert" alert(s) for every admin —
+    // otherwise it lingers unread even though this advert is no longer pending.
+    await resolveAdvertNotifications(id);
 
     // Send notification to sales rep
     await createNotification(
@@ -531,6 +548,9 @@ const declineAdvert = async (req, res) => {
       // Table doesn't exist yet, that's ok - just log the decline
       console.log('Admin actions table not available yet, decline logged to advert status');
     }
+
+    // Clear the now-stale "New Pending Advert" alert(s) for every admin.
+    await resolveAdvertNotifications(id);
 
     // Send notification to sales rep
     await createNotification(
@@ -686,6 +706,9 @@ const deleteAdvert = async (req, res) => {
 
     await client.query('COMMIT');
 
+    // Best-effort — a deleted advert's pending alert shouldn't linger either.
+    await resolveAdvertNotifications(id);
+
     res.json({
       success: true,
       message: 'Advert deleted successfully'
@@ -745,6 +768,9 @@ const permanentlyDeleteAdvert = async (req, res) => {
     await client.query('DELETE FROM adverts WHERE id = $1', [id]);
 
     await client.query('COMMIT');
+
+    // Best-effort — a deleted advert's pending alert shouldn't linger either.
+    await resolveAdvertNotifications(id);
 
     res.json({
       success: true,

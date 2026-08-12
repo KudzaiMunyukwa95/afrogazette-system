@@ -168,6 +168,12 @@ export const reportsAPI = {
   logCompetitor: (data) => api.post('/reports/competitors', data)
 };
 
+// Activity log — combined admin_actions (adverts) + expense_status_history
+// (requisitions/expenses), one audit trail across both approval workflows.
+export const activityAPI = {
+  getLog: (params) => api.get('/activity', { params })
+};
+
 // Invoice APIs
 export const invoiceAPI = {
   getAll: () => api.get('/invoices'),

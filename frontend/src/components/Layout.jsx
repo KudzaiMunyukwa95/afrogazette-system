@@ -25,7 +25,8 @@ import {
   ChevronDown,
   Target,
   MessageSquare,
-  Activity
+  Activity,
+  History
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -57,6 +58,7 @@ const Layout = ({ children }) => {
           { name: 'Finance', href: '/finance/overview', icon: DollarSign, current: currentPath.startsWith('/finance') },
           { name: 'Targets', href: '/targets', icon: Target },
           { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquare },
+          { name: 'Activity Log', href: '/activity-log', icon: History },
           { name: 'Users', href: '/users', icon: Users }
         ])
       };
