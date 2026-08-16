@@ -62,6 +62,50 @@ const priceFor = (destinationType, flightKey) => {
 
 const flightByKey = (flightKey) => FLIGHTS.find(f => f.key === flightKey) || null;
 
+// Same anchor-and-interpolate idea as commissionRateForDays, but for price —
+// built after real booking data showed reps editing daysPaid away from a
+// standard flight (5 -> 7, 25 -> 30) while leaving the price at the standard
+// flight's amount, quietly giving away days for free. This gives a fair
+// asking price for ANY day count, built from whatever flights/prices are
+// on the live card, so it stays correct if the card itself ever changes.
+// Beyond the last anchor it extrapolates using the rate implied by the last
+// two anchors, rather than capping — unlike commission, a 30-day booking
+// really should cost more than a 25-day one.
+const priceAnchorsFor = (destinationType) => {
+  const table = destinationType === 'both' ? BOTH_PRICES : (PRICES[destinationType] || PRICES.groups);
+  return FLIGHTS
+    .map(f => ({ days: f.days, price: table[f.key] }))
+    .filter(a => a.price != null)
+    .sort((a, b) => a.days - b.days);
+};
+
+const suggestedPriceForDays = (destinationType, daysPaid) => {
+  const days = parseInt(daysPaid, 10) || 0;
+  const anchors = priceAnchorsFor(destinationType);
+  if (anchors.length === 0) return null;
+
+  const first = anchors[0];
+  const last = anchors[anchors.length - 1];
+
+  if (days <= first.days) return first.price;
+
+  if (days >= last.days) {
+    const prev = anchors[anchors.length - 2] || first;
+    const perDay = prev.days === last.days ? 0 : (last.price - prev.price) / (last.days - prev.days);
+    return +(last.price + perDay * (days - last.days)).toFixed(2);
+  }
+
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const lo = anchors[i];
+    const hi = anchors[i + 1];
+    if (days >= lo.days && days <= hi.days) {
+      const progress = (days - lo.days) / (hi.days - lo.days);
+      return +(lo.price + progress * (hi.price - lo.price)).toFixed(2);
+    }
+  }
+  return first.price;
+};
+
 module.exports = {
   FLIGHTS,
   PRICES,
@@ -69,5 +113,6 @@ module.exports = {
   COMMISSION_ANCHORS,
   commissionRateForDays,
   priceFor,
-  flightByKey
+  flightByKey,
+  suggestedPriceForDays
 };

@@ -27,7 +27,8 @@ const getActivityLog = async (req, res) => {
           raiser.full_name AS raised_by_name,
           a.id AS target_id,
           a.client_name AS target_label,
-          a.amount_paid AS target_amount
+          a.amount_paid AS target_amount,
+          a.discount_reason AS discount_reason
         FROM admin_actions aa
         JOIN users u ON aa.admin_id = u.id
         LEFT JOIN adverts a ON aa.advert_id = a.id

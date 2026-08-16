@@ -2,7 +2,7 @@ const pool = require('../config/database');
 const { calculateRemainingDays } = require('../services/schedulingService');
 const { createNotification, notifyAdmins, resolveAdvertNotifications } = require('./notificationController');
 const { vetAdvert } = require('../services/aiVettingService');
-const { commissionRateForDays } = require('../config/ratePolicy');
+const { commissionRateForDays, suggestedPriceForDays } = require('../config/ratePolicy');
 
 /**
  * Check an advert's eligibility before booking it — pure vetting call,
@@ -62,7 +62,8 @@ const createAdvert = async (req, res) => {
       startDate,
       destinationType = 'groups',
       paymentMethod = 'cash',
-      bundleRef = null
+      bundleRef = null,
+      discountReason = null
     } = req.body;
 
     // Ad format (text/picture/group-link) no longer exists as a client choice —
@@ -79,6 +80,19 @@ const createAdvert = async (req, res) => {
             success: false,
             message: 'Description must be between 10 and 200 characters'
         });
+    }
+
+    // A rep can freely negotiate both days and price — but if the final price
+    // undercuts what that many days should fairly cost on the live card, a
+    // one-line reason is required so the discount is visible on the record
+    // instead of silently indistinguishable from a standard-priced booking.
+    const suggested = suggestedPriceForDays(destinationType, daysPaid);
+    const paidAmount = parseFloat(amountPaid);
+    if (suggested != null && paidAmount < suggested - 0.01 && !(discountReason || '').trim()) {
+      return res.status(400).json({
+        success: false,
+        message: `This price is below the suggested $${suggested.toFixed(2)} for ${daysPaid} day(s). Add a reason for the discount to continue.`
+      });
     }
 
     // If client_id is provided, fetch client name from clients table
@@ -107,14 +121,14 @@ const createAdvert = async (req, res) => {
       `INSERT INTO adverts (
         client_id, client_name, category, caption, ad_content, media_url, days_paid,
         payment_date, amount_paid, start_date, sales_rep_id, status,
-        advert_type, destination_type, payment_method, commission_amount, bundle_ref
+        advert_type, destination_type, payment_method, commission_amount, bundle_ref, discount_reason
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', $12, $13, $14, $15, $16)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', $12, $13, $14, $15, $16, $17)
       RETURNING *`,
       [
         clientId || null, finalClientName, category, trimmedCaption, (adContent || '').trim() || null, mediaUrl, daysPaid,
         paymentDate, parseFloat(amountPaid).toFixed(2), startDate, salesRepId,
-        advertType, destinationType, paymentMethod, commissionAmount, bundleRef
+        advertType, destinationType, paymentMethod, commissionAmount, bundleRef, (discountReason || '').trim() || null
       ]
     );
 

@@ -90,7 +90,8 @@ const CreateAdvert = () => {
     paymentDate: '',
     paymentMethod: 'cash',
     amountPaid: '',
-    startDate: ''
+    startDate: '',
+    discountReason: ''
   });
 
   const [amountTouched, setAmountTouched] = useState(false);
@@ -118,13 +119,51 @@ const CreateAdvert = () => {
       });
   }, []);
 
-  // Suggested price for the current destination + flight selection.
+  // Suggested price for the current destination + flight selection, at the
+  // flight's own standard day count.
   const suggestedAmount = () => {
     const key = formData.flightKey;
     if (formData.destinationType === 'both') return bothPrices[key] ?? '';
     const table = prices[formData.destinationType] || prices.groups;
     return table[key] ?? '';
   };
+
+  // Fair asking price for ANY day count, not just the three standard flights
+  // — mirrors suggestedPriceForDays() in backend/src/config/ratePolicy.js so
+  // a rep who changes days sees the same number the server will check
+  // against. Interpolates between the flights' own prices; extrapolates past
+  // the last flight using the rate implied by its last two anchors.
+  const suggestedPriceForDays = (destinationType, daysPaid) => {
+    const days = parseInt(daysPaid, 10) || 0;
+    const table = destinationType === 'both' ? bothPrices : (prices[destinationType] || prices.groups);
+    const anchors = flights
+      .map(f => ({ days: f.days, price: table[f.key] }))
+      .filter(a => a.price != null)
+      .sort((a, b) => a.days - b.days);
+    if (anchors.length === 0) return null;
+
+    const first = anchors[0];
+    const last = anchors[anchors.length - 1];
+    if (days <= first.days) return first.price;
+    if (days >= last.days) {
+      const prev = anchors[anchors.length - 2] || first;
+      const perDay = prev.days === last.days ? 0 : (last.price - prev.price) / (last.days - prev.days);
+      return +(last.price + perDay * (days - last.days)).toFixed(2);
+    }
+    for (let i = 0; i < anchors.length - 1; i++) {
+      const lo = anchors[i];
+      const hi = anchors[i + 1];
+      if (days >= lo.days && days <= hi.days) {
+        const progress = (days - lo.days) / (hi.days - lo.days);
+        return +(lo.price + progress * (hi.price - lo.price)).toFixed(2);
+      }
+    }
+    return first.price;
+  };
+
+  const suggested = suggestedPriceForDays(formData.destinationType, formData.daysPaid);
+  const paidAmount = parseFloat(formData.amountPaid) || 0;
+  const isDiscounted = suggested != null && paidAmount > 0 && paidAmount < suggested - 0.01;
 
   // Auto-fill days + amount whenever destination or flight changes, unless
   // the rep has manually edited the amount (e.g. a fill-rate discount) —
@@ -138,6 +177,21 @@ const CreateAdvert = () => {
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.destinationType, formData.flightKey, flights, prices, bothPrices]);
+
+  // If the rep edits days directly (a negotiated custom length) and hasn't
+  // separately touched the amount, follow it with the fair suggested price
+  // for that day count instead of leaving the old flight's price stale.
+  const handleDaysChange = (e) => {
+    const value = e.target.value;
+    setFormData(prev => {
+      const next = { ...prev, daysPaid: value };
+      if (!amountTouched) {
+        const price = suggestedPriceForDays(prev.destinationType, value);
+        if (price != null) next.amountPaid = String(price);
+      }
+      return next;
+    });
+  };
 
   const getTodayDate = () => {
     const today = new Date();
@@ -183,6 +237,7 @@ const CreateAdvert = () => {
     amountPaid,
     startDate: formData.startDate,
     paymentMethod: formData.paymentMethod,
+    discountReason: formData.discountReason,
     ...(bundleRef ? { bundleRef } : {})
   });
 
@@ -208,6 +263,11 @@ const CreateAdvert = () => {
 
     if (!formData.amountPaid || parseFloat(formData.amountPaid) <= 0) {
       toast.error('Amount paid is required');
+      return;
+    }
+
+    if (isDiscounted && !formData.discountReason.trim()) {
+      toast.error(`Add a reason — this is below the suggested $${suggested.toFixed(2)} for ${formData.daysPaid} day(s)`);
       return;
     }
 
@@ -484,13 +544,13 @@ const CreateAdvert = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Days / Posts Paid
-                    <span className="ml-1 text-xs font-normal text-gray-400">(from flight above)</span>
+                    <span className="ml-1 text-xs font-normal text-gray-400">(edit for a custom length)</span>
                   </label>
                   <input
                     type="number"
                     name="daysPaid"
                     value={formData.daysPaid}
-                    onChange={handleChange}
+                    onChange={handleDaysChange}
                     required
                     min="1"
                     className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
@@ -509,12 +569,38 @@ const CreateAdvert = () => {
                     step="0.01"
                     className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   />
+                  {suggested != null && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Suggested for {formData.daysPaid} day{Number(formData.daysPaid) > 1 ? 's' : ''}: ${suggested.toFixed(2)}
+                    </p>
+                  )}
                   {formData.destinationType === 'both' && formData.amountPaid && (
                     <p className="text-xs text-gray-500 mt-1">
                       Splits as ${splitBothAmount(formData.amountPaid).groups} groups / ${splitBothAmount(formData.amountPaid).channel} channel for reporting.
                     </p>
                   )}
                 </div>
+
+                {isDiscounted && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reason for discount <span className="text-red-500">*</span>
+                      <span className="ml-1 text-xs font-normal text-gray-400">
+                        (below the ${suggested.toFixed(2)} suggested price)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      name="discountReason"
+                      value={formData.discountReason}
+                      onChange={handleChange}
+                      required
+                      maxLength={300}
+                      placeholder="e.g. repeat client, fill-rate discount, price-matched a competitor"
+                      className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>

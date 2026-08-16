@@ -122,6 +122,11 @@ const ActivityLog = () => {
                         Raised by {e.raised_by_name || 'unknown'}
                       </p>
                       {e.reason && <p className="text-sm text-gray-500 mt-1">"{e.reason}"</p>}
+                      {e.discount_reason && (
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 mt-1.5 inline-block">
+                          Discounted: {e.discount_reason}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-400 mt-1.5">{new Date(e.created_at).toLocaleString()}</p>
                     </div>
                   </div>

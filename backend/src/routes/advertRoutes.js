@@ -50,7 +50,11 @@ router.post(
     body('bundleRef')
       .optional()
       .isLength({ max: 40 })
-      .withMessage('bundleRef must be 40 characters or fewer')
+      .withMessage('bundleRef must be 40 characters or fewer'),
+    body('discountReason')
+      .optional({ checkFalsy: true })
+      .isLength({ max: 300 })
+      .withMessage('discountReason must be 300 characters or fewer')
   ],
   validate,
   advertController.createAdvert
