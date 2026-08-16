@@ -23,17 +23,36 @@ const PRICES = {
 const BOTH_PRICES = { daily: 10, weekly: 50, monthly: 127 };
 
 // Commission scales with how hard the sale actually was to close — a daily
-// booking closes itself, a monthly pack is real conversion work.
-const COMMISSION_TIERS = [
-  { minDays: 15, rate: 0.20 }, // monthly-shaped (25 days)
-  { minDays: 3, rate: 0.12 },  // weekly-shaped (5 days)
-  { minDays: 0, rate: 0.05 }   // daily
+// booking closes itself, a monthly pack is real conversion work. Custom-length
+// bookings (negotiated deals outside the three standard flights) are common
+// enough that a flat step function was unfair: a 4-day and a 14-day booking
+// used to earn the identical rate. This anchors the rate at exactly 5% / 12% /
+// 20% at the three real flight lengths (1 / 5 / 25 days) and interpolates
+// linearly between them for anything in between, so standard bookings are
+// completely unaffected and custom lengths get a proportional rate instead
+// of being rounded into whichever bucket they happen to fall in.
+const COMMISSION_ANCHORS = [
+  { days: 1, rate: 0.05 },
+  { days: 5, rate: 0.12 },
+  { days: 25, rate: 0.20 }
 ];
 
 const commissionRateForDays = (daysPaid) => {
   const days = parseInt(daysPaid, 10) || 0;
-  const tier = COMMISSION_TIERS.find(t => days >= t.minDays);
-  return tier ? tier.rate : 0.05;
+  const first = COMMISSION_ANCHORS[0];
+  const last = COMMISSION_ANCHORS[COMMISSION_ANCHORS.length - 1];
+  if (days <= first.days) return first.rate;
+  if (days >= last.days) return last.rate;
+
+  for (let i = 0; i < COMMISSION_ANCHORS.length - 1; i++) {
+    const lo = COMMISSION_ANCHORS[i];
+    const hi = COMMISSION_ANCHORS[i + 1];
+    if (days >= lo.days && days <= hi.days) {
+      const progress = (days - lo.days) / (hi.days - lo.days);
+      return lo.rate + progress * (hi.rate - lo.rate);
+    }
+  }
+  return first.rate;
 };
 
 const priceFor = (destinationType, flightKey) => {
@@ -47,7 +66,7 @@ module.exports = {
   FLIGHTS,
   PRICES,
   BOTH_PRICES,
-  COMMISSION_TIERS,
+  COMMISSION_ANCHORS,
   commissionRateForDays,
   priceFor,
   flightByKey
