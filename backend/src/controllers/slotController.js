@@ -81,7 +81,11 @@ const getTodaySchedule = async (req, res) => {
       success: true,
       data: {
         date: today,
-        schedule: Object.values(schedule)
+        // Object.values() on integer-like keys (slot_id here) enumerates in
+        // ascending numeric key order, not insertion order — silently
+        // undoing the ORDER BY slot_time ASC above once slots were added
+        // to the table out of chronological order. Re-sort explicitly.
+        schedule: Object.values(schedule).sort((a, b) => a.slotTime.localeCompare(b.slotTime))
       }
     });
   } catch (error) {
@@ -158,7 +162,9 @@ const getCalendarSchedule = async (req, res) => {
       success: true,
       data: {
         date,
-        schedule: Object.values(schedule)
+        // See getTodaySchedule above — Object.values() reorders integer-like
+        // keys (slot_id) numerically, undoing the ORDER BY slot_time ASC.
+        schedule: Object.values(schedule).sort((a, b) => a.slotTime.localeCompare(b.slotTime))
       }
     });
   } catch (error) {

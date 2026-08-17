@@ -108,6 +108,7 @@ export const advertAPI = {
   getPending: () => api.get('/adverts/pending'),
   approve: (id, slotId) => api.post(`/adverts/${id}/approve`, { slotId }),
   extend: (id, data) => api.post(`/adverts/${id}/extend`, data),
+  recordPayment: (id, data) => api.post(`/adverts/${id}/payment`, data),
   update: (id, data) => api.patch(`/adverts/${id}`, data),
   delete: (id) => api.delete(`/adverts/${id}`),
 

@@ -159,6 +159,26 @@ router.post(
 );
 
 /**
+ * @route   POST /api/adverts/:id/payment
+ * @desc    Record a balance/top-up payment against an existing advert
+ * @access  Sales Rep (own) / Admin (any)
+ */
+router.post(
+  '/:id/payment',
+  [
+    body('amount')
+      .isFloat({ gt: 0 })
+      .withMessage('Payment amount must be greater than 0'),
+    body('note')
+      .optional({ checkFalsy: true })
+      .isLength({ max: 300 })
+      .withMessage('Note must be 300 characters or fewer')
+  ],
+  validate,
+  advertController.recordPayment
+);
+
+/**
  * @route   GET /api/adverts/:id/history
  * @desc    Get admin action history for advert
  * @access  Admin only

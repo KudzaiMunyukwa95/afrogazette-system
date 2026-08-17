@@ -1001,6 +1001,96 @@ const getAdvertHistory = async (req, res) => {
 };
 
 /**
+ * Record a balance/top-up payment against an existing advert (sales rep who
+ * owns it, or admin) — for deposit-then-balance clients. Commission is paid
+ * only on money actually collected: the increment earns commission at the
+ * SAME rate the booking's own days_paid already earns (days set the rate,
+ * money determines how much of it has actually been paid out so far).
+ */
+const recordPayment = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params;
+    const { amount, note } = req.body;
+
+    const paymentAmount = parseFloat(amount);
+    if (!paymentAmount || paymentAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Payment amount must be a positive number' });
+    }
+
+    await client.query('BEGIN');
+
+    const advertResult = await client.query('SELECT * FROM adverts WHERE id = $1', [id]);
+    if (advertResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Advert not found' });
+    }
+
+    const advert = advertResult.rows[0];
+
+    if (req.user.role === 'sales_rep' && advert.sales_rep_id !== req.user.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ success: false, message: 'You can only record payments on your own adverts' });
+    }
+
+    const commissionOnPayment = +(paymentAmount * commissionRateForDays(advert.days_paid)).toFixed(2);
+
+    const updated = await client.query(
+      `UPDATE adverts
+       SET amount_paid = amount_paid + $1,
+           commission_amount = commission_amount + $2,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3
+       RETURNING *`,
+      [paymentAmount.toFixed(2), commissionOnPayment, id]
+    );
+
+    await client.query(
+      `INSERT INTO advert_payments (advert_id, amount, commission_amount, note, recorded_by)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [id, paymentAmount.toFixed(2), commissionOnPayment, (note || '').trim() || null, req.user.id]
+    );
+
+    // Keep the invoice in sync too, if this advert was already approved
+    // and invoiced — otherwise the invoice PDF would understate what the
+    // client has actually paid.
+    await client.query(
+      `UPDATE invoices
+       SET amount = amount + $1,
+           commission_amount = commission_amount + $2,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE advert_id = $3`,
+      [paymentAmount.toFixed(2), commissionOnPayment, id]
+    );
+
+    try {
+      await client.query(
+        `INSERT INTO admin_actions (advert_id, admin_id, action_type, notes)
+         VALUES ($1, $2, 'payment_recorded', $3)`,
+        [id, req.user.id, `+$${paymentAmount.toFixed(2)} (+$${commissionOnPayment.toFixed(2)} commission)${note ? ` — ${note}` : ''}`]
+      );
+    } catch (err) {
+      console.log('Admin actions table not available, payment not logged to activity feed');
+    }
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: 'Payment recorded successfully',
+      data: { advert: updated.rows[0], commissionOnPayment }
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Record payment error:', error);
+    res.status(500).json({ success: false, message: 'Server error recording payment' });
+  } finally {
+    client.release();
+  }
+};
+
+/**
  * Re-run AI vetting on an advert (admin only) — use after a sales rep
  * edits ad_content, or to re-check an advert scanned under an older policy.
  */
@@ -1066,5 +1156,6 @@ module.exports = {
   declineAdvert,           // NEW
   permanentlyDeleteAdvert, // NEW
   getAdvertHistory,        // NEW
-  rescanAdvert             // NEW
+  rescanAdvert,            // NEW
+  recordPayment            // NEW
 };
