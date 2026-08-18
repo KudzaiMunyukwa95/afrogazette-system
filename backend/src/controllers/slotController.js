@@ -33,10 +33,11 @@ const getTodaySchedule = async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
 
     const result = await pool.query(`
-      SELECT 
+      SELECT
         ts.id as slot_id,
         ts.slot_time,
         ts.slot_label,
+        ts.slot_type,
         a.id as advert_id,
         a.client_name,
         a.category,
@@ -60,6 +61,7 @@ const getTodaySchedule = async (req, res) => {
           slotId: row.slot_id,
           slotTime: row.slot_time,
           slotLabel: row.slot_label,
+          slotType: row.slot_type,
           adverts: []
         };
       }
@@ -112,10 +114,11 @@ const getCalendarSchedule = async (req, res) => {
     }
 
     const result = await pool.query(`
-      SELECT 
+      SELECT
         ts.id as slot_id,
         ts.slot_time,
         ts.slot_label,
+        ts.slot_type,
         a.id as advert_id,
         a.client_name,
         a.category,
@@ -139,6 +142,7 @@ const getCalendarSchedule = async (req, res) => {
           slotId: row.slot_id,
           slotTime: row.slot_time,
           slotLabel: row.slot_label,
+          slotType: row.slot_type,
           adverts: [],
           available: 2 // Max capacity
         };

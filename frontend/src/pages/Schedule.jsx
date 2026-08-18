@@ -14,7 +14,9 @@ import {
   Tag,
   MessageSquare,
   Activity,
-  Grid3X3
+  Grid3X3,
+  Smartphone,
+  Radio
 } from 'lucide-react';
 
 const Schedule = () => {
@@ -157,12 +159,27 @@ const Schedule = () => {
               />
             </div>
 
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {schedule.map(slot => (
-                <TimeSlotCard key={slot.slotId} slot={slot} />
-              ))}
-            </div>
+            {/* Calendar Grid — split by destination, not interleaved by time,
+                since a groups slot and a channel slot are separate inventory
+                even when their times sit next to each other (e.g. 06:00 vs 06:30) */}
+            {(() => {
+              const groupsSlots = schedule.filter(s => (s.slotType || 'groups') === 'groups');
+              const channelSlots = schedule.filter(s => s.slotType === 'channel');
+              return (
+                <div className="space-y-6">
+                  <SlotSection
+                    title="WhatsApp Groups"
+                    icon={<Smartphone className="h-4 w-4" />}
+                    slots={groupsSlots}
+                  />
+                  <SlotSection
+                    title="WhatsApp Channel"
+                    icon={<Radio className="h-4 w-4" />}
+                    slots={channelSlots}
+                  />
+                </div>
+              );
+            })()}
 
             {/* Legend */}
             <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
@@ -198,6 +215,30 @@ const StatCard = ({ title, value, icon, color }) => (
     <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{title}</span>
   </div>
 );
+
+// A labeled group of slot cards for one destination (groups or channel)
+const SlotSection = ({ title, icon, slots }) => {
+  if (slots.length === 0) return null;
+  const fullyBooked = slots.filter(s => s.available === 0).length;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3 px-1">
+        <div className="flex items-center gap-2 text-gray-900 font-bold">
+          {icon}
+          <span>{title}</span>
+          <span className="text-xs font-medium text-gray-400">({slots.length} slots)</span>
+        </div>
+        <span className="text-xs font-medium text-gray-500">{fullyBooked} fully booked</span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {slots.map(slot => (
+          <TimeSlotCard key={slot.slotId} slot={slot} />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 // Calendar-style Time Slot Card
 const TimeSlotCard = ({ slot }) => {
