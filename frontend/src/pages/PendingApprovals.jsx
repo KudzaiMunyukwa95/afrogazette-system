@@ -474,9 +474,11 @@ const PendingApprovals = () => {
           )}
         </div>
 
-        {/* Mobile Details Modal */}
+        {/* Mobile Details Modal — z-45 so it fully covers the bottom tab bar
+            (also z-40, fixed, and later in the DOM), which otherwise paints
+            over this modal's Action Footer and hides the Decline button. */}
         {selectedAdvert && (
-          <div className="md:hidden fixed inset-0 z-40 bg-white">
+          <div className="md:hidden fixed inset-0 z-[45] bg-white">
             <DetailsView />
           </div>
         )}
