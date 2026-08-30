@@ -110,7 +110,7 @@ const createAdvert = async (req, res) => {
     // shared company-wide now (see clientController.searchClients), so any
     // rep can book against a client another rep originally created.
     const clientResult = await pool.query(
-      'SELECT name FROM clients WHERE id = $1',
+      'SELECT name, phone FROM clients WHERE id = $1',
       [clientId]
     );
 
@@ -118,6 +118,19 @@ const createAdvert = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Client not found'
+      });
+    }
+
+    // The phone requirement on client creation only closes the front door —
+    // clients created before this feature (or before phone was required at
+    // all) can still exist with no number on file, and search lets a rep
+    // pick one of those straight into a booking. Block it here too, so
+    // "every client has a phone" actually holds instead of just being true
+    // for new clients going forward.
+    if (!clientResult.rows[0].phone) {
+      return res.status(400).json({
+        success: false,
+        message: `${clientResult.rows[0].name} has no phone number on file. Add one before booking — this keeps the client list from silently going back to the state that caused the duplicates in the first place.`
       });
     }
 

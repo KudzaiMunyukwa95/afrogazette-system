@@ -191,7 +191,9 @@ export const clientAPI = {
   delete: (id) => api.delete(`/clients/${id}`),
   merge: (keepId, mergeIds) => api.post('/clients/merge', { keepId, mergeIds }),
   getFree: () => api.get('/clients/free'),
-  getDuplicates: () => api.get('/clients/duplicates')
+  getDuplicates: () => api.get('/clients/duplicates'),
+  getAllUnified: () => api.get('/clients/all'),
+  standardize: (data) => api.post('/clients/standardize', data)
 };
 
 // Finance APIs

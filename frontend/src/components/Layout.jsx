@@ -61,6 +61,7 @@ const Layout = ({ children }) => {
           { name: 'Targets', href: '/targets', icon: Target },
           { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquare },
           { name: 'Activity Log', href: '/activity-log', icon: History },
+          { name: 'All Clients', href: '/clients', icon: Users },
           { name: 'Free Clients', href: '/free-clients', icon: UserX },
           { name: 'Duplicate Clients', href: '/duplicate-clients', icon: GitMerge },
           { name: 'Users', href: '/users', icon: Users }
@@ -80,6 +81,7 @@ const Layout = ({ children }) => {
         { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquare },
         { name: 'Calendar', href: '/calendar', icon: Calendar },
         { name: 'Clients', href: '/my-clients', icon: Users },
+        { name: 'All Clients', href: '/clients', icon: Users },
         { name: 'Free Clients', href: '/free-clients', icon: UserX },
         { name: 'Duplicate Clients', href: '/duplicate-clients', icon: GitMerge },
         { name: 'Invoices', href: '/invoices', icon: FileText },

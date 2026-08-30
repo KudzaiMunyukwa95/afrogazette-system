@@ -266,10 +266,25 @@ const createClient = async (req, res) => {
             ]
         );
 
+        const newClient = result.rows[0];
+
+        // Standardizing a name that already has history under it should
+        // restore that history, not just start a fresh, disconnected
+        // record — otherwise "add a phone number" quietly orphans every
+        // booking that happened before this client was properly linked.
+        const relinked = await pool.query(
+            `UPDATE adverts SET client_id = $1
+             WHERE client_id IS NULL AND lower(trim(client_name)) = lower(trim($2))
+             RETURNING id`,
+            [newClient.id, name]
+        );
+
         res.status(201).json({
             success: true,
-            message: 'Client created successfully',
-            data: { client: result.rows[0] }
+            message: relinked.rows.length > 0
+                ? `Client created and ${relinked.rows.length} past booking(s) linked to this record`
+                : 'Client created successfully',
+            data: { client: newClient, relinkedAdverts: relinked.rows.length }
         });
     } catch (error) {
         console.error('Create client error:', error);
@@ -620,6 +635,141 @@ const getPossibleDuplicates = async (req, res) => {
     }
 };
 
+/**
+ * All clients, linked and unlinked, no dormancy filter — the general
+ * standardization view. Free Clients only shows the 60+ day-dormant slice
+ * of this same problem; active clients booked recently can be just as
+ * unlinked/phone-less, and waiting for them to go dormant before surfacing
+ * them here would mean the next booking against them hits the phone-
+ * required booking gate with no warning beforehand.
+ */
+const getAllClients = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `WITH linked AS (
+                SELECT
+                    c.id, c.name, c.phone, c.sales_rep_id, u.full_name AS last_rep_name,
+                    MAX(a.start_date) AS last_advert_date,
+                    COUNT(a.id) AS total_adverts,
+                    COALESCE(SUM(a.amount_paid), 0) AS total_spent,
+                    true AS is_linked
+                FROM clients c
+                LEFT JOIN adverts a ON a.client_id = c.id
+                LEFT JOIN users u ON c.sales_rep_id = u.id
+                GROUP BY c.id, u.full_name
+             ),
+             unlinked_norm AS (
+                SELECT
+                    a.id, a.client_name, a.start_date, a.amount_paid,
+                    lower(trim(a.client_name)) AS norm_name
+                FROM adverts a
+                WHERE a.client_id IS NULL
+                  AND a.client_name IS NOT NULL
+                  AND trim(a.client_name) != ''
+             ),
+             unlinked_display_name AS (
+                SELECT DISTINCT ON (norm_name) norm_name, client_name AS name
+                FROM unlinked_norm
+                ORDER BY norm_name, start_date DESC
+             ),
+             unlinked_agg AS (
+                SELECT
+                    norm_name,
+                    MAX(start_date) AS last_advert_date,
+                    COUNT(id) AS total_adverts,
+                    COALESCE(SUM(amount_paid), 0) AS total_spent
+                FROM unlinked_norm
+                GROUP BY norm_name
+             ),
+             unlinked AS (
+                SELECT
+                    NULL::integer AS id, dn.name, NULL::text AS phone,
+                    NULL::integer AS sales_rep_id, NULL::text AS last_rep_name,
+                    ua.last_advert_date, ua.total_adverts, ua.total_spent,
+                    false AS is_linked
+                FROM unlinked_agg ua
+                JOIN unlinked_display_name dn ON dn.norm_name = ua.norm_name
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM clients c WHERE lower(trim(c.name)) = ua.norm_name
+                )
+             )
+             SELECT * FROM linked
+             UNION ALL
+             SELECT * FROM unlinked
+             ORDER BY is_linked ASC, last_advert_date DESC NULLS LAST`
+        );
+
+        res.json({ success: true, data: { clients: result.rows } });
+    } catch (error) {
+        console.error('Get all clients error:', error);
+        res.status(500).json({ success: false, message: 'Server error fetching clients' });
+    }
+};
+
+/**
+ * Standardize an unlinked (free-text-only) client: create a real clients
+ * row and relink its history. Deliberately separate from createClient
+ * rather than overloading it — standardizing often means fixing a typo in
+ * the same action as adding a phone, and relinking has to match against
+ * the ORIGINAL misspelled name from the historical adverts, not whatever
+ * corrected name is being saved going forward. Matching on the new name
+ * instead would silently fail to reconnect exactly the typo cases this
+ * exists to fix.
+ */
+const standardizeClient = async (req, res) => {
+    try {
+        const { originalName, name, phone, email, company } = req.body;
+
+        if (!originalName || !originalName.trim()) {
+            return res.status(400).json({ success: false, message: 'originalName is required to find the bookings to relink' });
+        }
+
+        const validationError = validateClientPayload(req.body);
+        if (validationError) {
+            return res.status(400).json({ success: false, message: validationError });
+        }
+
+        const normalizedPhone = normalizeZimPhone(phone);
+        const existing = await pool.query(
+            `SELECT c.*, u.full_name AS sales_rep_name
+             FROM clients c LEFT JOIN users u ON c.sales_rep_id = u.id
+             WHERE c.phone = $1`,
+            [normalizedPhone]
+        );
+        if (existing.rows.length > 0) {
+            return res.status(409).json({
+                success: false,
+                message: `This number is already registered to ${existing.rows[0].name} (${existing.rows[0].sales_rep_name || 'unassigned'}). Use that client instead.`,
+                data: { client: existing.rows[0] }
+            });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO clients (name, email, phone, company, sales_rep_id)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING *`,
+            [name.trim(), email || null, normalizedPhone, company || null, req.user.id]
+        );
+        const newClient = result.rows[0];
+
+        const relinked = await pool.query(
+            `UPDATE adverts SET client_id = $1
+             WHERE client_id IS NULL AND lower(trim(client_name)) = lower(trim($2))
+             RETURNING id`,
+            [newClient.id, originalName]
+        );
+
+        res.status(201).json({
+            success: true,
+            message: `Standardized — ${relinked.rows.length} past booking(s) linked to this record`,
+            data: { client: newClient, relinkedAdverts: relinked.rows.length }
+        });
+    } catch (error) {
+        console.error('Standardize client error:', error);
+        res.status(500).json({ success: false, message: 'Server error standardizing client' });
+    }
+};
+
 module.exports = {
     getClients,
     getClientById,
@@ -629,5 +779,7 @@ module.exports = {
     deleteClient,
     mergeClients,
     getFreeClients,
-    getPossibleDuplicates
+    getPossibleDuplicates,
+    getAllClients,
+    standardizeClient
 };

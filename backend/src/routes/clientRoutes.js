@@ -10,18 +10,22 @@ const {
     deleteClient,
     mergeClients,
     getFreeClients,
-    getPossibleDuplicates
+    getPossibleDuplicates,
+    getAllClients,
+    standardizeClient
 } = require('../controllers/clientController');
 
 // All routes require authentication
 router.use(authenticate);
 
-// Client routes — /free, /duplicates and /search must come before /:id so
-// Express doesn't try to match them as a client id.
+// Client routes — /free, /duplicates, /all and /search must come before
+// /:id so Express doesn't try to match them as a client id.
 router.get('/', getClients);
 router.get('/search', searchClients);
 router.get('/free', getFreeClients);
 router.get('/duplicates', getPossibleDuplicates);
+router.get('/all', getAllClients);
+router.post('/standardize', standardizeClient);
 router.get('/:id', getClientById);
 router.post('/', createClient);
 router.patch('/:id', updateClient);

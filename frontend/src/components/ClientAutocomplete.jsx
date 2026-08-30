@@ -14,6 +14,7 @@ const ClientAutocomplete = ({ value, onChange, onSelect, error }) => {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [loading, setLoading] = useState(false);
     const [creating, setCreating] = useState(false);
+    const [addingPhoneFor, setAddingPhoneFor] = useState(null); // existing client missing a phone
     const [newPhone, setNewPhone] = useState('');
     const [notice, setNotice] = useState(null); // { type: 'info'|'error', text }
     const wrapperRef = useRef(null);
@@ -41,6 +42,7 @@ const ClientAutocomplete = ({ value, onChange, onSelect, error }) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
                 setShowSuggestions(false);
                 setCreating(false);
+                setAddingPhoneFor(null);
             }
         };
 
@@ -70,6 +72,7 @@ const ClientAutocomplete = ({ value, onChange, onSelect, error }) => {
         // right back out via onSelect's own reset-to-'' behavior.
         onChange(searchTerm);
         setCreating(false);
+        setAddingPhoneFor(null);
         setNotice(null);
 
         if (searchTerm.length < 2) {
@@ -83,17 +86,55 @@ const ClientAutocomplete = ({ value, onChange, onSelect, error }) => {
     const handleSelect = (client) => {
         setQuery(client.name);
         setSuggestions([]);
-        setShowSuggestions(false);
-        setCreating(false);
         setNotice(null);
         onChange(client.name);
+
+        // Some existing clients predate the phone requirement entirely (or
+        // were created before it existed at all) — booking now gets blocked
+        // server-side for these, so surface that immediately on selection
+        // instead of letting the rep fill out the whole form and only find
+        // out at submit.
+        if (!client.phone) {
+            setShowSuggestions(false);
+            setAddingPhoneFor(client);
+            onSelect(null);
+            return;
+        }
+
+        setShowSuggestions(false);
+        setCreating(false);
         onSelect(client); // Propagate selection (id, etc.)
+    };
+
+    const handleAddPhoneToExisting = async () => {
+        const trimmedPhone = newPhone.trim();
+        if (!trimmedPhone) {
+            setNotice({ type: 'error', text: 'Enter a phone number' });
+            return;
+        }
+        try {
+            setLoading(true);
+            const response = await clientAPI.update(addingPhoneFor.id, {
+                name: addingPhoneFor.name,
+                phone: trimmedPhone
+            });
+            setNotice(null);
+            setAddingPhoneFor(null);
+            setNewPhone('');
+            handleSelect(response.data.data.client);
+        } catch (err) {
+            const data = err.response?.data;
+            setNotice({ type: 'error', text: data?.message || 'Could not update phone number' });
+        } finally {
+            setLoading(false);
+        }
     };
 
     const clearSelection = () => {
         setQuery('');
         setSuggestions([]);
         setCreating(false);
+        setAddingPhoneFor(null);
         setNotice(null);
         onChange('');
         onSelect(null);
@@ -156,6 +197,33 @@ const ClientAutocomplete = ({ value, onChange, onSelect, error }) => {
                 <p className={`mt-1 text-sm ${notice.type === 'error' ? 'text-red-600' : 'text-blue-600'}`}>
                     {notice.text}
                 </p>
+            )}
+
+            {addingPhoneFor && (
+                <div className="mt-1.5 p-3 border border-amber-200 bg-amber-50 rounded-md">
+                    <p className="text-xs text-amber-800 mb-1.5">
+                        <strong>{addingPhoneFor.name}</strong> has no phone number on file — add one to continue booking.
+                    </p>
+                    <div className="flex gap-2">
+                        <input
+                            type="tel"
+                            autoFocus
+                            placeholder="077 123 4567"
+                            value={newPhone}
+                            onChange={(e) => setNewPhone(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddPhoneToExisting()}
+                            className="input-mobile flex-1 px-2 border border-gray-300 rounded focus:ring-1 focus:ring-red-500 focus:border-red-500"
+                        />
+                        <button
+                            type="button"
+                            onClick={handleAddPhoneToExisting}
+                            disabled={loading}
+                            className="btn-touch px-4 bg-red-600 text-white rounded font-medium hover:bg-red-700 disabled:opacity-50"
+                        >
+                            Save
+                        </button>
+                    </div>
+                </div>
             )}
 
             {showSuggestions && (
