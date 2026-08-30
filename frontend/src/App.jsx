@@ -15,6 +15,7 @@ import Schedule from './pages/Schedule';
 import Users from './pages/Users';
 import ClientManagement from './pages/ClientManagement';
 import DuplicateClients from './pages/DuplicateClients';
+import FreeClients from './pages/FreeClients';
 import MyInvoices from './pages/MyInvoices';
 import MyAdverts from './pages/MyAdverts';
 import MyClients from './pages/MyClients';
@@ -153,6 +154,15 @@ function App() {
                 element={
                   <PrivateRoute>
                     <DuplicateClients />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/free-clients"
+                element={
+                  <PrivateRoute>
+                    <FreeClients />
                   </PrivateRoute>
                 }
               />

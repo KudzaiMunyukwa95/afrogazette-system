@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, TrendingDown, Users, DollarSign, FileText,
-  Clock, CheckCircle, AlertTriangle, Calendar, Target, Sparkles, UserX, Phone
+  Clock, CheckCircle, AlertTriangle, Calendar, Target, Sparkles, UserX, ChevronRight
 } from 'lucide-react';
 
 const COLORS = ['#E63946', '#457B9D', '#F1FAEE', '#A8DADC', '#1D3557'];
@@ -56,7 +56,6 @@ const Dashboard = () => {
   const [targetLoading, setTargetLoading] = useState(true);
   const [freeClients, setFreeClients] = useState([]);
   const [freeClientsLoading, setFreeClientsLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     // For custom filter, don't fetch automatically until applied manually
@@ -82,12 +81,6 @@ const Dashboard = () => {
     } finally {
       setFreeClientsLoading(false);
     }
-  };
-
-  const handleClaimFreeClient = (client) => {
-    navigate('/create-advert', {
-      state: { prefill: { clientId: client.id, clientName: client.name } }
-    });
   };
 
   const fetchTargetData = async () => {
@@ -260,12 +253,12 @@ const Dashboard = () => {
           {isAdmin() ? (
             <AdminDashboard
               data={data} timeFilter={timeFilter} targetData={targetData} targetLoading={targetLoading}
-              freeClients={freeClients} freeClientsLoading={freeClientsLoading} onClaimFreeClient={handleClaimFreeClient}
+              freeClients={freeClients} freeClientsLoading={freeClientsLoading}
             />
           ) : (
             <SalesRepDashboard
               data={data} timeFilter={timeFilter} targetData={targetData} targetLoading={targetLoading}
-              freeClients={freeClients} freeClientsLoading={freeClientsLoading} onClaimFreeClient={handleClaimFreeClient}
+              freeClients={freeClients} freeClientsLoading={freeClientsLoading}
             />
           )}
         </div>
@@ -366,9 +359,18 @@ const KPICard = ({ title, value, icon: Icon, trend, color = 'red', prefix = '', 
 // past the dormancy window that resolves the "I worked this client months
 // ago" commission disputes. Shared across all reps, not filtered to "mine",
 // since the whole point is that any rep can now legitimately claim one.
-const FreeClientsCard = ({ clients, loading, onClaim }) => (
-  <motion.div variants={staggerItem} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-    <div className="px-4 md:px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+// Kept as a compact, always-visible tile here (not the full scrollable
+// list — that lives on its own page under the nav) so the dashboard stays
+// short but nobody has to remember to go looking for this.
+const FreeClientsTile = ({ count, loading }) => {
+  const navigate = useNavigate();
+  return (
+    <motion.button
+      variants={staggerItem}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => navigate('/free-clients')}
+      className="tap-target w-full !justify-between bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow px-4 md:px-6 py-4 flex items-center text-left"
+    >
       <div className="flex items-center gap-2.5">
         <div className="p-2 rounded-lg bg-orange-50 ring-4 ring-orange-100">
           <UserX className="h-4 w-4 text-orange-600" />
@@ -378,44 +380,15 @@ const FreeClientsCard = ({ clients, loading, onClaim }) => (
           <p className="text-xs text-gray-500">No booking in 60+ days — open for anyone to claim</p>
         </div>
       </div>
-      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-100 text-orange-800">
-        {clients.length}
-      </span>
-    </div>
-
-    {loading ? (
-      <div className="p-6 text-center text-sm text-gray-400">Loading...</div>
-    ) : clients.length === 0 ? (
-      <div className="p-6 text-center text-sm text-gray-400">No dormant clients right now — everyone's actively engaged.</div>
-    ) : (
-      <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
-        {clients.map((client) => (
-          <button
-            key={client.id}
-            onClick={() => onClaim(client)}
-            className="tap-target w-full !justify-between text-left px-4 md:px-6 py-3 flex items-center hover:bg-gray-50 transition-colors"
-          >
-            <div className="min-w-0">
-              <p className="font-medium text-gray-900 truncate">{client.name}</p>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-gray-500">
-                {client.phone && (
-                  <span className="flex items-center gap-1 min-w-0"><Phone className="h-3 w-3 flex-shrink-0" />{client.phone}</span>
-                )}
-                <span className="truncate">Last with {client.last_rep_name || 'unknown rep'}</span>
-              </div>
-            </div>
-            <div className="text-right flex-shrink-0 ml-3">
-              <span className="text-xs font-bold text-orange-700 whitespace-nowrap">{client.days_dormant}d dormant</span>
-              <p className="text-[11px] text-gray-400 mt-0.5">
-                {client.last_advert_date ? new Date(client.last_advert_date).toLocaleDateString() : '—'}
-              </p>
-            </div>
-          </button>
-        ))}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-100 text-orange-800">
+          {loading ? '…' : count}
+        </span>
+        <ChevronRight className="h-4 w-4 text-gray-400" />
       </div>
-    )}
-  </motion.div>
-);
+    </motion.button>
+  );
+};
 
 // Target progress bar — a loader that fills to % attained vs target.
 // Color signals pace, not just raw %: on the second half of the month,
@@ -515,7 +488,7 @@ const TargetProgressBar = ({ label, target, attained, loading, subtitle }) => {
   );
 };
 
-const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetLoading, targetLabel = "This Month's Target", freeClients, freeClientsLoading, onClaimFreeClient }) => {
+const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetLoading, targetLabel = "This Month's Target", freeClients, freeClientsLoading }) => {
   // Where adverts ran — groups vs channel (replaces the old text/picture/
   // group-link "advert type" split now that every advert is just a post)
   const destinationData = data?.advertTypes?.map(item => ({
@@ -568,11 +541,7 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
         <KPICard title="Expiring Soon" value={data?.expiringSoon?.length || 0} icon={AlertTriangle} color="red" />
       </div>
 
-      <FreeClientsCard
-        clients={freeClients}
-        loading={freeClientsLoading}
-        onClaim={onClaimFreeClient}
-      />
+      <FreeClientsTile count={freeClients.length} loading={freeClientsLoading} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <motion.div variants={staggerItem} className="bg-white rounded-2xl p-4 md:p-6 border border-gray-100 shadow-sm">
@@ -750,7 +719,7 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
   );
 };
 
-const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClients, freeClientsLoading, onClaimFreeClient }) => {
+const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClients, freeClientsLoading }) => {
   const salesRepPerformance = data?.salesRepPerformance || [];
 
   // One table, not two — Rep Targets and the Leaderboard used to show the
@@ -876,7 +845,6 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClien
       targetLabel="Company Target — This Month"
       freeClients={freeClients}
       freeClientsLoading={freeClientsLoading}
-      onClaimFreeClient={onClaimFreeClient}
       extraContent={leaderboard}
     />
   );
