@@ -507,18 +507,60 @@ const DORMANCY_DAYS = 60;
 
 const getFreeClients = async (req, res) => {
     try {
+        // Real dormant clients don't stop being real just because a booking
+        // predates clientId being required. Bookings made before this feature
+        // shipped mostly only have a free-text client_name with no clients-
+        // table row at all — excluding those would hide most of the business's
+        // actual dormant relationships, not just the ones cleanly modeled.
+        // So this unions two sources: (1) proper clients-table rows via
+        // client_id, same as before, and (2) the most recent booking per
+        // distinct name among adverts that were never linked to a client
+        // record, skipped only where that exact name already has a real
+        // clients row (to avoid double-listing the same person once linked
+        // data and old free-text data happen to share a name). The unlinked
+        // ones carry is_linked: false so the frontend can flag them as
+        // needing a real client record — clicking one should prompt creating
+        // it with a phone number, not silently pretend it's already clean.
         const result = await pool.query(
-            `SELECT
-                c.id, c.name, c.phone, c.company,
-                c.sales_rep_id, u.full_name AS last_rep_name,
-                MAX(a.start_date) AS last_advert_date,
-                (CURRENT_DATE - MAX(a.start_date)) AS days_dormant
-             FROM clients c
-             JOIN adverts a ON a.client_id = c.id
-             LEFT JOIN users u ON c.sales_rep_id = u.id
-             GROUP BY c.id, u.full_name
-             HAVING MAX(a.start_date) <= CURRENT_DATE - INTERVAL '${DORMANCY_DAYS} days'
-             ORDER BY MAX(a.start_date) ASC`
+            `WITH linked AS (
+                SELECT
+                    c.id, c.name, c.phone, c.sales_rep_id, u.full_name AS last_rep_name,
+                    MAX(a.start_date) AS last_advert_date,
+                    true AS is_linked
+                FROM clients c
+                JOIN adverts a ON a.client_id = c.id
+                LEFT JOIN users u ON c.sales_rep_id = u.id
+                GROUP BY c.id, u.full_name
+             ),
+             unlinked_latest AS (
+                SELECT DISTINCT ON (lower(trim(a.client_name)))
+                    a.client_name AS name,
+                    a.sales_rep_id,
+                    a.start_date AS last_advert_date
+                FROM adverts a
+                WHERE a.client_id IS NULL
+                  AND a.client_name IS NOT NULL
+                  AND trim(a.client_name) != ''
+                ORDER BY lower(trim(a.client_name)), a.start_date DESC
+             ),
+             unlinked AS (
+                SELECT
+                    NULL::integer AS id, ul.name, NULL::text AS phone, ul.sales_rep_id,
+                    u.full_name AS last_rep_name, ul.last_advert_date, false AS is_linked
+                FROM unlinked_latest ul
+                LEFT JOIN users u ON ul.sales_rep_id = u.id
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM clients c WHERE lower(trim(c.name)) = lower(trim(ul.name))
+                )
+             )
+             SELECT *, (CURRENT_DATE - last_advert_date) AS days_dormant
+             FROM (
+                SELECT * FROM linked
+                UNION ALL
+                SELECT * FROM unlinked
+             ) combined
+             WHERE last_advert_date <= CURRENT_DATE - INTERVAL '${DORMANCY_DAYS} days'
+             ORDER BY last_advert_date ASC`
         );
 
         res.json({

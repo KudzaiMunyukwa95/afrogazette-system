@@ -33,8 +33,19 @@ const FreeClients = () => {
   useEffect(() => { fetchFreeClients(); }, [fetchFreeClients]);
 
   const handleClaim = (client) => {
+    // Unlinked clients (from old free-text-only bookings) have no real
+    // clients-table id to prefill — sending a bogus one would either error
+    // or silently attach to the wrong record. Prefilling just the name
+    // routes them through ClientAutocomplete's normal search-or-create flow,
+    // which is exactly where a rep gets prompted for a phone number — the
+    // standardization the admin is asking for happens naturally at the
+    // moment the client actually gets rebooked, not as a separate chore.
     navigate('/create-advert', {
-      state: { prefill: { clientId: client.id, clientName: client.name } }
+      state: {
+        prefill: client.is_linked
+          ? { clientId: client.id, clientName: client.name }
+          : { clientName: client.name }
+      }
     });
   };
 
@@ -69,16 +80,25 @@ const FreeClients = () => {
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100 overflow-hidden">
               {clients.map((client) => (
                 <button
-                  key={client.id}
+                  key={client.id ?? `unlinked-${client.name}`}
                   onClick={() => handleClaim(client)}
                   className="w-full text-left px-4 md:px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors tap-target"
                 >
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{client.name}</p>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
-                      {client.phone && (
-                        <span className="flex items-center gap-1 min-w-0"><Phone className="h-3 w-3 flex-shrink-0" />{client.phone}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-gray-900 truncate">{client.name}</p>
+                      {!client.is_linked && (
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded flex-shrink-0">
+                          Needs phone
+                        </span>
                       )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
+                      {client.phone ? (
+                        <span className="flex items-center gap-1 min-w-0"><Phone className="h-3 w-3 flex-shrink-0" />{client.phone}</span>
+                      ) : !client.is_linked ? (
+                        <span className="italic">No client record yet — tap to standardize</span>
+                      ) : null}
                       <span className="truncate">Last with {client.last_rep_name || 'unknown rep'}</span>
                     </div>
                   </div>
