@@ -127,6 +127,11 @@ const ActivityLog = () => {
                           Discounted: {e.discount_reason}
                         </p>
                       )}
+                      {e.ownership_override_reason && (
+                        <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 mt-1.5 inline-block">
+                          Ownership window: {e.ownership_override_reason}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-400 mt-1.5">{new Date(e.created_at).toLocaleString()}</p>
                     </div>
                   </div>

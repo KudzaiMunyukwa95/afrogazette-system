@@ -129,17 +129,32 @@ const searchClients = async (req, res) => {
         // produce a false "no existing client" miss.
         const normalizedQueryPhone = normalizeZimPhone(q);
 
+        // Ownership for the 60-day window follows whoever booked this client
+        // most recently (see clientController's getFreeClients/getAllClients
+        // for the same fix) — not clients.sales_rep_id, which is only set
+        // once at creation and would show the original creator forever even
+        // after someone else has since booked and become the real owner.
         const result = await pool.query(
             `SELECT
-                c.id, c.name, c.email, c.phone, c.company, c.sales_rep_id,
-                u.full_name AS sales_rep_name,
-                MAX(a.start_date) AS last_advert_date
+                c.id, c.name, c.email, c.phone, c.company,
+                latest.sales_rep_id AS owner_rep_id,
+                u.full_name AS owner_rep_name,
+                latest.start_date AS last_advert_date,
+                CASE WHEN latest.start_date IS NULL THEN NULL
+                     ELSE (CURRENT_DATE - latest.start_date) END AS days_since_last_advert,
+                CASE WHEN latest.start_date IS NULL THEN false
+                     ELSE (CURRENT_DATE - latest.start_date) < 60 END AS is_within_ownership_window
              FROM clients c
-             LEFT JOIN users u ON c.sales_rep_id = u.id
-             LEFT JOIN adverts a ON a.client_id = c.id
+             LEFT JOIN LATERAL (
+                SELECT a.sales_rep_id, a.start_date
+                FROM adverts a
+                WHERE a.client_id = c.id
+                ORDER BY a.start_date DESC
+                LIMIT 1
+             ) latest ON true
+             LEFT JOIN users u ON latest.sales_rep_id = u.id
              WHERE c.name ILIKE $1 OR c.email ILIKE $1 OR c.company ILIKE $1
                 OR ($2::text IS NOT NULL AND c.phone = $2)
-             GROUP BY c.id, u.full_name
              ORDER BY c.name ASC
              LIMIT 10`,
             [`%${q}%`, normalizedQueryPhone]
@@ -538,14 +553,23 @@ const getFreeClients = async (req, res) => {
         // it with a phone number, not silently pretend it's already clean.
         const result = await pool.query(
             `WITH linked AS (
-                SELECT
-                    c.id, c.name, c.phone, c.sales_rep_id, u.full_name AS last_rep_name,
-                    MAX(a.start_date) AS last_advert_date,
+                -- Ownership follows the rep of the most recent ADVERT, not
+                -- clients.sales_rep_id — that column is only ever set once,
+                -- at client creation, and never updated. Once clients are
+                -- shared company-wide, a different rep booking the same
+                -- client later is the normal case, and reading the stale
+                -- creator instead of the actual last booker would silently
+                -- misattribute ownership for exactly the scenario this
+                -- whole feature exists to get right.
+                SELECT DISTINCT ON (c.id)
+                    c.id, c.name, c.phone,
+                    a.sales_rep_id, u.full_name AS last_rep_name,
+                    a.start_date AS last_advert_date,
                     true AS is_linked
                 FROM clients c
                 JOIN adverts a ON a.client_id = c.id
-                LEFT JOIN users u ON c.sales_rep_id = u.id
-                GROUP BY c.id, u.full_name
+                LEFT JOIN users u ON a.sales_rep_id = u.id
+                ORDER BY c.id, a.start_date DESC
              ),
              unlinked_latest AS (
                 SELECT DISTINCT ON (lower(trim(a.client_name)))
@@ -646,17 +670,37 @@ const getPossibleDuplicates = async (req, res) => {
 const getAllClients = async (req, res) => {
     try {
         const result = await pool.query(
-            `WITH linked AS (
+            `WITH linked_agg AS (
                 SELECT
-                    c.id, c.name, c.phone, c.sales_rep_id, u.full_name AS last_rep_name,
+                    c.id, c.name, c.phone,
                     MAX(a.start_date) AS last_advert_date,
                     COUNT(a.id) AS total_adverts,
-                    COALESCE(SUM(a.amount_paid), 0) AS total_spent,
-                    true AS is_linked
+                    COALESCE(SUM(a.amount_paid), 0) AS total_spent
                 FROM clients c
                 LEFT JOIN adverts a ON a.client_id = c.id
-                LEFT JOIN users u ON c.sales_rep_id = u.id
-                GROUP BY c.id, u.full_name
+                GROUP BY c.id
+             ),
+             -- Ownership follows the rep of the most recent ADVERT, not
+             -- clients.sales_rep_id (only ever set once, at creation, never
+             -- updated) — kept separate from the aggregate above since a
+             -- plain GROUP BY can't also tell you which specific row is the
+             -- latest one.
+             linked_latest_rep AS (
+                SELECT DISTINCT ON (a.client_id)
+                    a.client_id, a.sales_rep_id
+                FROM adverts a
+                WHERE a.client_id IS NOT NULL
+                ORDER BY a.client_id, a.start_date DESC
+             ),
+             linked AS (
+                SELECT
+                    la.id, la.name, la.phone,
+                    llr.sales_rep_id, u.full_name AS last_rep_name,
+                    la.last_advert_date, la.total_adverts, la.total_spent,
+                    true AS is_linked
+                FROM linked_agg la
+                LEFT JOIN linked_latest_rep llr ON llr.client_id = la.id
+                LEFT JOIN users u ON llr.sales_rep_id = u.id
              ),
              unlinked_norm AS (
                 SELECT

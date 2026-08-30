@@ -250,9 +250,14 @@ const ClientAutocomplete = ({ value, onChange, onSelect, error }) => {
                                                 </span>
                                             )}
                                         </div>
-                                        {client.sales_rep_name && (
-                                            <span className="text-xs text-gray-400 whitespace-nowrap ml-2">
-                                                {client.sales_rep_name}
+                                        {client.owner_rep_name && (
+                                            <span
+                                                className={`text-xs whitespace-nowrap ml-2 ${
+                                                    client.is_within_ownership_window ? 'text-amber-700 font-medium' : 'text-gray-400'
+                                                }`}
+                                            >
+                                                {client.owner_rep_name}
+                                                {client.is_within_ownership_window && ` · ${client.days_since_last_advert}d ago`}
                                             </span>
                                         )}
                                     </div>

@@ -4,6 +4,7 @@ import { advertAPI, ratesAPI } from '../services/api';
 import Layout from '../components/Layout';
 import ClientAutocomplete from '../components/ClientAutocomplete';
 import { useToast } from '../components/Toast';
+import { useAuth } from '../context/AuthContext';
 import {
   ArrowLeft,
   Save,
@@ -70,6 +71,7 @@ const CreateAdvert = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const [flights, setFlights] = useState(FALLBACK_FLIGHTS);
@@ -91,7 +93,12 @@ const CreateAdvert = () => {
     paymentMethod: 'cash',
     amountPaid: '',
     startDate: '',
-    discountReason: ''
+    discountReason: '',
+    ownershipOverrideReason: '',
+    ownerRepId: null,
+    ownerRepName: '',
+    daysSinceLastAdvert: null,
+    isWithinOwnershipWindow: false
   });
 
   const [amountTouched, setAmountTouched] = useState(false);
@@ -238,6 +245,7 @@ const CreateAdvert = () => {
     startDate: formData.startDate,
     paymentMethod: formData.paymentMethod,
     discountReason: formData.discountReason,
+    ownershipOverrideReason: formData.ownershipOverrideReason,
     ...(bundleRef ? { bundleRef } : {})
   });
 
@@ -272,6 +280,11 @@ const CreateAdvert = () => {
 
     if (isDiscounted && !formData.discountReason.trim()) {
       toast.error(`Add a reason — this is below the suggested $${suggested.toFixed(2)} for ${formData.daysPaid} day(s)`);
+      return;
+    }
+
+    if (formData.isWithinOwnershipWindow && formData.ownerRepId !== user?.id && !formData.ownershipOverrideReason.trim()) {
+      toast.error(`Add a reason — ${formData.ownerRepName || 'another rep'} booked this client ${formData.daysSinceLastAdvert} day(s) ago, still within their ownership window`);
       return;
     }
 
@@ -451,11 +464,20 @@ const CreateAdvert = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Client Name *</label>
                     <ClientAutocomplete
                       value={formData.clientName}
-                      onChange={(value) => setFormData(prev => ({ ...prev, clientName: value, clientId: null }))}
+                      onChange={(value) => setFormData(prev => ({
+                        ...prev, clientName: value, clientId: null,
+                        ownerRepId: null, ownerRepName: '', isWithinOwnershipWindow: false,
+                        daysSinceLastAdvert: null, ownershipOverrideReason: ''
+                      }))}
                       onSelect={(client) => setFormData(prev => ({
                         ...prev,
                         clientName: client ? client.name : '',
-                        clientId: client ? client.id : null
+                        clientId: client ? client.id : null,
+                        ownerRepId: client?.owner_rep_id ?? null,
+                        ownerRepName: client?.owner_rep_name || '',
+                        isWithinOwnershipWindow: !!client?.is_within_ownership_window,
+                        daysSinceLastAdvert: client?.days_since_last_advert ?? null,
+                        ownershipOverrideReason: ''
                       }))}
                       error={!formData.clientId && (formData.clientName ? 'Select or create this client to continue' : 'Client is required')}
                     />
@@ -609,6 +631,30 @@ const CreateAdvert = () => {
                       placeholder="e.g. repeat client, fill-rate discount, price-matched a competitor"
                       className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                     />
+                  </div>
+                )}
+
+                {formData.isWithinOwnershipWindow && formData.ownerRepId !== user?.id && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reason for booking this client <span className="text-red-500">*</span>
+                      <span className="ml-1 text-xs font-normal text-gray-400">
+                        (booked by {formData.ownerRepName || 'another rep'} {formData.daysSinceLastAdvert}d ago — still within their 60-day ownership window)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      name="ownershipOverrideReason"
+                      value={formData.ownershipOverrideReason}
+                      onChange={handleChange}
+                      required
+                      maxLength={300}
+                      placeholder="e.g. their line was banned, handed off to me"
+                      className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      The booking still goes through — commission stays with {formData.ownerRepName || 'the current owner'} either way, this just records why you're entering it.
+                    </p>
                   </div>
                 )}
 

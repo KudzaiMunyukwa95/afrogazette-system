@@ -65,12 +65,13 @@ const createAdvert = async (req, res) => {
       bundleRef = null,
       discountReason = null
     } = req.body;
+    let { ownershipOverrideReason = null } = req.body;
 
     // Ad format (text/picture/group-link) no longer exists as a client choice —
     // every advert is just "a post" now. The column stays for historical rows.
     const advertType = 'post';
 
-    const salesRepId = req.user.id;
+    let salesRepId = req.user.id;
     let finalClientName = clientName;
 
     // Validate description (caption): mandatory, 10–200 chars after trim
@@ -136,6 +137,45 @@ const createAdvert = async (req, res) => {
 
     finalClientName = clientResult.rows[0].name;
 
+    // The 60-day ownership policy previously had nothing enforcing it —
+    // Free Clients only ever showed who's dormant; nothing stopped a
+    // different rep from booking a still-owned client and keeping the
+    // commission anyway. This is the actual enforcement: find whoever
+    // booked this client most recently, and if that's someone else and
+    // it's been under 60 days, require a reason before letting it proceed
+    // — mirrors discountReason's pattern exactly. Not a hard block, since
+    // legitimate handoffs are real (a banned line redirected to a
+    // colleague, for example) — but it can't happen silently anymore.
+    const ownerResult = await pool.query(
+      `SELECT sales_rep_id, start_date, (CURRENT_DATE - start_date) AS days_ago
+       FROM adverts WHERE client_id = $1
+       ORDER BY start_date DESC LIMIT 1`,
+      [clientId]
+    );
+    if (ownerResult.rows.length > 0) {
+      const owner = ownerResult.rows[0];
+      const withinWindow = owner.sales_rep_id !== salesRepId && owner.days_ago < 60;
+      if (withinWindow) {
+        if (!(ownershipOverrideReason || '').trim()) {
+          const ownerNameResult = await pool.query('SELECT full_name FROM users WHERE id = $1', [owner.sales_rep_id]);
+          const ownerName = ownerNameResult.rows[0]?.full_name || 'another rep';
+          return res.status(400).json({
+            success: false,
+            message: `${finalClientName} was booked by ${ownerName} ${owner.days_ago} day(s) ago, still within their 60-day ownership window. Add a reason (e.g. a handoff) to continue — this booking's commission stays with the client's current owner either way.`
+          });
+        }
+        // The reason documents why someone else is entering this booking
+        // (e.g. a banned line, handed off to a colleague) — it doesn't
+        // transfer the commission. Policy is "no argument, no split": the
+        // owner keeps it regardless of who actually typed the booking in.
+        // Note who actually entered it in the stored reason itself, since
+        // sales_rep_id is about to point to the owner instead — otherwise
+        // that fact disappears from the record entirely.
+        ownershipOverrideReason = `${ownershipOverrideReason.trim()} (entered by ${req.user.full_name || req.user.email})`;
+        salesRepId = owner.sales_rep_id;
+      }
+    }
+
     // Commission tier depends on how long the booking is — a single day
     // closes itself, a monthly pack is real conversion work. See ratePolicy.js.
     const commissionAmount = (parseFloat(amountPaid) * commissionRateForDays(daysPaid)).toFixed(2);
@@ -145,14 +185,16 @@ const createAdvert = async (req, res) => {
       `INSERT INTO adverts (
         client_id, client_name, category, caption, ad_content, media_url, days_paid,
         payment_date, amount_paid, start_date, sales_rep_id, status,
-        advert_type, destination_type, payment_method, commission_amount, bundle_ref, discount_reason
+        advert_type, destination_type, payment_method, commission_amount, bundle_ref, discount_reason,
+        ownership_override_reason
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', $12, $13, $14, $15, $16, $17)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', $12, $13, $14, $15, $16, $17, $18)
       RETURNING *`,
       [
         clientId || null, finalClientName, category, trimmedCaption, (adContent || '').trim() || null, mediaUrl, daysPaid,
         paymentDate, parseFloat(amountPaid).toFixed(2), startDate, salesRepId,
-        advertType, destinationType, paymentMethod, commissionAmount, bundleRef, (discountReason || '').trim() || null
+        advertType, destinationType, paymentMethod, commissionAmount, bundleRef, (discountReason || '').trim() || null,
+        ownershipOverrideReason
       ]
     );
 

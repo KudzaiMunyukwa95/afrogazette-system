@@ -57,7 +57,11 @@ router.post(
     body('discountReason')
       .optional({ checkFalsy: true })
       .isLength({ max: 300 })
-      .withMessage('discountReason must be 300 characters or fewer')
+      .withMessage('discountReason must be 300 characters or fewer'),
+    body('ownershipOverrideReason')
+      .optional({ checkFalsy: true })
+      .isLength({ max: 300 })
+      .withMessage('ownershipOverrideReason must be 300 characters or fewer')
   ],
   validate,
   advertController.createAdvert
