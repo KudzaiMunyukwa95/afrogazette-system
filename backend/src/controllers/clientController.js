@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { normalizeZimPhone, isValidZimPhone } = require('../utils/phone');
 
 /**
  * Get all clients for the authenticated sales rep
@@ -75,18 +76,23 @@ const getClients = async (req, res) => {
 const getClientById = async (req, res) => {
     try {
         const { id } = req.params;
-        const salesRepId = req.user.id;
 
+        // Viewable by any authenticated rep/admin — needed to click through
+        // from the Free Clients list or search results regardless of who
+        // currently owns the client.
         const result = await pool.query(
-            `SELECT 
+            `SELECT
         c.*,
+        u.full_name AS sales_rep_name,
         COUNT(a.id) as total_adverts,
-        COALESCE(SUM(a.amount_paid), 0) as total_spent
+        COALESCE(SUM(a.amount_paid), 0) as total_spent,
+        MAX(a.start_date) AS last_advert_date
       FROM clients c
+      LEFT JOIN users u ON c.sales_rep_id = u.id
       LEFT JOIN adverts a ON c.id = a.client_id
-      WHERE c.id = $1 AND c.sales_rep_id = $2
-      GROUP BY c.id`,
-            [id, salesRepId]
+      WHERE c.id = $1
+      GROUP BY c.id, u.full_name`,
+            [id]
         );
 
         if (result.rows.length === 0) {
@@ -114,17 +120,29 @@ const getClientById = async (req, res) => {
  */
 const searchClients = async (req, res) => {
     try {
-        const salesRepId = req.user.id;
         const { q = '' } = req.query;
 
+        // Company-wide, not scoped to the searching rep — a rep must be able
+        // to find a client another rep created, or every naming variant
+        // becomes a new row. If the query looks like a phone number, also
+        // match on the normalized form so formatting differences don't
+        // produce a false "no existing client" miss.
+        const normalizedQueryPhone = normalizeZimPhone(q);
+
         const result = await pool.query(
-            `SELECT id, name, email, phone, company
-       FROM clients
-       WHERE sales_rep_id = $1
-         AND (name ILIKE $2 OR email ILIKE $2 OR company ILIKE $2)
-       ORDER BY name ASC
-       LIMIT 10`,
-            [salesRepId, `%${q}%`]
+            `SELECT
+                c.id, c.name, c.email, c.phone, c.company, c.sales_rep_id,
+                u.full_name AS sales_rep_name,
+                MAX(a.start_date) AS last_advert_date
+             FROM clients c
+             LEFT JOIN users u ON c.sales_rep_id = u.id
+             LEFT JOIN adverts a ON a.client_id = c.id
+             WHERE c.name ILIKE $1 OR c.email ILIKE $1 OR c.company ILIKE $1
+                OR ($2::text IS NOT NULL AND c.phone = $2)
+             GROUP BY c.id, u.full_name
+             ORDER BY c.name ASC
+             LIMIT 10`,
+            [`%${q}%`, normalizedQueryPhone]
         );
 
         res.json({
@@ -157,8 +175,16 @@ const validateClientPayload = (payload) => {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return 'Invalid email address';
     }
-    if (phone && !/^[+]?[\d\s()-]{7,20}$/.test(phone)) {
-        return 'Invalid phone number';
+
+    // Phone is the identity key that stops duplicate client records from
+    // being created under name-spelling variants — required, and must be a
+    // real Zimbabwean mobile number so normalizeZimPhone() can match it
+    // reliably against existing clients.
+    if (!phone || !phone.trim()) {
+        return 'Phone number is required';
+    }
+    if (!isValidZimPhone(phone)) {
+        return 'Enter a valid Zimbabwean mobile number (e.g. 077 123 4567)';
     }
 
     // TIN: Zimbabwean TINs are 10 digits. Be permissive but sane.
@@ -195,6 +221,26 @@ const createClient = async (req, res) => {
             return res.status(400).json({ success: false, message: validationError });
         }
 
+        const normalizedPhone = normalizeZimPhone(phone);
+
+        // Phone is the identity check across the whole company, not just this
+        // rep's own list — this is what actually stops a second rep from
+        // creating "Amanda M" when "Madam Amanda" already exists under a
+        // different rep, which the old per-rep-scoped check could never catch.
+        const existing = await pool.query(
+            `SELECT c.*, u.full_name AS sales_rep_name
+             FROM clients c LEFT JOIN users u ON c.sales_rep_id = u.id
+             WHERE c.phone = $1`,
+            [normalizedPhone]
+        );
+        if (existing.rows.length > 0) {
+            return res.status(409).json({
+                success: false,
+                message: `This number is already registered to ${existing.rows[0].name} (${existing.rows[0].sales_rep_name || 'unassigned'}). Use that client instead of creating a new one.`,
+                data: { client: existing.rows[0] }
+            });
+        }
+
         const result = await pool.query(
             `INSERT INTO clients (
                 name, email, phone, company, notes,
@@ -206,7 +252,7 @@ const createClient = async (req, res) => {
             [
                 name.trim(),
                 email || null,
-                phone || null,
+                normalizedPhone,
                 company || null,
                 notes || null,
                 contact_person || null,
@@ -252,16 +298,31 @@ const updateClient = async (req, res) => {
             return res.status(400).json({ success: false, message: validationError });
         }
 
-        // Check ownership
+        // Any rep can view/select any client (see searchClients), but editing
+        // stays restricted to the current owner or an admin — reactivating a
+        // dormant client for a new booking doesn't require rewriting their
+        // contact details.
         const ownerCheck = await pool.query(
-            'SELECT id FROM clients WHERE id = $1 AND sales_rep_id = $2',
-            [id, salesRepId]
+            'SELECT id FROM clients WHERE id = $1 AND (sales_rep_id = $2 OR $3 = true)',
+            [id, salesRepId, req.user.role === 'admin']
         );
 
         if (ownerCheck.rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'Client not found'
+            });
+        }
+
+        const normalizedPhone = normalizeZimPhone(phone);
+        const dupCheck = await pool.query(
+            'SELECT id, name FROM clients WHERE phone = $1 AND id != $2',
+            [normalizedPhone, id]
+        );
+        if (dupCheck.rows.length > 0) {
+            return res.status(409).json({
+                success: false,
+                message: `This number already belongs to ${dupCheck.rows[0].name}. Merge these two instead of using the same number on both.`
             });
         }
 
@@ -276,7 +337,7 @@ const updateClient = async (req, res) => {
             [
                 name.trim(),
                 email || null,
-                phone || null,
+                normalizedPhone,
                 company || null,
                 notes || null,
                 contact_person || null,
@@ -361,7 +422,6 @@ const mergeClients = async (req, res) => {
 
     try {
         const { keepId, mergeIds } = req.body;
-        const salesRepId = req.user.id;
 
         if (!keepId || !mergeIds || !Array.isArray(mergeIds) || mergeIds.length === 0) {
             return res.status(400).json({
@@ -372,18 +432,22 @@ const mergeClients = async (req, res) => {
 
         await client.query('BEGIN');
 
-        // Verify ownership of all clients
+        // Duplicates routinely span two different reps' client lists (that's
+        // the whole reason they exist), so merging can't be restricted to
+        // "your own" clients the way the old ownership-scoped check required
+        // — any authenticated rep can merge, since fixing a duplicate helps
+        // everyone regardless of who created either record.
         const allIds = [keepId, ...mergeIds];
-        const ownerCheck = await client.query(
-            'SELECT id FROM clients WHERE id = ANY($1) AND sales_rep_id = $2',
-            [allIds, salesRepId]
+        const existCheck = await client.query(
+            'SELECT id FROM clients WHERE id = ANY($1)',
+            [allIds]
         );
 
-        if (ownerCheck.rows.length !== allIds.length) {
+        if (existCheck.rows.length !== allIds.length) {
             await client.query('ROLLBACK');
-            return res.status(403).json({
+            return res.status(404).json({
                 success: false,
-                message: 'You can only merge your own clients'
+                message: 'One or more clients in this merge no longer exist'
             });
         }
 
@@ -400,6 +464,7 @@ const mergeClients = async (req, res) => {
         );
 
         await client.query('COMMIT');
+        console.log(`Client merge by user ${req.user.id}: merged [${mergeIds.join(', ')}] into ${keepId}`);
 
         // Get updated client with new stats
         const updatedClient = await client.query(
@@ -431,6 +496,88 @@ const mergeClients = async (req, res) => {
     }
 };
 
+/**
+ * Free clients — clients whose most recent booking is 60+ days old. This is
+ * the same dormancy rule that resolves the "I worked this client months
+ * ago" commission disputes: past the window, the client is open, and
+ * whoever books them next gets the commission. Made visible here instead of
+ * left as a memorized rule reps have to argue about.
+ */
+const DORMANCY_DAYS = 60;
+
+const getFreeClients = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT
+                c.id, c.name, c.phone, c.company,
+                c.sales_rep_id, u.full_name AS last_rep_name,
+                MAX(a.start_date) AS last_advert_date,
+                (CURRENT_DATE - MAX(a.start_date)) AS days_dormant
+             FROM clients c
+             JOIN adverts a ON a.client_id = c.id
+             LEFT JOIN users u ON c.sales_rep_id = u.id
+             GROUP BY c.id, u.full_name
+             HAVING MAX(a.start_date) <= CURRENT_DATE - INTERVAL '${DORMANCY_DAYS} days'
+             ORDER BY MAX(a.start_date) ASC`
+        );
+
+        res.json({
+            success: true,
+            data: { clients: result.rows, dormancyDays: DORMANCY_DAYS }
+        });
+    } catch (error) {
+        console.error('Get free clients error:', error);
+        res.status(500).json({ success: false, message: 'Server error fetching free clients' });
+    }
+};
+
+/**
+ * Possible duplicate clients — grouped by normalized name (lowercase,
+ * trimmed, common titles stripped, whitespace collapsed). Phone-based
+ * matching can't find historical duplicates because old records mostly
+ * predate the phone requirement; this is the best a query can do for
+ * existing data. A rep reviews each group and merges the real matches —
+ * this can't be fully automatic without more data than exists.
+ */
+const getPossibleDuplicates = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT
+                regexp_replace(
+                    lower(trim(regexp_replace(c.name, '^(mr|mrs|ms|miss|dr|madam|mr\\.|mrs\\.|dr\\.)\\s+', '', 'i'))),
+                    '\\s+', ' ', 'g'
+                ) AS normalized_name,
+                c.id, c.name, c.phone, c.company, c.sales_rep_id,
+                u.full_name AS sales_rep_name,
+                COUNT(a.id) AS total_adverts,
+                MAX(a.start_date) AS last_advert_date
+             FROM clients c
+             LEFT JOIN users u ON c.sales_rep_id = u.id
+             LEFT JOIN adverts a ON a.client_id = c.id
+             GROUP BY c.id, u.full_name
+             ORDER BY normalized_name ASC`
+        );
+
+        const groups = {};
+        for (const row of result.rows) {
+            if (!groups[row.normalized_name]) groups[row.normalized_name] = [];
+            groups[row.normalized_name].push(row);
+        }
+
+        const duplicates = Object.entries(groups)
+            .filter(([, clients]) => clients.length > 1)
+            .map(([normalizedName, clients]) => ({ normalizedName, clients }));
+
+        res.json({
+            success: true,
+            data: { duplicateGroups: duplicates }
+        });
+    } catch (error) {
+        console.error('Get possible duplicates error:', error);
+        res.status(500).json({ success: false, message: 'Server error finding duplicate clients' });
+    }
+};
+
 module.exports = {
     getClients,
     getClientById,
@@ -438,5 +585,7 @@ module.exports = {
     createClient,
     updateClient,
     deleteClient,
-    mergeClients
+    mergeClients,
+    getFreeClients,
+    getPossibleDuplicates
 };

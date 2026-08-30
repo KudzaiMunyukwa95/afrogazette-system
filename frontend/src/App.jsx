@@ -14,6 +14,7 @@ import PendingApprovals from './pages/PendingApprovals';
 import Schedule from './pages/Schedule';
 import Users from './pages/Users';
 import ClientManagement from './pages/ClientManagement';
+import DuplicateClients from './pages/DuplicateClients';
 import MyInvoices from './pages/MyInvoices';
 import MyAdverts from './pages/MyAdverts';
 import MyClients from './pages/MyClients';
@@ -143,6 +144,15 @@ function App() {
                 element={
                   <PrivateRoute>
                     <ClientManagement />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/duplicate-clients"
+                element={
+                  <PrivateRoute>
+                    <DuplicateClients />
                   </PrivateRoute>
                 }
               />

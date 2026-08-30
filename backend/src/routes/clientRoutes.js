@@ -8,15 +8,20 @@ const {
     createClient,
     updateClient,
     deleteClient,
-    mergeClients
+    mergeClients,
+    getFreeClients,
+    getPossibleDuplicates
 } = require('../controllers/clientController');
 
 // All routes require authentication
 router.use(authenticate);
 
-// Client routes
+// Client routes — /free, /duplicates and /search must come before /:id so
+// Express doesn't try to match them as a client id.
 router.get('/', getClients);
 router.get('/search', searchClients);
+router.get('/free', getFreeClients);
+router.get('/duplicates', getPossibleDuplicates);
 router.get('/:id', getClientById);
 router.post('/', createClient);
 router.patch('/:id', updateClient);

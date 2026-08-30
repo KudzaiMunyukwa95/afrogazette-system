@@ -167,14 +167,20 @@ const getDashboard = async (req, res) => {
     `);
 
     // Top 5 Clients by Spend (Global)
+    // Grouped by client_id where a booking has one — that's the dedup-safe
+    // identity now that clients are shared and phone-matched. Older rows
+    // booked before clientId was required still fall back to the raw name
+    // string, so pre-existing name-variant duplicates can still fragment
+    // historical totals; there's no data to fix that retroactively with.
     const topClients = await pool.query(`
-      SELECT 
-        client_name as name,
-        SUM(amount_paid) as spent
-      FROM adverts
-      WHERE COALESCE(approved_at, created_at) >= $1
-        AND COALESCE(approved_at, created_at) < $2
-      GROUP BY client_name
+      SELECT
+        COALESCE(c.name, a.client_name) as name,
+        SUM(a.amount_paid) as spent
+      FROM adverts a
+      LEFT JOIN clients c ON a.client_id = c.id
+      WHERE COALESCE(a.approved_at, a.created_at) >= $1
+        AND COALESCE(a.approved_at, a.created_at) < $2
+      GROUP BY COALESCE(a.client_id::text, a.client_name), COALESCE(c.name, a.client_name)
       ORDER BY spent DESC
       LIMIT 5
     `, [startDate.toISOString(), endDate.toISOString()]);

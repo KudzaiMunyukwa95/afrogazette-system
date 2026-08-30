@@ -79,7 +79,7 @@ const CreateAdvert = () => {
   const prefill = location.state?.prefill;
 
   const [formData, setFormData] = useState({
-    clientId: null,
+    clientId: prefill?.clientId || null,
     clientName: prefill?.clientName || '',
     category: prefill?.category || '',
     caption: '',
@@ -250,8 +250,12 @@ const CreateAdvert = () => {
       return;
     }
 
-    if (!formData.clientId && !formData.clientName) {
-      toast.error('Please select or enter a client');
+    if (!formData.clientId) {
+      toast.error(
+        formData.clientName
+          ? `Select "${formData.clientName}" from the list, or use "Add as a new client" to create it with a phone number`
+          : 'Please select or create a client'
+      );
       return;
     }
 
@@ -447,7 +451,7 @@ const CreateAdvert = () => {
                         clientName: client ? client.name : '',
                         clientId: client ? client.id : null
                       }))}
-                      error={!formData.clientName && 'Client name is required'}
+                      error={!formData.clientId && (formData.clientName ? 'Select or create this client to continue' : 'Client is required')}
                     />
                   </div>
 

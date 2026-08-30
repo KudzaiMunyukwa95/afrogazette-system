@@ -25,6 +25,9 @@ const VALID_CATEGORIES = [
 router.post(
   '/',
   [
+    body('clientId')
+      .isInt({ min: 1 })
+      .withMessage('Please select or create a client'),
     body('clientName').notEmpty().withMessage('Client name is required'),
     body('category')
       .isIn(VALID_CATEGORIES)

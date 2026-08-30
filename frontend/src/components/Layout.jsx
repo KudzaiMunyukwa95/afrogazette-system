@@ -26,7 +26,8 @@ import {
   Target,
   MessageSquare,
   Activity,
-  History
+  History,
+  GitMerge
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -59,6 +60,7 @@ const Layout = ({ children }) => {
           { name: 'Targets', href: '/targets', icon: Target },
           { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquare },
           { name: 'Activity Log', href: '/activity-log', icon: History },
+          { name: 'Duplicate Clients', href: '/duplicate-clients', icon: GitMerge },
           { name: 'Users', href: '/users', icon: Users }
         ])
       };
@@ -76,6 +78,7 @@ const Layout = ({ children }) => {
         { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquare },
         { name: 'Calendar', href: '/calendar', icon: Calendar },
         { name: 'Clients', href: '/my-clients', icon: Users },
+        { name: 'Duplicate Clients', href: '/duplicate-clients', icon: GitMerge },
         { name: 'Invoices', href: '/invoices', icon: FileText },
         { name: 'Requisitions', href: '/finance/my-requisitions', icon: DollarSign }
       ])

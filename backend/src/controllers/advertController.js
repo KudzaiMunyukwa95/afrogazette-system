@@ -95,22 +95,33 @@ const createAdvert = async (req, res) => {
       });
     }
 
-    // If client_id is provided, fetch client name from clients table
-    if (clientId) {
-      const clientResult = await pool.query(
-        'SELECT name FROM clients WHERE id = $1 AND sales_rep_id = $2',
-        [clientId, salesRepId]
-      );
-
-      if (clientResult.rows.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: 'Client not found'
-        });
-      }
-
-      finalClientName = clientResult.rows[0].name;
+    // A client record is required on every booking now — free-text-only
+    // names (no clientId) were the actual mechanism behind duplicate client
+    // records under naming variants, since nothing ever forced a rep to
+    // reuse or create a real client row.
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please select or create a client before booking'
+      });
     }
+
+    // Deliberately not scoped to this rep's own sales_rep_id — clients are
+    // shared company-wide now (see clientController.searchClients), so any
+    // rep can book against a client another rep originally created.
+    const clientResult = await pool.query(
+      'SELECT name FROM clients WHERE id = $1',
+      [clientId]
+    );
+
+    if (clientResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Client not found'
+      });
+    }
+
+    finalClientName = clientResult.rows[0].name;
 
     // Commission tier depends on how long the booking is — a single day
     // closes itself, a monthly pack is real conversion work. See ratePolicy.js.
