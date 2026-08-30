@@ -753,45 +753,84 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
 const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClients, freeClientsLoading, onClaimFreeClient }) => {
   const salesRepPerformance = data?.salesRepPerformance || [];
 
-  // Per-rep monthly target breakdown — always "this calendar month",
-  // independent of the leaderboard's timeFilter below.
-  const repTargets = (
+  // One table, not two — Rep Targets and the Leaderboard used to show the
+  // same revenue number twice under different labels whenever the time
+  // filter happened to be "This Month" (Target's own fixed period). Merged
+  // by rep name: adverts-sold/revenue follow the timeFilter selector below,
+  // same as the old leaderboard; target/progress stay pinned to the current
+  // calendar month regardless of that filter, same as the old Rep Targets
+  // table — a target is inherently monthly, it doesn't make sense measured
+  // against "today" or "last 7 days".
+  const performanceByName = {};
+  salesRepPerformance.forEach(rep => { performanceByName[rep.name] = rep; });
+
+  const repPerformance = [...(targetData?.reps || [])]
+    .map(rep => ({
+      ...rep,
+      totalAdverts: performanceByName[rep.fullName]?.total_adverts ?? 0,
+      periodRevenue: performanceByName[rep.fullName]?.total_revenue ?? 0
+    }))
+    .sort((a, b) => b.periodRevenue - a.periodRevenue);
+
+  const periodLabel = timeFilter === 'today' ? 'Today' :
+    timeFilter === 'week' ? 'Last 7 Days' :
+      timeFilter === 'month' ? 'This Month' : 'Last Month';
+
+  const leaderboard = (
     <motion.div variants={staggerItem} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center">
+      <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center flex-wrap gap-2">
         <h3 className="text-base md:text-lg font-semibold text-gray-900 flex items-center gap-2">
           <Target className="h-5 w-5 text-red-600" />
-          Rep Targets — This Month
+          Sales Rep Performance
         </h3>
-        <a
-          href="/targets"
-          className="text-xs font-medium px-3 py-1.5 bg-red-50 text-red-700 rounded-full hover:bg-red-100 active:scale-95 transition-all"
-        >
-          Edit targets
-        </a>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
+            Sales: {periodLabel}
+          </span>
+          <a
+            href="/targets"
+            className="text-xs font-medium px-3 py-1.5 bg-red-50 text-red-700 rounded-full hover:bg-red-100 active:scale-95 transition-all"
+          >
+            Edit targets
+          </a>
+        </div>
       </div>
 
       {targetLoading ? (
-        <div className="p-6 text-center text-gray-500 text-sm">Loading targets…</div>
+        <div className="p-6 text-center text-gray-500 text-sm">Loading…</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rep</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attained</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adverts ({periodLabel})</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue ({periodLabel})</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target (Month)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress (Month)</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {(targetData?.reps || []).length > 0 ? (
-                targetData.reps.map((rep) => {
+              {repPerformance.length > 0 ? (
+                repPerformance.map((rep, index) => {
                   const pct = rep.percent == null ? null : Math.min(100, rep.percent);
                   return (
                     <tr key={rep.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                          index === 1 ? 'bg-gray-100 text-gray-700' :
+                          index === 2 ? 'bg-orange-100 text-orange-700' :
+                          'bg-white text-gray-500 border border-gray-200'
+                        }`}>
+                          {index + 1}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{rep.fullName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 tabular-nums">
-                        ${Number(rep.attained).toLocaleString()}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 tabular-nums">{rep.totalAdverts}</td>
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900 tabular-nums">
+                        ${Number(rep.periodRevenue).toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 tabular-nums">
                         {rep.target > 0 ? `$${Number(rep.target).toLocaleString()}` : (
@@ -818,75 +857,13 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClien
                 })
               ) : (
                 <tr>
-                  <td colSpan="4" className="px-6 py-8 text-center text-gray-500">No sales reps yet</td>
+                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">No sales reps yet</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
       )}
-    </motion.div>
-  );
-
-  const leaderboard = (
-    <motion.div variants={staggerItem} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center">
-        <h3 className="text-base md:text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <Target className="h-5 w-5 text-red-600" />
-          Sales Rep Leaderboard
-        </h3>
-        <span className="text-xs font-medium px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
-          {timeFilter === 'today' ? 'Today' :
-            timeFilter === 'week' ? 'Last 7 Days' :
-              timeFilter === 'month' ? 'This Month' : 'Last Month'}
-        </span>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales Rep</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adverts Sold</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Revenue</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {salesRepPerformance.length > 0 ? (
-              salesRepPerformance.map((rep, index) => (
-                <tr key={index} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                      index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                      index === 1 ? 'bg-gray-100 text-gray-700' :
-                      index === 2 ? 'bg-orange-100 text-orange-700' :
-                      'bg-white text-gray-500 border border-gray-200'
-                    }`}>
-                      {index + 1}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-medium text-gray-900">{rep.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 tabular-nums">
-                    {rep.total_adverts}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900 tabular-nums">
-                    ${Number(rep.total_revenue).toFixed(2)}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
-                  No sales data available for this period
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
     </motion.div>
   );
 
@@ -900,12 +877,7 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClien
       freeClients={freeClients}
       freeClientsLoading={freeClientsLoading}
       onClaimFreeClient={onClaimFreeClient}
-      extraContent={
-        <>
-          {repTargets}
-          {leaderboard}
-        </>
-      }
+      extraContent={leaderboard}
     />
   );
 };
