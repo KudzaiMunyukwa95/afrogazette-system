@@ -22,6 +22,20 @@ const ClientAutocomplete = ({ value, onChange, onSelect, error }) => {
         setQuery(value || '');
     }, [value]);
 
+    // Arriving here with a name already prefilled (e.g. from Free Clients,
+    // where a client has a name but no resolved id yet) used to just show
+    // static text in the box — nothing actually ran until the rep manually
+    // clicked or typed, so the "search or create" prompt that's the whole
+    // point of this component stayed hidden. Auto-run the search once on
+    // mount so landing on the page behaves the same as if the rep had just
+    // finished typing the name themselves.
+    useEffect(() => {
+        if (value && value.trim().length >= 2) {
+            runSearch(value.trim());
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -34,7 +48,20 @@ const ClientAutocomplete = ({ value, onChange, onSelect, error }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleSearch = async (searchTerm) => {
+    const runSearch = async (searchTerm) => {
+        try {
+            setLoading(true);
+            const response = await clientAPI.search(searchTerm);
+            setSuggestions(response.data.data.clients);
+            setShowSuggestions(true);
+        } catch (err) {
+            console.error('Error searching clients:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSearch = (searchTerm) => {
         setQuery(searchTerm);
         // Propagate text change — the parent is expected to clear its own
         // resolved clientId here too (CreateAdvert's onChange already does),
@@ -50,16 +77,7 @@ const ClientAutocomplete = ({ value, onChange, onSelect, error }) => {
             return;
         }
 
-        try {
-            setLoading(true);
-            const response = await clientAPI.search(searchTerm);
-            setSuggestions(response.data.data.clients);
-            setShowSuggestions(true);
-        } catch (err) {
-            console.error('Error searching clients:', err);
-        } finally {
-            setLoading(false);
-        }
+        runSearch(searchTerm);
     };
 
     const handleSelect = (client) => {

@@ -323,9 +323,15 @@ const CreateAdvert = () => {
             </div>
           </div>
 
-          {prefill && (
+          {prefill?.adContent && (
             <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-800">
               Ad content carried over from Check Advert — category and content are pre-filled below.
+            </div>
+          )}
+          {prefill?.clientName && !prefill?.adContent && (
+            <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
+              Booking for <strong>{prefill.clientName}</strong>
+              {!prefill.clientId && ' — confirm or create this client below to continue'}.
             </div>
           )}
 
