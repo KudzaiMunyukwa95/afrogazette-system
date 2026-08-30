@@ -258,9 +258,15 @@ const Dashboard = () => {
 
         <div className="max-w-7xl mx-auto mobile-container py-5 md:py-8">
           {isAdmin() ? (
-            <AdminDashboard data={data} timeFilter={timeFilter} targetData={targetData} targetLoading={targetLoading} />
+            <AdminDashboard
+              data={data} timeFilter={timeFilter} targetData={targetData} targetLoading={targetLoading}
+              freeClients={freeClients} freeClientsLoading={freeClientsLoading} onClaimFreeClient={handleClaimFreeClient}
+            />
           ) : (
-            <SalesRepDashboard data={data} timeFilter={timeFilter} targetData={targetData} targetLoading={targetLoading} />
+            <SalesRepDashboard
+              data={data} timeFilter={timeFilter} targetData={targetData} targetLoading={targetLoading}
+              freeClients={freeClients} freeClientsLoading={freeClientsLoading} onClaimFreeClient={handleClaimFreeClient}
+            />
           )}
         </div>
       </div>
@@ -509,7 +515,7 @@ const TargetProgressBar = ({ label, target, attained, loading, subtitle }) => {
   );
 };
 
-const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetLoading, targetLabel = "This Month's Target" }) => {
+const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetLoading, targetLabel = "This Month's Target", freeClients, freeClientsLoading, onClaimFreeClient }) => {
   // Where adverts ran — groups vs channel (replaces the old text/picture/
   // group-link "advert type" split now that every advert is just a post)
   const destinationData = data?.advertTypes?.map(item => ({
@@ -565,7 +571,7 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
       <FreeClientsCard
         clients={freeClients}
         loading={freeClientsLoading}
-        onClaim={handleClaimFreeClient}
+        onClaim={onClaimFreeClient}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
@@ -744,7 +750,7 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
   );
 };
 
-const AdminDashboard = ({ data, timeFilter, targetData, targetLoading }) => {
+const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClients, freeClientsLoading, onClaimFreeClient }) => {
   const salesRepPerformance = data?.salesRepPerformance || [];
 
   // Per-rep monthly target breakdown — always "this calendar month",
@@ -891,6 +897,9 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading }) => {
       targetData={targetData}
       targetLoading={targetLoading}
       targetLabel="Company Target — This Month"
+      freeClients={freeClients}
+      freeClientsLoading={freeClientsLoading}
+      onClaimFreeClient={onClaimFreeClient}
       extraContent={
         <>
           {repTargets}
