@@ -22,6 +22,8 @@ const FreeClients = () => {
   const [dormancyDays, setDormancyDays] = useState(60);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [repFilter, setRepFilter] = useState('all');
+  const [dormancyBucket, setDormancyBucket] = useState('all');
 
   const fetchFreeClients = useCallback(() => {
     setLoading(true);
@@ -39,15 +41,33 @@ const FreeClients = () => {
 
   useEffect(() => { fetchFreeClients(); }, [fetchFreeClients]);
 
+  // Distinct reps present in the actual data, not a hardcoded team list —
+  // stays correct as reps join or leave without needing a code change.
+  const repOptions = useMemo(() => {
+    const names = new Set(clients.map(c => c.last_rep_name).filter(Boolean));
+    return Array.from(names).sort();
+  }, [clients]);
+
+  const inDormancyBucket = (days, bucket) => {
+    if (bucket === 'all') return true;
+    if (bucket === '60-90') return days >= 60 && days <= 90;
+    if (bucket === '91-180') return days >= 91 && days <= 180;
+    if (bucket === '180+') return days > 180;
+    return true;
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return clients;
-    return clients.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      (c.last_rep_name || '').toLowerCase().includes(q) ||
-      (c.phone || '').includes(q)
-    );
-  }, [clients, search]);
+    return clients.filter(c => {
+      const matchesSearch = !q ||
+        c.name.toLowerCase().includes(q) ||
+        (c.last_rep_name || '').toLowerCase().includes(q) ||
+        (c.phone || '').includes(q);
+      const matchesRep = repFilter === 'all' || c.last_rep_name === repFilter;
+      const matchesDormancy = inDormancyBucket(c.days_dormant, dormancyBucket);
+      return matchesSearch && matchesRep && matchesDormancy;
+    });
+  }, [clients, search, repFilter, dormancyBucket]);
 
   const handleBook = (client) => {
     // Unlinked clients (from old free-text-only bookings) have no real
@@ -87,15 +107,52 @@ const FreeClients = () => {
             </div>
 
             {!loading && clients.length > 0 && (
-              <div className="relative mt-4 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by name, rep, or phone..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="input-mobile w-full pl-9 pr-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                />
+              <div className="flex flex-wrap items-center gap-3 mt-4">
+                <div className="relative flex-1 min-w-[220px] max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by name, rep, or phone..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="input-mobile w-full pl-9 pr-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  />
+                </div>
+
+                <select
+                  value={repFilter}
+                  onChange={(e) => setRepFilter(e.target.value)}
+                  className="input-mobile px-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="all">All reps</option>
+                  {repOptions.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={dormancyBucket}
+                  onChange={(e) => setDormancyBucket(e.target.value)}
+                  className="input-mobile px-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="all">Any dormancy</option>
+                  <option value="60-90">60–90 days</option>
+                  <option value="91-180">91–180 days</option>
+                  <option value="180+">180+ days</option>
+                </select>
+
+                {(repFilter !== 'all' || dormancyBucket !== 'all' || search) && (
+                  <button
+                    onClick={() => { setRepFilter('all'); setDormancyBucket('all'); setSearch(''); }}
+                    className="text-xs font-medium text-red-600 hover:text-red-700 px-2"
+                  >
+                    Clear filters
+                  </button>
+                )}
+
+                <span className="text-xs text-gray-400 ml-auto">
+                  {filtered.length} of {clients.length} shown
+                </span>
               </div>
             )}
           </div>
