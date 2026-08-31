@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Layout from '../components/Layout';
 import { clientAPI } from '../services/api';
 import { useToast } from '../components/Toast';
-import { Users, GitMerge, CheckCircle2, Phone } from 'lucide-react';
+import { Users, GitMerge, CheckCircle2, Phone, Search } from 'lucide-react';
 
 // Most duplicate groups are entirely unlinked (free-text client_name only,
 // no clients row and no phone at all yet — a business gets its own client
@@ -26,6 +26,7 @@ const DuplicateClients = () => {
     const [keepChoice, setKeepChoice] = useState({}); // groupIndex -> memberKey
     const [newPhone, setNewPhone] = useState({}); // groupIndex -> phone string (when keep has none)
     const [newName, setNewName] = useState({}); // groupIndex -> edited name (when keep has none)
+    const [search, setSearch] = useState('');
 
     const fetchDuplicates = useCallback(() => {
         setLoading(true);
@@ -52,6 +53,17 @@ const DuplicateClients = () => {
     }, [toast]);
 
     useEffect(() => { fetchDuplicates(); }, [fetchDuplicates]);
+
+    // Keep each group's original index (keepChoice/newPhone/newName are all
+    // keyed by it) even once the search box narrows down which groups show.
+    const visibleGroups = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return groups
+            .map((group, groupIndex) => ({ group, groupIndex }))
+            .filter(({ group }) => !q || group.members.some((m) => m.name.toLowerCase().includes(q)));
+    }, [groups, search]);
+
+    const totalRecords = useMemo(() => groups.reduce((sum, g) => sum + g.members.length, 0), [groups]);
 
     const handleMerge = async (groupIndex) => {
         const group = groups[groupIndex];
@@ -95,20 +107,41 @@ const DuplicateClients = () => {
         <Layout>
             <div className="min-h-screen bg-gray-50">
                 <div className="bg-white border-b border-gray-200">
-                    <div className="px-4 py-4 max-w-4xl mx-auto">
+                    <div className="px-4 py-4 max-w-6xl mx-auto">
                         <div className="flex items-center gap-3">
                             <Users className="h-6 w-6 text-red-500" />
                             <div>
                                 <h1 className="text-xl font-bold text-gray-900">Duplicate Clients</h1>
                                 <p className="text-sm text-gray-600">
-                                    Same client, different spelling — pick which record to keep, the rest merge into it.
+                                    {!loading && (
+                                        groups.length > 0
+                                            ? `${groups.length} duplicate group${groups.length === 1 ? '' : 's'} found, ${totalRecords} records involved`
+                                            : 'No likely duplicates found — the client list looks clean.'
+                                    )}
+                                    {loading && 'Same client, different spelling — pick which record to keep, the rest merge into it.'}
                                 </p>
                             </div>
                         </div>
+
+                        {!loading && groups.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-3 mt-4">
+                                <div className="relative flex-1 min-w-[220px] max-w-sm">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search within a group..."
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        className="input-mobile w-full pl-9 pr-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                    />
+                                </div>
+                                <span className="text-xs text-gray-400 ml-auto">{visibleGroups.length} of {groups.length} groups shown</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-4">
+                <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-4">
                     {loading ? (
                         <div className="space-y-3">
                             {[0, 1, 2].map(i => <div key={i} className="h-32 bg-gray-200 rounded-2xl animate-pulse" />)}
@@ -118,8 +151,13 @@ const DuplicateClients = () => {
                             <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto mb-3" />
                             <p className="text-gray-500">No likely duplicates found — the client list looks clean.</p>
                         </div>
+                    ) : visibleGroups.length === 0 ? (
+                        <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
+                            <Search className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">No groups match "{search}".</p>
+                        </div>
                     ) : (
-                        groups.map((group, groupIndex) => {
+                        visibleGroups.map(({ group, groupIndex }) => {
                             const chosenKey = keepChoice[groupIndex];
                             const chosen = group.members.find((m) => memberKey(m) === chosenKey);
                             const needsPhone = chosen && chosen.type === 'unlinked';
