@@ -20,6 +20,8 @@ const WHITE = '#FFFFFF';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://ads.afrogazette.co.zw';
+
 const formatDate = (value) => {
     if (!value) return '—';
     const d = new Date(value);
@@ -242,14 +244,10 @@ const generateInvoicePDF = (invoiceData, filePath) => new Promise(async (resolve
         // Top divider
         doc.moveTo(margin, footerY - 10).lineTo(pageWidth - margin, footerY - 10).strokeColor(BORDER).lineWidth(0.5).stroke();
 
-        // QR
-        const qrPayload = [
-            `INV=${invoiceData.invoice_number}`,
-            `AMT=${amount.toFixed(2)}`,
-            `CUR=${company.currency}`,
-            `DATE=${new Date(invoiceData.generated_at).toISOString().split('T')[0]}`,
-            `TIN=${company.tin}`
-        ].join('|');
+        // QR — links to a public verification page rather than encoding raw
+        // fields, so every scanner just opens it instead of guessing at the
+        // content (phone number detectors, unhandled URI schemes, etc.)
+        const qrPayload = `${FRONTEND_URL}/verify/${encodeURIComponent(invoiceData.invoice_number)}`;
         try {
             const qrDataUrl = await QRCode.toDataURL(qrPayload, { margin: 4, width: 300, errorCorrectionLevel: 'M' });
             doc.image(qrDataUrl, margin, footerY, { width: 80, height: 80 });
@@ -392,8 +390,68 @@ const downloadInvoice = async (req, res) => {
     }
 };
 
+/**
+ * Public invoice verification (no auth) — powers the page linked from the
+ * invoice PDF's QR code. Only returns fields safe to show to anyone who
+ * scans a physical/forwarded invoice; deliberately omits client contact
+ * details (phone/email/address) and internal IDs.
+ */
+const verifyInvoice = async (req, res) => {
+    try {
+        const { invoiceNumber } = req.params;
+
+        const result = await pool.query(`
+            SELECT
+                i.invoice_number,
+                i.client_name,
+                i.amount,
+                i.status,
+                i.generated_at,
+                a.category,
+                a.payment_method,
+                a.payment_date
+            FROM invoices i
+            JOIN adverts a ON i.advert_id = a.id
+            WHERE i.invoice_number = $1
+        `, [invoiceNumber]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Invoice not found' });
+        }
+
+        const invoice = result.rows[0];
+
+        res.json({
+            success: true,
+            invoice: {
+                invoiceNumber: invoice.invoice_number,
+                clientName: invoice.client_name,
+                amount: Number(invoice.amount),
+                currency: company.currency,
+                status: invoice.status,
+                category: invoice.category,
+                paymentMethod: invoice.payment_method,
+                paymentDate: invoice.payment_date || invoice.generated_at,
+                generatedAt: invoice.generated_at
+            },
+            company: {
+                legalName: company.legalName,
+                registrationNumber: company.registrationNumber,
+                tin: company.tin,
+                website: company.website,
+                email: company.email,
+                phone: company.phone
+            }
+        });
+    } catch (error) {
+        console.error('Verify invoice error:', error);
+        res.status(500).json({ success: false, message: 'Server error verifying invoice' });
+    }
+};
+
 module.exports = {
     getInvoices,
     downloadInvoice,
-    generateInvoicePDF
+    generateInvoicePDF,
+    verifyInvoice
 };

@@ -7,6 +7,7 @@ import PrivateRoute from './components/PrivateRoute';
 
 // Pages
 import Login from './pages/Login';
+import VerifyInvoice from './pages/VerifyInvoice';
 import Dashboard from './pages/Dashboard';
 import CreateAdvert from './pages/CreateAdvert';
 import AdvertTools from './pages/AdvertTools';
@@ -40,6 +41,7 @@ function App() {
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/verify/:invoiceNumber" element={<VerifyInvoice />} />
 
               <Route
                 path="/dashboard"

@@ -3,7 +3,14 @@ const router = express.Router();
 const invoiceController = require('../controllers/invoiceController');
 const { authenticate } = require('../middleware/auth');
 
-// All routes require authentication
+/**
+ * @route   GET /api/invoices/verify/:invoiceNumber
+ * @desc    Public invoice verification, linked from the QR code on the PDF
+ * @access  Public
+ */
+router.get('/verify/:invoiceNumber', invoiceController.verifyInvoice);
+
+// All other routes require authentication
 router.use(authenticate);
 
 /**
