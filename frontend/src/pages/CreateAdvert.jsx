@@ -304,7 +304,8 @@ const CreateAdvert = () => {
       navigate('/dashboard');
     } catch (error) {
       console.error('Error creating advert:', error);
-      toast.error(error.response?.data?.message || 'Failed to create advert');
+      const fieldError = error.response?.data?.errors?.[0]?.message;
+      toast.error(fieldError || error.response?.data?.message || 'Failed to create advert');
     } finally {
       setLoading(false);
     }
