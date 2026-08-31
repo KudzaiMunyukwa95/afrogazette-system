@@ -128,7 +128,10 @@ const MyClients = () => {
                 toast.success('Client updated successfully');
             } else if (modalMode === 'merge') {
                 const mergeIds = Array.from(selectedClients).filter(id => id !== parseInt(mergeKeepId));
-                await clientAPI.merge(parseInt(mergeKeepId), mergeIds);
+                await clientAPI.merge(
+                    { type: 'existing', id: parseInt(mergeKeepId) },
+                    mergeIds.map(id => ({ type: 'linked', id }))
+                );
                 toast.success('Clients merged successfully');
                 setSelectedClients(new Set());
             }

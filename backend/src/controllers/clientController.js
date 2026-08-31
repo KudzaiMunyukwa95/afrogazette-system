@@ -1,5 +1,6 @@
 const pool = require('../config/database');
 const { normalizeZimPhone, isValidZimPhone } = require('../utils/phone');
+const { groupSimilarNames } = require('../utils/similarity');
 
 /**
  * Get all clients for the authenticated sales rep
@@ -220,6 +221,26 @@ const validateClientPayload = (payload) => {
 };
 
 /**
+ * A client's phone can be their primary (clients.phone) or one of the
+ * secondary numbers picked up through a merge (client_phones) — either one
+ * makes the number "taken", so every phone-uniqueness check has to look in
+ * both places, not just the primary column.
+ */
+const findClientByPhone = async (dbClient, phone, excludeId = null) => {
+    const result = await dbClient.query(
+        `SELECT c.*, u.full_name AS sales_rep_name
+         FROM clients c
+         LEFT JOIN users u ON c.sales_rep_id = u.id
+         WHERE (c.phone = $1 OR EXISTS (
+                   SELECT 1 FROM client_phones cp WHERE cp.client_id = c.id AND cp.phone = $1
+               ))
+           AND ($2::int IS NULL OR c.id != $2)`,
+        [phone, excludeId]
+    );
+    return result.rows[0] || null;
+};
+
+/**
  * Create new client
  */
 const createClient = async (req, res) => {
@@ -242,17 +263,12 @@ const createClient = async (req, res) => {
         // rep's own list — this is what actually stops a second rep from
         // creating "Amanda M" when "Madam Amanda" already exists under a
         // different rep, which the old per-rep-scoped check could never catch.
-        const existing = await pool.query(
-            `SELECT c.*, u.full_name AS sales_rep_name
-             FROM clients c LEFT JOIN users u ON c.sales_rep_id = u.id
-             WHERE c.phone = $1`,
-            [normalizedPhone]
-        );
-        if (existing.rows.length > 0) {
+        const existingClient = await findClientByPhone(pool, normalizedPhone);
+        if (existingClient) {
             return res.status(409).json({
                 success: false,
-                message: `This number is already registered to ${existing.rows[0].name} (${existing.rows[0].sales_rep_name || 'unassigned'}). Use that client instead of creating a new one.`,
-                data: { client: existing.rows[0] }
+                message: `This number is already registered to ${existingClient.name} (${existingClient.sales_rep_name || 'unassigned'}). Use that client instead of creating a new one.`,
+                data: { client: existingClient }
             });
         }
 
@@ -345,14 +361,11 @@ const updateClient = async (req, res) => {
         }
 
         const normalizedPhone = normalizeZimPhone(phone);
-        const dupCheck = await pool.query(
-            'SELECT id, name FROM clients WHERE phone = $1 AND id != $2',
-            [normalizedPhone, id]
-        );
-        if (dupCheck.rows.length > 0) {
+        const dupClient = await findClientByPhone(pool, normalizedPhone, id);
+        if (dupClient) {
             return res.status(409).json({
                 success: false,
-                message: `This number already belongs to ${dupCheck.rows[0].name}. Merge these two instead of using the same number on both.`
+                message: `This number already belongs to ${dupClient.name}. Merge these two instead of using the same number on both.`
             });
         }
 
@@ -445,73 +458,112 @@ const deleteClient = async (req, res) => {
 };
 
 /**
- * Merge multiple clients into one
+ * Merge a group of duplicate clients into one. Most duplicate groups
+ * surfaced by getPossibleDuplicates are entirely unlinked (free-text
+ * client_name only, no clients row and no phone at all — see the
+ * "ClickDrive" / "Click Drive Rental" / "Click Drive Rentall" case), so
+ * "keep" isn't always an existing client id the way the old keepId/mergeIds
+ * shape assumed. `keep` is either:
+ *   { type: 'existing', id }              - fold everything into a real client row
+ *   { type: 'new', name, phone }          - none of the group was ever standardized; create one
+ * `mergeSources` is the rest of the group, each either:
+ *   { type: 'linked', id }                - a real clients row to fold in and remove
+ *   { type: 'unlinked', name }            - a free-text name to relink onto the kept client
  */
 const mergeClients = async (req, res) => {
     const client = await pool.connect();
 
     try {
-        const { keepId, mergeIds } = req.body;
+        const { keep, mergeSources } = req.body;
 
-        if (!keepId || !mergeIds || !Array.isArray(mergeIds) || mergeIds.length === 0) {
+        if (!keep || !Array.isArray(mergeSources) || mergeSources.length === 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid merge request. Provide keepId and mergeIds array.'
+                message: 'Invalid merge request. Provide keep and mergeSources.'
             });
         }
 
         await client.query('BEGIN');
 
-        // Duplicates routinely span two different reps' client lists (that's
-        // the whole reason they exist), so merging can't be restricted to
-        // "your own" clients the way the old ownership-scoped check required
-        // — any authenticated rep can merge, since fixing a duplicate helps
-        // everyone regardless of who created either record.
-        const allIds = [keepId, ...mergeIds];
-        const existCheck = await client.query(
-            'SELECT id FROM clients WHERE id = ANY($1)',
-            [allIds]
-        );
+        let keepId;
 
-        if (existCheck.rows.length !== allIds.length) {
+        if (keep.type === 'existing') {
+            const existing = await client.query('SELECT id FROM clients WHERE id = $1', [keep.id]);
+            if (existing.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ success: false, message: 'Client to keep no longer exists' });
+            }
+            keepId = keep.id;
+        } else if (keep.type === 'new') {
+            if (!keep.name || !keep.name.trim() || !isValidZimPhone(keep.phone)) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    success: false,
+                    message: 'A name and a valid Zimbabwean phone number are required to standardize this group'
+                });
+            }
+            const normalizedPhone = normalizeZimPhone(keep.phone);
+            const conflict = await findClientByPhone(client, normalizedPhone);
+            if (conflict) {
+                await client.query('ROLLBACK');
+                return res.status(409).json({
+                    success: false,
+                    message: `This number already belongs to ${conflict.name}. Use that client instead.`
+                });
+            }
+            const created = await client.query(
+                'INSERT INTO clients (name, phone, sales_rep_id) VALUES ($1, $2, $3) RETURNING id',
+                [keep.name.trim(), normalizedPhone, req.user.id]
+            );
+            keepId = created.rows[0].id;
+        } else {
             await client.query('ROLLBACK');
-            return res.status(404).json({
-                success: false,
-                message: 'One or more clients in this merge no longer exist'
-            });
+            return res.status(400).json({ success: false, message: 'keep.type must be "existing" or "new"' });
         }
 
-        // Transfer all adverts from merge clients to keep client
-        await client.query(
-            'UPDATE adverts SET client_id = $1 WHERE client_id = ANY($2)',
-            [keepId, mergeIds]
-        );
+        for (const source of mergeSources) {
+            if (source.type === 'linked') {
+                const sourceClient = await client.query('SELECT phone FROM clients WHERE id = $1', [source.id]);
+                if (sourceClient.rows.length === 0) continue; // already gone (e.g. merged elsewhere)
 
-        // Delete merged clients
-        await client.query(
-            'DELETE FROM clients WHERE id = ANY($1)',
-            [mergeIds]
-        );
+                await client.query('UPDATE adverts SET client_id = $1 WHERE client_id = $2', [keepId, source.id]);
+
+                // A second real number surfacing on the client being folded in
+                // isn't a conflict to resolve, it's a second way to reach the
+                // same person — keep it rather than silently dropping it.
+                const sourcePhone = sourceClient.rows[0].phone;
+                if (sourcePhone) {
+                    await client.query(
+                        'INSERT INTO client_phones (client_id, phone) VALUES ($1, $2) ON CONFLICT (phone) DO NOTHING',
+                        [keepId, sourcePhone]
+                    );
+                }
+                await client.query('UPDATE client_phones SET client_id = $1 WHERE client_id = $2', [keepId, source.id]);
+                await client.query('DELETE FROM clients WHERE id = $1', [source.id]);
+            } else if (source.type === 'unlinked') {
+                await client.query(
+                    `UPDATE adverts SET client_id = $1
+                     WHERE client_id IS NULL AND lower(trim(client_name)) = lower(trim($2))`,
+                    [keepId, source.name]
+                );
+            }
+        }
 
         await client.query('COMMIT');
-        console.log(`Client merge by user ${req.user.id}: merged [${mergeIds.join(', ')}] into ${keepId}`);
+        console.log(`Client merge by user ${req.user.id}: merged ${mergeSources.length} source(s) into client ${keepId}`);
 
-        // Get updated client with new stats
-        const updatedClient = await client.query(
-            `SELECT 
-        c.*,
-        COUNT(a.id) as total_adverts,
-        COALESCE(SUM(a.amount_paid), 0) as total_spent
-      FROM clients c
-      LEFT JOIN adverts a ON c.id = a.client_id
-      WHERE c.id = $1
-      GROUP BY c.id`,
+        const updatedClient = await pool.query(
+            `SELECT c.*, COUNT(a.id) AS total_adverts, COALESCE(SUM(a.amount_paid), 0) AS total_spent
+             FROM clients c
+             LEFT JOIN adverts a ON c.id = a.client_id
+             WHERE c.id = $1
+             GROUP BY c.id`,
             [keepId]
         );
 
         res.json({
             success: true,
-            message: `Successfully merged ${mergeIds.length} client(s)`,
+            message: `Successfully merged ${mergeSources.length} record(s)`,
             data: { client: updatedClient.rows[0] }
         });
     } catch (error) {
@@ -622,36 +674,76 @@ const getFreeClients = async (req, res) => {
  */
 const getPossibleDuplicates = async (req, res) => {
     try {
-        const result = await pool.query(
-            `SELECT
-                regexp_replace(
-                    lower(trim(regexp_replace(c.name, '^(mr|mrs|ms|miss|dr|madam|mr\\.|mrs\\.|dr\\.)\\s+', '', 'i'))),
-                    '\\s+', ' ', 'g'
-                ) AS normalized_name,
-                c.id, c.name, c.phone, c.company, c.sales_rep_id,
-                u.full_name AS sales_rep_name,
-                COUNT(a.id) AS total_adverts,
-                MAX(a.start_date) AS last_advert_date
-             FROM clients c
-             LEFT JOIN users u ON c.sales_rep_id = u.id
-             LEFT JOIN adverts a ON a.client_id = c.id
-             GROUP BY c.id, u.full_name
-             ORDER BY normalized_name ASC`
-        );
+        // Linked clients (real clients rows) ...
+        const linkedResult = await pool.query(`
+            SELECT c.id, c.name, c.phone, u.full_name AS sales_rep_name,
+                   COUNT(a.id) AS total_adverts,
+                   MAX(a.start_date) AS last_advert_date
+            FROM clients c
+            LEFT JOIN users u ON c.sales_rep_id = u.id
+            LEFT JOIN adverts a ON a.client_id = c.id
+            GROUP BY c.id, u.full_name
+        `);
 
-        const groups = {};
-        for (const row of result.rows) {
-            if (!groups[row.normalized_name]) groups[row.normalized_name] = [];
-            groups[row.normalized_name].push(row);
-        }
+        // ...and unlinked free-text names (most of what's actually in the
+        // duplicate list — a client never gets its own clients row at all
+        // until someone standardizes it, so leaving these out entirely, as
+        // the old exact-name-match version did, missed the bulk of the
+        // problem this page exists to solve).
+        const unlinkedResult = await pool.query(`
+            WITH unlinked_norm AS (
+                SELECT id, client_name, start_date,
+                       lower(trim(client_name)) AS norm_name
+                FROM adverts
+                WHERE client_id IS NULL AND client_name IS NOT NULL AND trim(client_name) != ''
+            ),
+            unlinked_display AS (
+                SELECT DISTINCT ON (norm_name) norm_name, client_name AS name
+                FROM unlinked_norm
+                ORDER BY norm_name, start_date DESC
+            ),
+            unlinked_agg AS (
+                SELECT norm_name, MAX(start_date) AS last_advert_date, COUNT(id) AS total_adverts
+                FROM unlinked_norm
+                GROUP BY norm_name
+            )
+            SELECT ud.name, ua.last_advert_date, ua.total_adverts
+            FROM unlinked_agg ua
+            JOIN unlinked_display ud ON ud.norm_name = ua.norm_name
+            WHERE NOT EXISTS (SELECT 1 FROM clients c WHERE lower(trim(c.name)) = ua.norm_name)
+        `);
 
-        const duplicates = Object.entries(groups)
-            .filter(([, clients]) => clients.length > 1)
-            .map(([normalizedName, clients]) => ({ normalizedName, clients }));
+        const candidates = [
+            ...linkedResult.rows.map((row) => ({
+                type: 'linked',
+                id: row.id,
+                name: row.name,
+                phone: row.phone,
+                sales_rep_name: row.sales_rep_name,
+                total_adverts: Number(row.total_adverts),
+                last_advert_date: row.last_advert_date
+            })),
+            ...unlinkedResult.rows.map((row) => ({
+                type: 'unlinked',
+                id: null,
+                name: row.name,
+                phone: null,
+                sales_rep_name: null,
+                total_adverts: Number(row.total_adverts),
+                last_advert_date: row.last_advert_date
+            }))
+        ];
+
+        // Exact-match grouping only catches case/whitespace differences —
+        // fuzzy grouping is what actually catches "ClickDrive" vs "Click
+        // Drive Rental" vs "Click Drive Rentall".
+        const duplicateGroups = groupSimilarNames(candidates).map((members) => ({
+            members: [...members].sort((a, b) => b.total_adverts - a.total_adverts)
+        }));
 
         res.json({
             success: true,
-            data: { duplicateGroups: duplicates }
+            data: { duplicateGroups }
         });
     } catch (error) {
         console.error('Get possible duplicates error:', error);
@@ -774,17 +866,12 @@ const standardizeClient = async (req, res) => {
         }
 
         const normalizedPhone = normalizeZimPhone(phone);
-        const existing = await pool.query(
-            `SELECT c.*, u.full_name AS sales_rep_name
-             FROM clients c LEFT JOIN users u ON c.sales_rep_id = u.id
-             WHERE c.phone = $1`,
-            [normalizedPhone]
-        );
-        if (existing.rows.length > 0) {
+        const existingClient = await findClientByPhone(pool, normalizedPhone);
+        if (existingClient) {
             return res.status(409).json({
                 success: false,
-                message: `This number is already registered to ${existing.rows[0].name} (${existing.rows[0].sales_rep_name || 'unassigned'}). Use that client instead.`,
-                data: { client: existing.rows[0] }
+                message: `This number is already registered to ${existingClient.name} (${existingClient.sales_rep_name || 'unassigned'}). Use that client instead.`,
+                data: { client: existingClient }
             });
         }
 
