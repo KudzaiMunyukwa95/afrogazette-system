@@ -251,10 +251,10 @@ const generateInvoicePDF = (invoiceData, filePath) => new Promise(async (resolve
             `TIN:${company.tin}`
         ].join('|');
         try {
-            const qrDataUrl = await QRCode.toDataURL(qrPayload, { margin: 1, width: 200 });
-            doc.image(qrDataUrl, margin, footerY, { width: 70, height: 70 });
+            const qrDataUrl = await QRCode.toDataURL(qrPayload, { margin: 4, width: 300, errorCorrectionLevel: 'M' });
+            doc.image(qrDataUrl, margin, footerY, { width: 80, height: 80 });
             doc.font('Helvetica').fontSize(7.5).fillColor(TEXT_GRAY)
-                .text('Scan to verify', margin, footerY + 74, { width: 70, align: 'center' });
+                .text('Scan to verify', margin, footerY + 84, { width: 80, align: 'center' });
         } catch (err) {
             console.error('QR generation failed:', err.message);
         }
