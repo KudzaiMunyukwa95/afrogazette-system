@@ -244,11 +244,11 @@ const generateInvoicePDF = (invoiceData, filePath) => new Promise(async (resolve
 
         // QR
         const qrPayload = [
-            `INV:${invoiceData.invoice_number}`,
-            `AMT:${amount.toFixed(2)}`,
-            `CUR:${company.currency}`,
-            `DATE:${new Date(invoiceData.generated_at).toISOString().split('T')[0]}`,
-            `TIN:${company.tin}`
+            `INV=${invoiceData.invoice_number}`,
+            `AMT=${amount.toFixed(2)}`,
+            `CUR=${company.currency}`,
+            `DATE=${new Date(invoiceData.generated_at).toISOString().split('T')[0]}`,
+            `TIN=${company.tin}`
         ].join('|');
         try {
             const qrDataUrl = await QRCode.toDataURL(qrPayload, { margin: 4, width: 300, errorCorrectionLevel: 'M' });
