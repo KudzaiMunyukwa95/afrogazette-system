@@ -187,10 +187,11 @@ const getDashboard = async (req, res) => {
 
     // Sales Rep Performance Leaderboard (Global)
     const salesRepPerformance = await pool.query(`
-      SELECT 
+      SELECT
         u.full_name as name,
         COUNT(a.id) as total_adverts,
-        COALESCE(SUM(CASE WHEN a.status IN ('active', 'expired') THEN a.amount_paid ELSE 0 END), 0) as total_revenue
+        COALESCE(SUM(CASE WHEN a.status IN ('active', 'expired') THEN a.amount_paid ELSE 0 END), 0) as total_revenue,
+        COALESCE(SUM(CASE WHEN a.status IN ('active', 'expired') THEN a.commission_amount ELSE 0 END), 0) as total_commission
       FROM users u
       LEFT JOIN adverts a ON u.id = a.sales_rep_id 
         AND COALESCE(a.approved_at, a.created_at) >= $1 

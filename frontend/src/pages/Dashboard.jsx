@@ -791,7 +791,8 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClien
     .map(rep => ({
       ...rep,
       totalAdverts: performanceByName[rep.fullName]?.total_adverts ?? 0,
-      periodRevenue: performanceByName[rep.fullName]?.total_revenue ?? 0
+      periodRevenue: performanceByName[rep.fullName]?.total_revenue ?? 0,
+      periodCommission: performanceByName[rep.fullName]?.total_commission ?? 0
     }))
     .sort((a, b) => b.periodRevenue - a.periodRevenue);
 
@@ -832,6 +833,7 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClien
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rep</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adverts ({periodLabel})</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue ({periodLabel})</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission ({periodLabel})</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target ({targetPeriodLabel})</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress ({targetPeriodLabel})</th>
               </tr>
@@ -856,6 +858,9 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClien
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 tabular-nums">{rep.totalAdverts}</td>
                       <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900 tabular-nums">
                         ${Number(rep.periodRevenue).toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-700 font-semibold tabular-nums">
+                        ${Number(rep.periodCommission).toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 tabular-nums">
                         {rep.target > 0 ? (
@@ -889,7 +894,7 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClien
                 })
               ) : (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">No sales reps yet</td>
+                  <td colSpan="7" className="px-6 py-8 text-center text-gray-500">No sales reps yet</td>
                 </tr>
               )}
             </tbody>
