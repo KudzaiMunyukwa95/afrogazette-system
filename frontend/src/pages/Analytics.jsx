@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { reportsAPI, userAPI } from '../services/api';
@@ -111,7 +112,11 @@ const Analytics = () => {
   const toast = useToast();
   const admin = isAdmin();
 
-  const [activeTab, setActiveTab] = useState('overview');
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    TABS.some(t => t.id === requestedTab) ? requestedTab : 'overview'
+  );
   const [preset, setPreset] = useState('month');
   const [customRange, setCustomRange] = useState({ startDate: '', endDate: '' });
   const [reps, setReps] = useState([]);

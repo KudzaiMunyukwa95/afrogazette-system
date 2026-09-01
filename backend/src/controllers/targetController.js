@@ -27,6 +27,9 @@ const attainedQuery = `
 
 /**
  * Current user's own target + attained for a given month (default: this month).
+ * A month with no target row of its own carries forward the most recent
+ * earlier month's amount, so a target set once keeps applying until an
+ * admin explicitly changes it — new calendar months no longer start blank.
  */
 const getMyTarget = async (req, res) => {
   try {
@@ -34,11 +37,16 @@ const getMyTarget = async (req, res) => {
     const { start, end } = monthRange(month);
 
     const targetResult = await pool.query(
-      'SELECT target_amount FROM rep_targets WHERE user_id = $1 AND month = $2',
+      `SELECT target_amount, month::text AS month
+       FROM rep_targets
+       WHERE user_id = $1 AND month <= $2
+       ORDER BY month DESC
+       LIMIT 1`,
       [req.user.id, month]
     );
     const attainedResult = await pool.query(attainedQuery, [req.user.id, start, end]);
 
+    const targetMonth = targetResult.rows[0]?.month || null;
     const target = parseFloat(targetResult.rows[0]?.target_amount || 0);
     const attained = parseFloat(attainedResult.rows[0].attained);
 
@@ -48,7 +56,9 @@ const getMyTarget = async (req, res) => {
         month,
         target,
         attained,
-        percent: target > 0 ? Math.round((attained / target) * 1000) / 10 : null
+        percent: target > 0 ? Math.round((attained / target) * 1000) / 10 : null,
+        targetMonth,
+        isCarriedOver: !!(targetMonth && targetMonth !== month)
       }
     });
   } catch (error) {
@@ -61,7 +71,10 @@ const getMyTarget = async (req, res) => {
  * Every sales rep's target + attained for a given month (admin only) —
  * powers both the editable targets table and the per-rep dashboard breakdown.
  * Reps with no target row set yet still appear, with target 0 — new hires
- * need nothing beyond a users row to show up here.
+ * need nothing beyond a users row to show up here. A rep with no row for
+ * this exact month carries forward their most recent earlier target
+ * (isCarriedOver / targetMonth flag which month it actually came from),
+ * so targets persist until explicitly changed instead of resetting monthly.
  */
 const getAllTargets = async (req, res) => {
   try {
@@ -73,7 +86,8 @@ const getAllTargets = async (req, res) => {
         u.id,
         u.full_name,
         u.email,
-        COALESCE(rt.target_amount, 0) AS target,
+        COALESCE(t.target_amount, 0) AS target,
+        t.month::text AS target_month,
         COALESCE(SUM(CASE
           WHEN a.status IN ('active', 'expired')
            AND COALESCE(a.approved_at, a.created_at) >= $2
@@ -81,10 +95,16 @@ const getAllTargets = async (req, res) => {
           THEN a.amount_paid ELSE 0
         END), 0) AS attained
       FROM users u
-      LEFT JOIN rep_targets rt ON rt.user_id = u.id AND rt.month = $1
+      LEFT JOIN LATERAL (
+        SELECT target_amount, month
+        FROM rep_targets
+        WHERE user_id = u.id AND month <= $1
+        ORDER BY month DESC
+        LIMIT 1
+      ) t ON true
       LEFT JOIN adverts a ON a.sales_rep_id = u.id
       WHERE u.role = 'sales_rep'
-      GROUP BY u.id, u.full_name, u.email, rt.target_amount
+      GROUP BY u.id, u.full_name, u.email, t.target_amount, t.month
       ORDER BY u.full_name ASC
     `, [month, start, end]);
 
@@ -97,7 +117,9 @@ const getAllTargets = async (req, res) => {
         email: r.email,
         target,
         attained,
-        percent: target > 0 ? Math.round((attained / target) * 1000) / 10 : null
+        percent: target > 0 ? Math.round((attained / target) * 1000) / 10 : null,
+        targetMonth: r.target_month || null,
+        isCarriedOver: !!(r.target_month && r.target_month !== month)
       };
     });
 
@@ -111,6 +133,8 @@ const getAllTargets = async (req, res) => {
 /**
  * Company-wide target (sum of every rep's target) vs company-wide attained,
  * plus the same per-rep breakdown — one call for the admin dashboard.
+ * Same carry-forward rule as getAllTargets: a rep with nothing set for this
+ * exact month keeps their most recent earlier target instead of dropping to 0.
  */
 const getCompanyTarget = async (req, res) => {
   try {
@@ -121,7 +145,8 @@ const getCompanyTarget = async (req, res) => {
       SELECT
         u.id,
         u.full_name,
-        COALESCE(rt.target_amount, 0) AS target,
+        COALESCE(t.target_amount, 0) AS target,
+        t.month::text AS target_month,
         COALESCE(SUM(CASE
           WHEN a.status IN ('active', 'expired')
            AND COALESCE(a.approved_at, a.created_at) >= $2
@@ -129,10 +154,16 @@ const getCompanyTarget = async (req, res) => {
           THEN a.amount_paid ELSE 0
         END), 0) AS attained
       FROM users u
-      LEFT JOIN rep_targets rt ON rt.user_id = u.id AND rt.month = $1
+      LEFT JOIN LATERAL (
+        SELECT target_amount, month
+        FROM rep_targets
+        WHERE user_id = u.id AND month <= $1
+        ORDER BY month DESC
+        LIMIT 1
+      ) t ON true
       LEFT JOIN adverts a ON a.sales_rep_id = u.id
       WHERE u.role = 'sales_rep'
-      GROUP BY u.id, u.full_name, rt.target_amount
+      GROUP BY u.id, u.full_name, t.target_amount, t.month
       ORDER BY u.full_name ASC
     `, [month, start, end]);
 
@@ -144,7 +175,9 @@ const getCompanyTarget = async (req, res) => {
         fullName: r.full_name,
         target,
         attained,
-        percent: target > 0 ? Math.round((attained / target) * 1000) / 10 : null
+        percent: target > 0 ? Math.round((attained / target) * 1000) / 10 : null,
+        targetMonth: r.target_month || null,
+        isCarriedOver: !!(r.target_month && r.target_month !== month)
       };
     });
 
@@ -158,6 +191,7 @@ const getCompanyTarget = async (req, res) => {
         target: companyTarget,
         attained: companyAttained,
         percent: companyTarget > 0 ? Math.round((companyAttained / companyTarget) * 1000) / 10 : null,
+        isCarriedOver: reps.some(r => r.isCarriedOver),
         reps
       }
     });

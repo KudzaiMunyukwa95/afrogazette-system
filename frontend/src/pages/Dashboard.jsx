@@ -28,6 +28,18 @@ const COLOR_VARIANTS = {
   red: { tile: 'bg-red-50', icon: 'text-red-600', ring: 'ring-red-100' }
 };
 
+const lastCalendarMonth = () => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+// Formats a 'YYYY-MM' or 'YYYY-MM-DD' month string as "August 2026".
+const monthName = (monthStr) => {
+  const [y, m] = monthStr.split('-');
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+};
+
 const tooltipStyle = {
   borderRadius: 12,
   border: '1px solid #F1F1F1',
@@ -63,12 +75,16 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [timeFilter]);
 
-  // Target is always "this calendar month" — independent of the time filter
-  // above, which is for the rest of the dashboard's stats/charts.
+  // Target tracks the time filter only for its two calendar-month values
+  // ("month" / "lastMonth") — a target is inherently monthly, so "today" /
+  // "last 7 days" / "custom" fall back to the current calendar month.
   useEffect(() => {
     fetchTargetData();
-    fetchFreeClients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeFilter]);
+
+  useEffect(() => {
+    fetchFreeClients();
   }, []);
 
   const fetchFreeClients = async () => {
@@ -86,9 +102,13 @@ const Dashboard = () => {
   const fetchTargetData = async () => {
     try {
       setTargetLoading(true);
+      // Only "month" and "lastMonth" map onto an actual calendar month;
+      // everything else (today, last 7 days, custom) keeps showing the
+      // current month's target since there's no sensible daily/weekly target.
+      const targetMonth = timeFilter === 'lastMonth' ? lastCalendarMonth() : undefined;
       const response = isAdmin()
-        ? await targetAPI.getCompany()
-        : await targetAPI.getMine();
+        ? await targetAPI.getCompany(targetMonth)
+        : await targetAPI.getMine(targetMonth);
       setTargetData(response.data.data);
     } catch (error) {
       console.error('Error fetching target data:', error);
@@ -396,7 +416,7 @@ const FreeClientsTile = ({ count, loading }) => {
 // month-end, not just a number that eventually catches up or doesn't.
 // This is the dashboard's centerpiece, so it gets the most visual weight —
 // gradient fill, a glow once complete, larger type than the KPI cards below it.
-const TargetProgressBar = ({ label, target, attained, loading, subtitle }) => {
+const TargetProgressBar = ({ label, target, attained, loading, subtitle, note }) => {
   if (loading) {
     return (
       <div className="bg-white rounded-2xl p-5 md:p-7 border border-gray-100 shadow-sm animate-pulse">
@@ -475,6 +495,10 @@ const TargetProgressBar = ({ label, target, attained, loading, subtitle }) => {
         <span className="text-gray-500 tabular-nums">of ${Number(target).toLocaleString()} target</span>
       </div>
 
+      {note && (
+        <p className="relative text-xs text-gray-400 mt-2">{note}</p>
+      )}
+
       {complete ? (
         <p className="relative text-xs text-emerald-700 font-medium mt-3">
           Target hit — nice work. 🎉
@@ -488,7 +512,15 @@ const TargetProgressBar = ({ label, target, attained, loading, subtitle }) => {
   );
 };
 
-const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetLoading, targetLabel = "This Month's Target", freeClients, freeClientsLoading }) => {
+const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetLoading, targetLabel = "Your Target", freeClients, freeClientsLoading }) => {
+  // Target only has a "this month" / "last month" reading — everything else
+  // (today, last 7 days, custom) falls back to this month, matching what
+  // fetchTargetData actually requests.
+  const targetPeriodLabel = timeFilter === 'lastMonth' ? 'Last Month' : 'This Month';
+  const targetCarriedNote = targetData?.isCarriedOver
+    ? `Carried over from ${targetData.targetMonth ? monthName(targetData.targetMonth) : 'a previous month'} — not yet set for ${targetPeriodLabel.toLowerCase()}.`
+    : '';
+
   // Where adverts ran — groups vs channel (replaces the old text/picture/
   // group-link "advert type" split now that every advert is just a post)
   const destinationData = data?.advertTypes?.map(item => ({
@@ -525,11 +557,12 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
       className="space-y-6 md:space-y-8"
     >
       <TargetProgressBar
-        label={targetLabel}
+        label={`${targetLabel} — ${targetPeriodLabel}`}
         target={targetData?.target}
         attained={targetData?.attained}
         loading={targetLoading}
         subtitle="ask an admin to set one"
+        note={targetCarriedNote || null}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
@@ -540,6 +573,27 @@ const SalesRepDashboard = ({ data, timeFilter, extraContent, targetData, targetL
         <KPICard title="Pending Approvals" value={data?.summary?.pending_count || 0} icon={Clock} color="yellow" />
         <KPICard title="Expiring Soon" value={data?.expiringSoon?.length || 0} icon={AlertTriangle} color="red" />
       </div>
+
+      <motion.a
+        variants={staggerItem}
+        href="/analytics?tab=margin"
+        className="flex items-center justify-between bg-white rounded-2xl p-4 md:p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-blue-50 ring-4 ring-blue-100">
+            <TrendingUp className="h-4 w-4 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900 tabular-nums">
+              ${Number(data?.summary?.total_commission || 0).toLocaleString()} commission earned
+            </p>
+            <p className="text-xs text-gray-500">this period</p>
+          </div>
+        </div>
+        <span className="text-xs font-medium text-red-600 flex items-center gap-1 flex-shrink-0">
+          View full breakdown <ChevronRight className="h-3.5 w-3.5" />
+        </span>
+      </motion.a>
 
       <FreeClientsTile count={freeClients.length} loading={freeClientsLoading} />
 
@@ -726,10 +780,10 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClien
   // same revenue number twice under different labels whenever the time
   // filter happened to be "This Month" (Target's own fixed period). Merged
   // by rep name: adverts-sold/revenue follow the timeFilter selector below,
-  // same as the old leaderboard; target/progress stay pinned to the current
-  // calendar month regardless of that filter, same as the old Rep Targets
-  // table — a target is inherently monthly, it doesn't make sense measured
-  // against "today" or "last 7 days".
+  // same as the old leaderboard. Target/progress follow it too when it maps
+  // onto an actual calendar month ("This Month" / "Last Month" — see
+  // fetchTargetData); "today" / "last 7 days" / "custom" have no monthly
+  // analog, so those fall back to showing the current month's target.
   const performanceByName = {};
   salesRepPerformance.forEach(rep => { performanceByName[rep.name] = rep; });
 
@@ -744,6 +798,8 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClien
   const periodLabel = timeFilter === 'today' ? 'Today' :
     timeFilter === 'week' ? 'Last 7 Days' :
       timeFilter === 'month' ? 'This Month' : 'Last Month';
+
+  const targetPeriodLabel = (timeFilter === 'month' || timeFilter === 'lastMonth') ? periodLabel : 'This Month';
 
   const leaderboard = (
     <motion.div variants={staggerItem} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -776,8 +832,8 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClien
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rep</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adverts ({periodLabel})</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue ({periodLabel})</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target (Month)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress (Month)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target ({targetPeriodLabel})</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress ({targetPeriodLabel})</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -802,7 +858,14 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClien
                         ${Number(rep.periodRevenue).toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 tabular-nums">
-                        {rep.target > 0 ? `$${Number(rep.target).toLocaleString()}` : (
+                        {rep.target > 0 ? (
+                          <>
+                            ${Number(rep.target).toLocaleString()}
+                            {rep.isCarriedOver && (
+                              <span className="block text-xs text-gray-400 italic normal-case">carried over</span>
+                            )}
+                          </>
+                        ) : (
                           <span className="text-gray-400 italic">not set</span>
                         )}
                       </td>
@@ -842,7 +905,7 @@ const AdminDashboard = ({ data, timeFilter, targetData, targetLoading, freeClien
       timeFilter={timeFilter}
       targetData={targetData}
       targetLoading={targetLoading}
-      targetLabel="Company Target — This Month"
+      targetLabel="Company Target"
       freeClients={freeClients}
       freeClientsLoading={freeClientsLoading}
       extraContent={leaderboard}

@@ -151,6 +151,11 @@ const Targets = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="font-medium text-gray-900">{rep.fullName}</div>
                             <div className="text-xs text-gray-500">{rep.email}</div>
+                            {rep.isCarriedOver && (
+                              <div className="text-xs text-amber-600 italic mt-0.5">
+                                Carried over from {monthLabel(rep.targetMonth.slice(0, 7))} — save to lock it in for {monthLabel(month)}
+                              </div>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                             ${Number(rep.attained).toLocaleString()}
@@ -200,7 +205,7 @@ const Targets = () => {
           </div>
 
           <p className="text-xs text-gray-500 px-1">
-            New reps appear here automatically as soon as they're created in Users — nothing to configure. Targets are per calendar month; switch months above to plan ahead or review history.
+            New reps appear here automatically as soon as they're created in Users — nothing to configure. A target carries forward into new months automatically until you change it — switch months above to plan ahead or review history.
           </p>
         </div>
       </div>
