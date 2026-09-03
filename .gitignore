@@ -14,3 +14,4 @@ node_modules/
 
 # Build output
 frontend/dist/
+frontend/public/build-id.txt

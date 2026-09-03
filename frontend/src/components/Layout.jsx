@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
+import UpdateAvailableBanner from './UpdateAvailableBanner';
 import {
   Menu,
   X,
@@ -105,6 +106,7 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col pb-16 lg:pb-0">
+      <UpdateAvailableBanner />
       {/* Fixed Header */}
       <header className="bg-black/95 backdrop-blur-xl border-b border-gray-800 fixed top-0 left-0 right-0 z-50">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
