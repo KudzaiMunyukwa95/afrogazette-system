@@ -181,6 +181,11 @@ export const invoiceAPI = {
   download: (id) => api.get(`/invoices/${id}/download`, { responseType: 'blob' })
 };
 
+// Quotation APIs — nothing is persisted server-side, this just returns a PDF
+export const quotationAPI = {
+  generate: (data) => api.post('/quotations/generate', data, { responseType: 'blob' })
+};
+
 // Client APIs
 export const clientAPI = {
   getAll: (params) => api.get('/clients', { params }),

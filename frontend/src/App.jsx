@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import VerifyInvoice from './pages/VerifyInvoice';
 import Dashboard from './pages/Dashboard';
 import CreateAdvert from './pages/CreateAdvert';
+import CreateQuotation from './pages/CreateQuotation';
 import AdvertTools from './pages/AdvertTools';
 import PendingApprovals from './pages/PendingApprovals';
 import Schedule from './pages/Schedule';
@@ -75,6 +76,15 @@ function App() {
                 element={
                   <PrivateRoute>
                     <AdvertTools />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/create-quotation"
+                element={
+                  <PrivateRoute>
+                    <CreateQuotation />
                   </PrivateRoute>
                 }
               />

@@ -29,7 +29,8 @@ import {
   Activity,
   History,
   GitMerge,
-  UserX
+  UserX,
+  Receipt
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -58,6 +59,7 @@ const Layout = ({ children }) => {
           { name: 'Analytics', href: '/analytics', icon: Activity },
           { name: 'Schedule', href: '/schedule', icon: Calendar },
           { name: 'Invoices', href: '/invoices', icon: FileText },
+          { name: 'Quotations', href: '/create-quotation', icon: Receipt },
           { name: 'Finance', href: '/finance/overview', icon: DollarSign, current: currentPath.startsWith('/finance') },
           { name: 'Targets', href: '/targets', icon: Target },
           { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquare },
@@ -86,6 +88,7 @@ const Layout = ({ children }) => {
         { name: 'Free Clients', href: '/free-clients', icon: UserX },
         { name: 'Duplicate Clients', href: '/duplicate-clients', icon: GitMerge },
         { name: 'Invoices', href: '/invoices', icon: FileText },
+        { name: 'Quotations', href: '/create-quotation', icon: Receipt },
         { name: 'Requisitions', href: '/finance/my-requisitions', icon: DollarSign }
       ])
     };

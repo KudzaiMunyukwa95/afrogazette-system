@@ -13,6 +13,7 @@ const advertRoutes = require('./routes/advertRoutes');
 const slotRoutes = require('./routes/slotRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
+const quotationRoutes = require('./routes/quotationRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const financeRoutes = require('./routes/financeRoutes');
@@ -333,6 +334,13 @@ try {
   console.log('✅ Invoice routes mounted');
 } catch (error) {
   console.error('❌ Failed to mount invoice routes:', error.message);
+}
+
+try {
+  app.use('/api/quotations', quotationRoutes);
+  console.log('✅ Quotation routes mounted');
+} catch (error) {
+  console.error('❌ Failed to mount quotation routes:', error.message);
 }
 
 try {
