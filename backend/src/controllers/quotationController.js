@@ -40,7 +40,7 @@ const generateQuotation = async (req, res) => {
         const {
             clientId, clientName, clientCompany, clientContact, validUntil, items, notes,
             clientAddressLine1, clientAddressLine2, clientCity, clientCountry,
-            clientTin, clientVatNumber
+            clientTin
         } = req.body;
 
         if (!clientName || !String(clientName).trim()) {
@@ -66,7 +66,7 @@ const generateQuotation = async (req, res) => {
         if (clientId) {
             const clientResult = await pool.query(
                 `SELECT name, company, contact_person, email, phone,
-                        address_line1, address_line2, city, country, tin, vat_number
+                        address_line1, address_line2, city, country, tin
                  FROM clients WHERE id = $1`,
                 [clientId]
             );
@@ -92,8 +92,7 @@ const generateQuotation = async (req, res) => {
             addressLine2: pick(r.address_line2, clientAddressLine2),
             city: pick(r.city, clientCity),
             country: pick(r.country, clientCountry),
-            tin: pick(r.tin, clientTin),
-            vatNumber: pick(r.vat_number, clientVatNumber)
+            tin: pick(r.tin, clientTin)
         };
 
         const number = quotationNumber();
@@ -187,7 +186,6 @@ const generateQuotation = async (req, res) => {
         if (billing.email) billLines.push({ text: billing.email, font: 'Helvetica', size: 9.5, color: TEXT_MEDIUM });
         if (billing.phone) billLines.push({ text: billing.phone, font: 'Helvetica', size: 9.5, color: TEXT_MEDIUM });
         if (billing.tin) billLines.push({ text: `TIN: ${billing.tin}`, font: 'Helvetica-Bold', size: 9.5, color: TEXT_DARK });
-        if (billing.vatNumber) billLines.push({ text: `VAT: ${billing.vatNumber}`, font: 'Helvetica-Bold', size: 9.5, color: TEXT_DARK });
 
         let by = billY;
         billLines.forEach(line => {
@@ -236,7 +234,7 @@ const generateQuotation = async (req, res) => {
         // so nothing above it may run past this line — a quote with a dozen
         // line items has to break onto a second page rather than print over
         // its own fine print.
-        const footerHeight = 86;
+        const footerHeight = 76;
         const footerY = pageHeight - footerHeight;
         const contentBottom = footerY - 20;
 
@@ -283,7 +281,7 @@ const generateQuotation = async (req, res) => {
         ty = roomFor(ty, 30);
         doc.rect(margin, ty, contentWidth, 30).fill(PANEL);
         doc.font('Helvetica-Bold').fontSize(9).fillColor(TEXT_MEDIUM)
-            .text('NOT A TAX INVOICE', margin + 14, ty + 11);
+            .text('NOT AN INVOICE', margin + 14, ty + 11);
         doc.font('Helvetica').fontSize(9).fillColor(TEXT_MEDIUM)
             .text(
                 (validUntil ? `Prices valid until ${formatDate(validUntil)}` : 'Prices subject to confirmation') +
@@ -363,23 +361,15 @@ const generateQuotation = async (req, res) => {
                 margin, footerY + 13, { width: contentWidth }
             );
             doc.text(`Registration No: ${company.registrationNumber}   •   TIN: ${company.tin}`, margin, footerY + 24, { width: contentWidth });
-            // Same VAT-status statement the invoice carries — a client's
-            // finance office needs to know up front that no VAT is coming.
-            doc.text(
-                company.vatNumber
-                    ? `VAT Registration No: ${company.vatNumber}`
-                    : 'Registered for Income Tax only. Not registered for VAT — no VAT is chargeable on these prices.',
-                margin, footerY + 35, { width: contentWidth }
-            );
-            doc.text(`${company.website}   •   ${company.email}   •   ${company.phone}`, margin, footerY + 46, { width: contentWidth });
+            doc.text(`${company.website}   •   ${company.email}   •   ${company.phone}`, margin, footerY + 35, { width: contentWidth });
             doc.fillColor(TEXT_GRAY).fontSize(7.5)
                 .text(
-                    'This is a price quotation, not a tax invoice or receipt, and does not confirm a booking. ' +
+                    'This is a price quotation, not an invoice or receipt, and does not confirm a booking. ' +
                     `All amounts are stated in ${company.currency}.`,
-                    margin, footerY + 59, { width: contentWidth - 60 }
+                    margin, footerY + 48, { width: contentWidth - 60 }
                 );
             if (pageCount > 1) {
-                doc.text(`Page ${pageNo} of ${pageCount}`, pageWidth - margin - 60, footerY + 59, { width: 60, align: 'right' });
+                doc.text(`Page ${pageNo} of ${pageCount}`, pageWidth - margin - 60, footerY + 48, { width: 60, align: 'right' });
             }
         };
 

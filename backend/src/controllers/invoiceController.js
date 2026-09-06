@@ -43,7 +43,7 @@ const titleCase = (s) => (s || '')
 // ---------- PDF generator -------------------------------------------------
 
 /**
- * Generate the AfroGazette tax invoice / receipt PDF.
+ * Generate the AfroGazette invoice / receipt PDF.
  * Single-page A4. All ads in the system are paid, so the document doubles
  * as a fiscal receipt.
  */
@@ -89,7 +89,10 @@ const generateInvoicePDF = (invoiceData, filePath) => new Promise(async (resolve
         // =========================================================
         const titleY = headerHeight + 22;
         doc.font('Helvetica-Bold').fontSize(22).fillColor(TEXT_DARK)
-            .text('TAX INVOICE / RECEIPT', margin, titleY);
+            // Not "TAX INVOICE": that names the document a VAT-registered
+            // supplier issues under the VAT Act, and this business is
+            // registered for income tax only.
+            .text('INVOICE / RECEIPT', margin, titleY);
 
         // Meta box (right side)
         const metaX = pageWidth - margin - 200;
@@ -138,7 +141,6 @@ const generateInvoicePDF = (invoiceData, filePath) => new Promise(async (resolve
         if (invoiceData.client_email) billLines.push({ text: invoiceData.client_email, font: 'Helvetica', size: 9.5, color: TEXT_MEDIUM });
         if (invoiceData.client_phone) billLines.push({ text: invoiceData.client_phone, font: 'Helvetica', size: 9.5, color: TEXT_MEDIUM });
         if (invoiceData.client_tin) billLines.push({ text: `TIN: ${invoiceData.client_tin}`, font: 'Helvetica-Bold', size: 9.5, color: TEXT_DARK });
-        if (invoiceData.client_vat_number) billLines.push({ text: `VAT: ${invoiceData.client_vat_number}`, font: 'Helvetica-Bold', size: 9.5, color: TEXT_DARK });
 
         let by = billY;
         billLines.forEach(line => {
@@ -215,7 +217,8 @@ const generateInvoicePDF = (invoiceData, filePath) => new Promise(async (resolve
         const totalsValueRight = pageWidth - margin - 10;
         let ty = rowBottom + 18;
 
-        // Grand total banner — no VAT split (income tax only, not VAT-registered)
+        // Grand total banner — no tax split; the business is registered for
+        // income tax only, so nothing is ever added to or broken out of this.
         doc.rect(totalsLeft - 10, ty, 240, 38).fill(BRAND_RED);
         doc.font('Helvetica-Bold').fontSize(11).fillColor(WHITE)
             .text('TOTAL PAID', totalsLeft, ty + 13, { width: 130 });
@@ -273,13 +276,11 @@ const generateInvoicePDF = (invoiceData, filePath) => new Promise(async (resolve
         fpY += 11;
         doc.text(`Registration No: ${company.registrationNumber}   •   TIN: ${company.tin}`, fpX, fpY, { width: fpWidth });
         fpY += 11;
-        doc.text('Registered for Income Tax only. Not registered for VAT.', fpX, fpY, { width: fpWidth });
-        fpY += 11;
         doc.text(`${company.website}   •   ${company.email}   •   ${company.phone}`, fpX, fpY, { width: fpWidth });
         fpY += 14;
         doc.fillColor(TEXT_GRAY).fontSize(7.5)
             .text(
-                'This document serves as both a tax invoice and an official receipt of payment. ' +
+                'This document serves as both an invoice and an official receipt of payment. ' +
                 'All amounts are stated in ' + company.currency + '. Computer-generated; no signature required.',
                 fpX, fpY, { width: fpWidth }
             );
@@ -369,8 +370,7 @@ const downloadInvoice = async (req, res) => {
                 c.address_line2    AS client_address_line2,
                 c.city             AS client_city,
                 c.country          AS client_country,
-                c.tin              AS client_tin,
-                c.vat_number       AS client_vat_number
+                c.tin              AS client_tin
             FROM invoices i
             JOIN adverts a ON i.advert_id = a.id
             JOIN users u   ON i.sales_rep_id = u.id

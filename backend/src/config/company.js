@@ -1,16 +1,21 @@
 // Centralised AfroGazette company / tax details used on invoices and other
 // outbound documents. Values can be overridden via environment variables so
-// production values (especially the VAT number) don't have to live in code.
+// production values don't have to live in code.
+//
+// There is deliberately no VAT field here. AfroGazette is registered for
+// income tax only, not VAT, so no outbound document may carry a VAT number
+// or a VAT line. A COMPANY_VAT_NUMBER env var was once read here and had
+// been set on the production server to the company registration number,
+// which printed "VAT Registration No: 18661/2021" on live client quotations
+// — a VAT registration the business does not hold. Reading no such variable
+// at all is what makes that unrepeatable; do not reintroduce one without a
+// real VAT registration certificate to put behind it.
 
 const company = {
     legalName: process.env.COMPANY_LEGAL_NAME || 'AFRO GAZETTE',
     tradeName: process.env.COMPANY_TRADE_NAME || 'Afro Gazette',
     registrationNumber: process.env.COMPANY_REG_NUMBER || '18661/2021',
     tin: process.env.COMPANY_TIN || '2001743610',
-    // VAT registration: leave empty if not VAT-registered. When empty,
-    // invoices will omit the VAT line and print a "Not VAT-registered" note.
-    vatNumber: process.env.COMPANY_VAT_NUMBER || '', // not VAT-registered
-    vatRate: 0,
     address: {
         line1: process.env.COMPANY_ADDR_LINE1 || 'Office 4, Karimapondo Building',
         line2: process.env.COMPANY_ADDR_LINE2 || '78 Leopold Takawira',
@@ -29,9 +34,12 @@ const company = {
     bank: {
         name: process.env.COMPANY_BANK_NAME || 'First Capital Bank',
         branch: process.env.COMPANY_BANK_BRANCH || '',
-        // Assumed to be the trading name — override if the account is held
-        // in a different name, since a mismatch bounces a bank transfer.
-        accountName: process.env.COMPANY_BANK_ACCOUNT_NAME || 'Afro Gazette',
+        // The account is a personal one, not an account in the company's
+        // name. It is printed exactly as the bank holds it: a payer's
+        // beneficiary-name check compares this against the account, and a
+        // mismatch stalls the payment — so this must never be "corrected"
+        // to the trading name to make the document read more tidily.
+        accountName: process.env.COMPANY_BANK_ACCOUNT_NAME || 'KUDZAI MUNYUKWA',
         accountNumber: process.env.COMPANY_BANK_ACCOUNT_NUMBER || '19002677897',
         swift: process.env.COMPANY_BANK_SWIFT || ''
     },

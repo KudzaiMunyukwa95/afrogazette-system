@@ -26,7 +26,7 @@ const getDefaultValidUntil = () => {
 const emptyItem = () => ({ description: '', amount: '' });
 
 const emptyBilling = () => ({
-  addressLine1: '', addressLine2: '', city: '', country: 'Zimbabwe', tin: '', vatNumber: ''
+  addressLine1: '', addressLine2: '', city: '', country: 'Zimbabwe', tin: ''
 });
 
 const CreateQuotation = () => {
@@ -124,8 +124,7 @@ const CreateQuotation = () => {
         addressLine2: full.address_line2 || '',
         city: full.city || '',
         country: full.country || 'Zimbabwe',
-        tin: full.tin || '',
-        vatNumber: full.vat_number || ''
+        tin: full.tin || ''
       });
     } catch (error) {
       console.error('Error loading client:', error);
@@ -225,7 +224,6 @@ const CreateQuotation = () => {
         clientCity: billing.city.trim(),
         clientCountry: billing.country.trim(),
         clientTin: billing.tin.trim(),
-        clientVatNumber: billing.vatNumber.trim(),
         validUntil: validUntil || null,
         items: cleanItems,
         notes: notes.trim()
@@ -446,7 +444,7 @@ const CreateQuotation = () => {
                     placeholder="Zimbabwe"
                   />
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-gray-600 mb-1">Client TIN (optional)</label>
                   <input
                     type="text"
@@ -454,16 +452,6 @@ const CreateQuotation = () => {
                     onChange={(e) => updateBilling('tin', e.target.value)}
                     className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                     placeholder="Their tax number"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Client VAT No (optional)</label>
-                  <input
-                    type="text"
-                    value={billing.vatNumber}
-                    onChange={(e) => updateBilling('vatNumber', e.target.value)}
-                    className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                    placeholder="If VAT-registered"
                   />
                 </div>
               </div>
