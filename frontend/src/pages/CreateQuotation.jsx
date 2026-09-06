@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
-import { quotationAPI, ratesAPI } from '../services/api';
+import { clientAPI, quotationAPI, ratesAPI } from '../services/api';
 import { useToast } from '../components/Toast';
-import { FileText, Plus, Trash2, Sparkles, Download, Loader2 } from 'lucide-react';
+import { FileText, Plus, Trash2, Sparkles, Download, Loader2, Search, X, AlertTriangle, Building2 } from 'lucide-react';
 
 // Mirrors backend/src/config/ratePolicy.js — same fallback pattern used in
 // CreateAdvert.jsx, kept in sync manually; the live rate card always wins.
@@ -25,6 +25,10 @@ const getDefaultValidUntil = () => {
 
 const emptyItem = () => ({ description: '', amount: '' });
 
+const emptyBilling = () => ({
+  addressLine1: '', addressLine2: '', city: '', country: 'Zimbabwe', tin: '', vatNumber: ''
+});
+
 const CreateQuotation = () => {
   const toast = useToast();
   const [generating, setGenerating] = useState(false);
@@ -39,6 +43,20 @@ const CreateQuotation = () => {
   const [validUntil, setValidUntil] = useState(getDefaultValidUntil());
   const [items, setItems] = useState([emptyItem()]);
   const [notes, setNotes] = useState('');
+
+  // Billing details are what actually make the PDF presentable to a
+  // company's finance office. For a client we already hold a record for they
+  // come from that record (so the quote and the invoice that follows it
+  // can't disagree); for a prospect who isn't in the system yet they're typed
+  // here and used for this one document only — a quotation is pre-sale, so it
+  // deliberately doesn't create a client record.
+  const [billing, setBilling] = useState(emptyBilling());
+  const [linkedClient, setLinkedClient] = useState(null); // full record, or null
+  const [clientQuery, setClientQuery] = useState('');
+  const [clientResults, setClientResults] = useState([]);
+  const [searchingClients, setSearchingClients] = useState(false);
+  const [showClientResults, setShowClientResults] = useState(false);
+  const searchWrapperRef = useRef(null);
 
   const [helperDestination, setHelperDestination] = useState('groups');
   const [helperDays, setHelperDays] = useState(5);
@@ -55,6 +73,79 @@ const CreateQuotation = () => {
         // Silent — fallback constants above keep the form usable.
       });
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(event.target)) {
+        setShowClientResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Deliberately not ClientAutocomplete: that component's job is to force a
+  // booking onto a real client record, creating one (and demanding a phone
+  // number) when there's no match. A quotation must stay usable for a
+  // prospect who may never become a client, so this is lookup-only — no
+  // match simply means "type their details in below."
+  const runClientSearch = async (term) => {
+    if (term.trim().length < 2) {
+      setClientResults([]);
+      setShowClientResults(false);
+      return;
+    }
+    try {
+      setSearchingClients(true);
+      const response = await clientAPI.search(term.trim());
+      setClientResults(response.data.data.clients || []);
+      setShowClientResults(true);
+    } catch (error) {
+      console.error('Error searching clients:', error);
+    } finally {
+      setSearchingClients(false);
+    }
+  };
+
+  const selectClient = async (client) => {
+    setShowClientResults(false);
+    setClientQuery('');
+    try {
+      // Search results carry only name/company/contact — the address and tax
+      // numbers that make the quote presentable need the full record.
+      const response = await clientAPI.getById(client.id);
+      const full = response.data.data.client;
+      setLinkedClient(full);
+      setClientName(full.name || '');
+      setClientCompany(full.company || '');
+      setClientContact(full.phone || full.email || '');
+      setBilling({
+        addressLine1: full.address_line1 || '',
+        addressLine2: full.address_line2 || '',
+        city: full.city || '',
+        country: full.country || 'Zimbabwe',
+        tin: full.tin || '',
+        vatNumber: full.vat_number || ''
+      });
+    } catch (error) {
+      console.error('Error loading client:', error);
+      toast.error('Could not load that client’s details');
+    }
+  };
+
+  const unlinkClient = () => {
+    setLinkedClient(null);
+    setClientName('');
+    setClientCompany('');
+    setClientContact('');
+    setBilling(emptyBilling());
+  };
+
+  const updateBilling = (field, value) => setBilling(prev => ({ ...prev, [field]: value }));
+
+  // A quote going to a company with no address on it is the thing this form
+  // is here to prevent, so say so before the rep sends it rather than after.
+  const missingAddress = !billing.addressLine1.trim() || !billing.city.trim();
 
   // Same anchor-interpolation as CreateAdvert.jsx / ratePolicy.js, so a
   // suggested quote line matches what the actual booking would suggest.
@@ -125,9 +216,16 @@ const CreateQuotation = () => {
     try {
       setGenerating(true);
       const response = await quotationAPI.generate({
+        clientId: linkedClient?.id || null,
         clientName: clientName.trim(),
         clientCompany: clientCompany.trim(),
         clientContact: clientContact.trim(),
+        clientAddressLine1: billing.addressLine1.trim(),
+        clientAddressLine2: billing.addressLine2.trim(),
+        clientCity: billing.city.trim(),
+        clientCountry: billing.country.trim(),
+        clientTin: billing.tin.trim(),
+        clientVatNumber: billing.vatNumber.trim(),
         validUntil: validUntil || null,
         items: cleanItems,
         notes: notes.trim()
@@ -183,6 +281,69 @@ const CreateQuotation = () => {
         <form onSubmit={handleGenerate} className="max-w-4xl mx-auto p-4 space-y-4">
           <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 space-y-4">
             <h2 className="text-sm font-semibold text-gray-900">Client</h2>
+
+            {linkedClient ? (
+              <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <Building2 className="h-4 w-4 text-green-700 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-green-900">
+                    Billing to {linkedClient.company || linkedClient.name}'s client record
+                  </p>
+                  <p className="text-xs text-green-800 mt-0.5">
+                    The same details the invoice will bill to. Edits below apply to this quote only.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={unlinkClient}
+                  className="p-1 text-green-700 hover:text-green-900"
+                  aria-label="Unlink client"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div ref={searchWrapperRef} className="relative">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Find an existing client (optional)</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={clientQuery}
+                    onChange={(e) => { setClientQuery(e.target.value); runClientSearch(e.target.value); }}
+                    onFocus={() => clientResults.length > 0 && setShowClientResults(true)}
+                    className="input-mobile w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="Search by name, company or phone"
+                  />
+                  {searchingClients && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Pulls their address and tax numbers so the quote matches the invoice. Quoting a brand-new prospect? Skip this and type their details in below — nothing is saved.
+                </p>
+                {showClientResults && (
+                  <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                    {clientResults.length === 0 ? (
+                      <p className="px-3 py-3 text-sm text-gray-500">No match — type the client's details in below.</p>
+                    ) : clientResults.map(client => (
+                      <button
+                        key={client.id}
+                        type="button"
+                        onClick={() => selectClient(client)}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                      >
+                        <p className="text-sm font-medium text-gray-900">{client.company || client.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {[client.company ? client.name : null, client.phone].filter(Boolean).join(' • ') || '—'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Client Name *</label>
@@ -223,6 +384,88 @@ const CreateQuotation = () => {
                   onChange={(e) => setValidUntil(e.target.value)}
                   className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-gray-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900">Billing Address</h3>
+                <span className="text-xs text-gray-500">Printed under “Quoted For”</span>
+              </div>
+
+              {missingAddress && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-amber-800">
+                    No address on this quote yet. A corporate client's finance office needs one to raise payment —
+                    {linkedClient
+                      ? ' this client has none on file, so fill it in here and add it to their record under Clients.'
+                      : ' fill it in below.'}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Address Line 1</label>
+                  <input
+                    type="text"
+                    value={billing.addressLine1}
+                    onChange={(e) => updateBilling('addressLine1', e.target.value)}
+                    className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="e.g. POSB House, 3rd Floor"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Address Line 2 (optional)</label>
+                  <input
+                    type="text"
+                    value={billing.addressLine2}
+                    onChange={(e) => updateBilling('addressLine2', e.target.value)}
+                    className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="e.g. 11 Nelson Mandela Avenue"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">City</label>
+                  <input
+                    type="text"
+                    value={billing.city}
+                    onChange={(e) => updateBilling('city', e.target.value)}
+                    className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="Harare"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Country</label>
+                  <input
+                    type="text"
+                    value={billing.country}
+                    onChange={(e) => updateBilling('country', e.target.value)}
+                    className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="Zimbabwe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Client TIN (optional)</label>
+                  <input
+                    type="text"
+                    value={billing.tin}
+                    onChange={(e) => updateBilling('tin', e.target.value)}
+                    className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="Their tax number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Client VAT No (optional)</label>
+                  <input
+                    type="text"
+                    value={billing.vatNumber}
+                    onChange={(e) => updateBilling('vatNumber', e.target.value)}
+                    className="input-mobile w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="If VAT-registered"
+                  />
+                </div>
               </div>
             </div>
           </div>

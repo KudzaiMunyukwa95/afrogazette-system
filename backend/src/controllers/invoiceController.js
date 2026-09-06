@@ -264,6 +264,13 @@ const generateInvoicePDF = (invoiceData, filePath) => new Promise(async (resolve
             .text(`${company.legalName}`, fpX, footerY, { width: fpWidth });
         doc.font('Helvetica').fontSize(8).fillColor(TEXT_MEDIUM);
         let fpY = footerY + 13;
+        // Registered address in the fine print as well as the header — a
+        // filed invoice is often photocopied or forwarded page-by-page.
+        doc.text(
+            `${company.address.line1}, ${company.address.line2}, ${company.address.city}, ${company.address.country}`,
+            fpX, fpY, { width: fpWidth }
+        );
+        fpY += 11;
         doc.text(`Registration No: ${company.registrationNumber}   •   TIN: ${company.tin}`, fpX, fpY, { width: fpWidth });
         fpY += 11;
         doc.text('Registered for Income Tax only. Not registered for VAT.', fpX, fpY, { width: fpWidth });
