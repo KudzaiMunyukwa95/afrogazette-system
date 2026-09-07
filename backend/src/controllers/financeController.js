@@ -26,12 +26,17 @@ const getFinancialOverview = async (req, res) => {
             paramCount++;
         }
 
-        // 1. Total Income (from invoices)
-        let invoiceDateFilter = dateFilter.replace(/expense_date/g, 'generated_at');
+        // 1. Total Income (from invoices) — dated by adverts.payment_date, the
+        // date the rep actually recorded the client's payment as received,
+        // not invoices.generated_at, which is when the advert was approved.
+        // Those two can land in different reporting periods, which is what
+        // made a payment received in one month show up as income in another.
+        let incomeDateFilter = dateFilter.replace(/expense_date/g, 'a.payment_date');
         const incomeQuery = `
-            SELECT COALESCE(SUM(amount), 0) as total_income
-            FROM invoices
-            WHERE 1=1 ${invoiceDateFilter}
+            SELECT COALESCE(SUM(i.amount), 0) as total_income
+            FROM invoices i
+            JOIN adverts a ON i.advert_id = a.id
+            WHERE 1=1 ${incomeDateFilter}
         `;
         const incomeResult = await pool.query(incomeQuery, params);
         const totalIncome = parseFloat(incomeResult.rows[0].total_income);
@@ -97,17 +102,20 @@ const getIncomeBreakdown = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
 
+        // Dated by adverts.payment_date (when the client actually paid), not
+        // invoices.generated_at (when the advert was approved) — see
+        // getFinancialOverview above for why that distinction matters.
         let dateFilter = '';
         const params = [];
         let paramCount = 1;
 
         if (startDate) {
-            dateFilter += ` AND i.generated_at >= $${paramCount}`;
+            dateFilter += ` AND a.payment_date >= $${paramCount}`;
             params.push(startDate);
             paramCount++;
         }
         if (endDate) {
-            dateFilter += ` AND i.generated_at < $${paramCount}::date + INTERVAL '1 day'`;
+            dateFilter += ` AND a.payment_date < $${paramCount}::date + INTERVAL '1 day'`;
             params.push(endDate);
             paramCount++;
         }
@@ -134,11 +142,12 @@ const getIncomeBreakdown = async (req, res) => {
 
         // Time Series (Daily)
         const timeSeriesQuery = `
-            SELECT DATE(i.generated_at) as date, COALESCE(SUM(i.amount), 0) as total
+            SELECT DATE(a.payment_date) as date, COALESCE(SUM(i.amount), 0) as total
             FROM invoices i
+            JOIN adverts a ON i.advert_id = a.id
             WHERE 1=1 ${dateFilter}
-            GROUP BY DATE(i.generated_at)
-            ORDER BY DATE(i.generated_at)
+            GROUP BY DATE(a.payment_date)
+            ORDER BY DATE(a.payment_date)
         `;
         const timeSeriesResult = await pool.query(timeSeriesQuery, params);
 
@@ -256,12 +265,12 @@ const getPaymentMethodSummary = async (req, res) => {
             let paramIndex = 2;
 
             if (startDate) {
-                incomeQuery += ` AND i.generated_at >= $${paramIndex}`;
+                incomeQuery += ` AND a.payment_date >= $${paramIndex}`;
                 incomeParams.push(startDate);
                 paramIndex++;
             }
             if (endDate) {
-                incomeQuery += ` AND i.generated_at < $${paramIndex}::date + INTERVAL '1 day'`;
+                incomeQuery += ` AND a.payment_date < $${paramIndex}::date + INTERVAL '1 day'`;
                 incomeParams.push(endDate);
             }
 

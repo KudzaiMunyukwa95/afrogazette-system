@@ -266,10 +266,15 @@ const downloadFinancialReport = async (req, res) => {
         let paramCount = 1;
 
         // 1. Fetch Income Details & Total
+        // Dated by adverts.payment_date — the date the rep recorded the
+        // client's payment as received — not invoices.generated_at, which is
+        // set when the advert is approved and can fall in a different
+        // reporting period. A report for "August" must show what was paid in
+        // August, not what happened to get approved in August.
         let incomeQuery = `
-            SELECT i.generated_at as date, 
-                   COALESCE(c.name, a.client_name, 'Unknown Client') as description, 
-                   a.payment_method as method, 
+            SELECT a.payment_date as date,
+                   COALESCE(c.name, a.client_name, 'Unknown Client') as description,
+                   a.payment_method as method,
                    i.amount
             FROM invoices i
             JOIN adverts a ON i.advert_id = a.id
@@ -277,16 +282,16 @@ const downloadFinancialReport = async (req, res) => {
             WHERE i.amount > 0
         `;
         if (startDate) {
-            incomeQuery += ` AND i.generated_at >= $${paramCount}`;
+            incomeQuery += ` AND a.payment_date >= $${paramCount}`;
             params.push(startDate);
             paramCount++;
         }
         if (endDate) {
-            incomeQuery += ` AND i.generated_at < $${paramCount}::date + INTERVAL '1 day'`;
+            incomeQuery += ` AND a.payment_date < $${paramCount}::date + INTERVAL '1 day'`;
             params.push(endDate);
             paramCount++;
         }
-        incomeQuery += ` ORDER BY i.generated_at DESC`;
+        incomeQuery += ` ORDER BY a.payment_date DESC`;
         const incomeResult = await pool.query(incomeQuery, params);
 
         // 2. Fetch Expense Details
@@ -314,14 +319,15 @@ const downloadFinancialReport = async (req, res) => {
         // 3. Calc Totals via SQL for guaranteed consistency
         // Re-using the logic from financeController.js
         let totalIncomeQuery = `
-            SELECT COALESCE(SUM(amount), 0) as total 
-            FROM invoices i 
+            SELECT COALESCE(SUM(i.amount), 0) as total
+            FROM invoices i
+            JOIN adverts a ON i.advert_id = a.id
             WHERE i.amount > 0
         `;
         const totalIncomeParams = [];
         let tiCount = 1;
-        if (startDate) { totalIncomeQuery += ` AND i.generated_at >= $${tiCount}`; totalIncomeParams.push(startDate); tiCount++; }
-        if (endDate) { totalIncomeQuery += ` AND i.generated_at < $${tiCount}::date + INTERVAL '1 day'`; totalIncomeParams.push(endDate); tiCount++; }
+        if (startDate) { totalIncomeQuery += ` AND a.payment_date >= $${tiCount}`; totalIncomeParams.push(startDate); tiCount++; }
+        if (endDate) { totalIncomeQuery += ` AND a.payment_date < $${tiCount}::date + INTERVAL '1 day'`; totalIncomeParams.push(endDate); tiCount++; }
         const totalIncomeRes = await pool.query(totalIncomeQuery, totalIncomeParams);
         const totalIncome = parseFloat(totalIncomeRes.rows[0].total);
 

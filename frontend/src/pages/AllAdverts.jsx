@@ -229,48 +229,52 @@ const AllAdverts = () => {
                                     <table className="min-w-full divide-y divide-gray-200">
                                         <thead className="bg-gray-50">
                                             <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales Rep</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider pr-8">Actions</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales Rep</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                                {/* Was method-only; now also carries the payment date — nothing in
+                                                    the system showed when a client actually paid, only when the
+                                                    advert was approved (see the Flight column). */}
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Flight</th>
+                                                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                                <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider pr-6">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200">
                                             {filteredAdverts.map((ad) => (
                                                 <tr key={ad.id} className="hover:bg-gray-50">
-                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                    <td className="px-3 py-4 whitespace-nowrap">
                                                         <div className="font-medium text-gray-900">{ad.client_name}</div>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                    <td className="px-3 py-4 whitespace-nowrap">
                                                         <div className="text-sm text-gray-900">{ad.sales_rep_name}</div>
                                                         <div className="text-xs text-gray-500">{ad.sales_rep_email}</div>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                                                    <td className="px-3 py-4 whitespace-nowrap">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
                                                             {(ad.advert_type || 'text_ad').replace(/_/g, ' ')}
                                                         </span>
+                                                        <div className="text-xs text-gray-500 capitalize mt-1">{ad.category.replace(/_/g, ' ')}</div>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="text-sm text-gray-600 capitalize">{ad.category.replace(/_/g, ' ')}</span>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                    <td className="px-3 py-4 whitespace-nowrap">
                                                         {getStatusBadge(ad.status)}
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
-                                                        {ad.payment_method || 'Cash'}
+                                                    <td className="px-3 py-4 whitespace-nowrap text-sm">
+                                                        <div className="text-gray-500 capitalize">{ad.payment_method || 'Cash'}</div>
+                                                        <div className="text-xs text-gray-400">
+                                                            Paid {ad.payment_date ? new Date(ad.payment_date).toLocaleDateString() : '—'}
+                                                        </div>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        <div>Start: {new Date(ad.start_date).toLocaleDateString()}</div>
+                                                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        <div>{new Date(ad.start_date).toLocaleDateString()}</div>
+                                                        <div className="text-xs text-gray-400">to {ad.end_date ? new Date(ad.end_date).toLocaleDateString() : '—'}</div>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                                                         ${Number(ad.amount_paid).toFixed(2)}
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         <button
                                                             onClick={() => handleDelete(ad.id, ad.client_name)}
                                                             className="text-red-600 hover:text-red-900"
@@ -317,7 +321,10 @@ const AllAdverts = () => {
                                             </div>
                                             <div className="bg-gray-50 p-2 rounded-lg col-span-2">
                                                 <span className="text-xs text-gray-500 block">Payment</span>
-                                                <span className="text-sm font-medium text-gray-900 capitalize">{ad.payment_method || 'Cash'}</span>
+                                                <span className="text-sm font-medium text-gray-900 capitalize">
+                                                    {ad.payment_method || 'Cash'}
+                                                    <span className="font-normal text-gray-500"> — paid {ad.payment_date ? new Date(ad.payment_date).toLocaleDateString() : '—'}</span>
+                                                </span>
                                             </div>
                                         </div>
 
@@ -325,6 +332,7 @@ const AllAdverts = () => {
                                             <div className="flex items-center text-sm text-gray-600">
                                                 <Calendar className="h-4 w-4 mr-2 text-gray-400" />
                                                 {new Date(ad.start_date).toLocaleDateString()}
+                                                {ad.end_date && <span className="text-gray-400"> – {new Date(ad.end_date).toLocaleDateString()}</span>}
                                             </div>
                                             <span className="text-lg font-bold text-gray-900">${Number(ad.amount_paid).toFixed(2)}</span>
                                         </div>
