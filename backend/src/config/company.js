@@ -26,21 +26,25 @@ const company = {
     email: process.env.COMPANY_EMAIL || 'support@afrogazette.co.zw',
     website: process.env.COMPANY_WEBSITE || 'www.afrogazette.co.zw',
     currency: process.env.COMPANY_CURRENCY || 'USD',
-    // Banking details printed on quotations so a corporate client can raise a
-    // payment without phoning to ask where to send it. Every line is
-    // env-overridable and any line left empty is dropped from the document —
-    // a page a client pays against must never carry a placeholder, so the
-    // whole payment block disappears rather than print a blank field.
+    // Banking details for quotations. Deliberately unset: the only account
+    // available today is a personal one, and a client-facing document from a
+    // registered company should not direct payment into an individual's
+    // account — a corporate payer's beneficiary-name check flags exactly that
+    // mismatch. Until a business account exists, quotations say how to
+    // request the details instead (see quotationController).
+    //
+    // Fill these in via the environment when the business account opens and
+    // the payment block starts printing on its own; no code change needed.
+    // Any single line left empty is simply dropped from the document.
     bank: {
-        name: process.env.COMPANY_BANK_NAME || 'First Capital Bank',
+        name: process.env.COMPANY_BANK_NAME || '',
         branch: process.env.COMPANY_BANK_BRANCH || '',
-        // The account is a personal one, not an account in the company's
-        // name. It is printed exactly as the bank holds it: a payer's
-        // beneficiary-name check compares this against the account, and a
-        // mismatch stalls the payment — so this must never be "corrected"
-        // to the trading name to make the document read more tidily.
-        accountName: process.env.COMPANY_BANK_ACCOUNT_NAME || 'KUDZAI MUNYUKWA',
-        accountNumber: process.env.COMPANY_BANK_ACCOUNT_NUMBER || '19002677897',
+        // Must be the exact name the bank holds the account in: a payer's
+        // beneficiary-name check compares this string against the account,
+        // and a mismatch stalls the payment. Never "tidy" it to the trading
+        // name to make the document read better.
+        accountName: process.env.COMPANY_BANK_ACCOUNT_NAME || '',
+        accountNumber: process.env.COMPANY_BANK_ACCOUNT_NUMBER || '',
         swift: process.env.COMPANY_BANK_SWIFT || ''
     },
     // Free text, e.g. 'EcoCash 0778826661 (Afro Gazette)'. Omitted when unset.

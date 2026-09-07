@@ -294,9 +294,11 @@ const generateQuotation = async (req, res) => {
         // PAYMENT DETAILS
         // =========================================================
         // A corporate client raises payment from this document, so it has to
-        // say where the money goes. Every line is env-configured and any
-        // missing one is dropped — the block disappears entirely rather than
-        // print a half-filled panel or a placeholder account number.
+        // say where the money goes — or, while no business bank account
+        // exists, exactly how to get those details and from whom. The second
+        // form is not a placeholder for the first: it gives the client a next
+        // step, which is what this part of the page is for either way. Fill
+        // in the bank config and the panel switches over on its own.
         if (company.hasPaymentDetails) {
             const payLines = [
                 company.bank.name && ['Bank', company.bank.name],
@@ -331,6 +333,28 @@ const generateQuotation = async (req, res) => {
                     .text(value, colX + 86, py, { width: payColWidth - 96 });
             });
             ty += payBoxHeight + 12;
+        } else {
+            const contact = [salesRepName !== '—' ? salesRepName : null, salesRepEmail, company.phone]
+                .filter(Boolean)
+                .join(' • ');
+            const body = 'Reply to this quotation to accept it and banking details will be issued with your ' +
+                'confirmation. Your advert is scheduled once payment is received and cleared.';
+
+            doc.font('Helvetica').fontSize(8.5);
+            const bodyWidth = contentWidth - 28;
+            const bodyHeight = doc.heightOfString(body, { width: bodyWidth });
+            const boxHeight = 26 + bodyHeight + 6 + 13 + 10;
+            ty = roomFor(ty, boxHeight + 10);
+
+            doc.rect(margin, ty, contentWidth, boxHeight).fill(PANEL);
+            doc.rect(margin, ty, 3, boxHeight).fill(BRAND_RED);
+            doc.font('Helvetica-Bold').fontSize(9).fillColor(TEXT_DARK)
+                .text('TO CONFIRM THIS BOOKING', margin + 14, ty + 10);
+            doc.font('Helvetica').fontSize(8.5).fillColor(TEXT_MEDIUM)
+                .text(body, margin + 14, ty + 26, { width: bodyWidth });
+            doc.font('Helvetica-Bold').fontSize(8.5).fillColor(TEXT_DARK)
+                .text(contact, margin + 14, ty + 26 + bodyHeight + 6, { width: bodyWidth });
+            ty += boxHeight + 12;
         }
 
         if (notes && String(notes).trim()) {
