@@ -259,6 +259,38 @@ Each slot can hold MAX 2 adverts simultaneously
 - **Daily (00:00)**: Update remaining days, expire finished adverts
 - **Weekly (Sundays 02:00)**: Cleanup old assignments (90+ days)
 
+## 📞 Sales Activity Log
+
+Every contact a sales rep makes is logged so management can see activity, follow-ups, pipeline and objections. Target: **10 contacts per rep per day, 60 per Mon-Sat week** (per-rep overrides and the working-days setting are admin-editable).
+
+**Setup** — apply the migration once per database (it is idempotent and also seeds the dropdown lists and default settings):
+
+```bash
+psql "$DATABASE_URL" -f backend/migrations/012_sales_activity.sql
+```
+
+**Tests** (rules, derived follow-up status, permissions, summary maths — no database needed):
+
+```bash
+cd backend && npm test
+```
+
+**API** (`/api/sales-activity`, all authenticated; reps are restricted to their own data, admins see everything):
+
+| Route | Who | Purpose |
+|---|---|---|
+| `GET /options`, `POST /options`, `PUT /options/:id` | read: all, write: admin | Dropdown lists. Outcome and client-type labels are locked (rules depend on them) |
+| `GET/PUT /settings`, `PUT /settings/targets/:userId` | admin | Default daily target, working days, per-rep override |
+| `GET /progress` | all | Today and this-week progress vs target |
+| `GET /follow-ups` | all | Follow-ups due today, then overdue |
+| `GET /client-context?clientId=` | all | New/repeat suggestion, same-day duplicate warning, last-contact prefill |
+| `POST /prospects` | all | Create a lightweight prospect (flagged `clients.is_prospect`) |
+| `GET /`, `GET /:id` | all (own) / admin (any) | List with filters; detail (+ audit history for admins) |
+| `POST /`, `PUT /:id`, `POST /:id/withdraw` | all (own) / admin (any) | Create, edit (audited), withdraw (no hard deletes) |
+| `GET /summary` | admin | Totals, per-rep target attainment, chart series, reps with nothing logged today |
+
+"Today" is always the Africa/Harare date. Follow-up status is derived, never stored: Done, Closed, Overdue, Due today, Scheduled, plus **Superseded** for an older row whose client has since been contacted again.
+
 ## 🌐 Deployment to Render
 
 ### Backend Deployment
