@@ -116,7 +116,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * Returns { errors: { field: message }, value: normalised fields }.
  */
 const validateActivity = (input, ctx) => {
-  const { today, isAdmin = false, options = {}, existing = null } = ctx;
+  const { today, isAdmin = false, options = {}, existing = null, allowNewClient = false } = ctx;
   const errors = {};
   const v = {};
 
@@ -130,9 +130,20 @@ const validateActivity = (input, ctx) => {
     errors.activity_date = `You can only back-date up to ${REP_BACKDATE_DAYS} days`;
   }
 
-  // client
-  v.client_id = Number.parseInt(input.client_id, 10);
-  if (!Number.isInteger(v.client_id) || v.client_id <= 0) errors.client_id = 'Client is required';
+  // client — either an existing record, or (when allowed) a new client's
+  // name that the caller turns into a prospect as part of the same save
+  v.new_client_name = allowNewClient ? str(input.new_client_name) : null;
+  if (v.new_client_name) {
+    if (v.new_client_name.length < 2) errors.new_client_name = 'Enter the client or company name';
+    v.client_id = null;
+  } else {
+    v.client_id = Number.parseInt(input.client_id, 10);
+    if (!Number.isInteger(v.client_id) || v.client_id <= 0) {
+      errors[allowNewClient ? 'new_client_name' : 'client_id'] = allowNewClient
+        ? 'Enter the client or company name'
+        : 'Client is required';
+    }
+  }
 
   // free text
   v.contact_person = str(input.contact_person);

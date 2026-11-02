@@ -4,6 +4,8 @@
 
 export const QUOTE_OUTCOMES = ['Quote sent', 'Negotiating', 'Closed - Won'];
 export const CLOSED_OUTCOMES = ['Closed - Won', 'Closed - Lost'];
+export const CLIENT_TYPE_NEW = 'New client';
+export const CLIENT_TYPE_REPEAT = 'Repeat / follow-up';
 export const MIN_FEEDBACK_LENGTH = 15;
 export const REP_BACKDATE_DAYS = 3;
 

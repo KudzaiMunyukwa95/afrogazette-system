@@ -129,6 +129,25 @@ test('phone normalisation: mobiles, landlines and international numbers', () => 
   assert.equal(normalizeContactPhone('ok'), null);
 });
 
+test('a new client can be logged by name alone when new clients are allowed', () => {
+  const input = { ...valid({ client_id: undefined }), new_client_name: 'Zim Fresh Farms' };
+  const ok = validateActivity(input, { today: TODAY, options, allowNewClient: true });
+  assert.deepEqual(ok.errors, {});
+  assert.equal(ok.value.new_client_name, 'Zim Fresh Farms');
+  assert.equal(ok.value.client_id, null);
+});
+
+test('with new clients allowed, neither a client nor a name is an error on the name field', () => {
+  const none = validateActivity(valid({ client_id: undefined }), { today: TODAY, options, allowNewClient: true });
+  assert.ok(none.errors.new_client_name);
+  assert.ok(validateActivity({ ...valid({ client_id: undefined }), new_client_name: 'A' }, { today: TODAY, options, allowNewClient: true }).errors.new_client_name);
+});
+
+test('a new-client name is ignored when new clients are not allowed (edits)', () => {
+  const r = validateActivity({ ...valid({ client_id: undefined }), new_client_name: 'X Co' }, { today: TODAY, options });
+  assert.ok(r.errors.client_id);
+});
+
 // ------------------------------------------------------------ derived follow-up status
 
 test('follow-up status is derived from outcome and date, in the documented order', () => {

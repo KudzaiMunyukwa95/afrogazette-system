@@ -535,7 +535,9 @@ const createActivity = async (req, res) => {
   try {
     const today = todayInHarare();
     const options = await loadOptions(client);
-    const { errors, value } = validateActivity(req.body, { today, isAdmin: isAdminUser(req), options });
+    const { errors, value } = validateActivity(req.body, {
+      today, isAdmin: isAdminUser(req), options, allowNewClient: true
+    });
 
     // Admins may log on a rep's behalf; everyone else logs as themselves.
     let repId = req.user.id;
@@ -545,19 +547,50 @@ const createActivity = async (req, res) => {
       if (rep.rows.length === 0) errors.rep_user_id = 'Rep not found';
     }
 
-    if (!errors.client_id) {
+    if (value.client_id) {
       const found = await client.query('SELECT id FROM clients WHERE id = $1', [value.client_id]);
       if (found.rows.length === 0) errors.client_id = 'Client not found';
     }
     if (Object.keys(errors).length) return validationFailed(res, errors);
+
+    await client.query('BEGIN');
+
+    // A brand-new client is created as a prospect in the same transaction as
+    // the activity, so a rep never has to leave the form to add them first
+    // and a failed save never leaves an orphan prospect behind. The phone is
+    // still the identity check: if it already belongs to a client, stop and
+    // hand that client back rather than create a duplicate.
+    if (value.new_client_name) {
+      const clash = await client.query(
+        `SELECT c.id, c.name, c.company, c.phone, u.full_name AS sales_rep_name
+         FROM clients c LEFT JOIN users u ON c.sales_rep_id = u.id
+         WHERE c.phone = $1
+            OR EXISTS (SELECT 1 FROM client_phones cp WHERE cp.client_id = c.id AND cp.phone = $1)`,
+        [value.phone]
+      );
+      if (clash.rows.length > 0) {
+        await client.query('ROLLBACK');
+        const c = clash.rows[0];
+        return res.status(409).json({
+          success: false,
+          code: 'PHONE_EXISTS',
+          message: `This number already belongs to ${c.name}${c.sales_rep_name ? ` (${c.sales_rep_name})` : ''}.`,
+          data: { client: c }
+        });
+      }
+      const prospect = await client.query(
+        `INSERT INTO clients (name, phone, contact_person, sales_rep_id, is_prospect)
+         VALUES ($1, $2, $3, $4, true) RETURNING id`,
+        [value.new_client_name, value.phone, value.contact_person, repId]
+      );
+      value.client_id = prospect.rows[0].id;
+    }
 
     const dup = await client.query(
       `SELECT 1 FROM sales_activities
        WHERE client_id = $1 AND rep_user_id = $2 AND activity_date = $3 AND NOT is_withdrawn LIMIT 1`,
       [value.client_id, repId, value.activity_date]
     );
-
-    await client.query('BEGIN');
     const columns = ['rep_user_id', 'created_by', ...INSERT_FIELDS];
     const params = [repId, req.user.id, ...INSERT_FIELDS.map((f) => value[f] ?? null)];
     const inserted = await client.query(

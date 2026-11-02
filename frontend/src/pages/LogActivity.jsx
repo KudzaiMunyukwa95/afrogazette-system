@@ -6,7 +6,7 @@ import { salesActivityAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import {
-  QUOTE_OUTCOMES, CLOSED_OUTCOMES, MIN_FEEDBACK_LENGTH, REP_BACKDATE_DAYS,
+  QUOTE_OUTCOMES, CLOSED_OUTCOMES, MIN_FEEDBACK_LENGTH, REP_BACKDATE_DAYS, CLIENT_TYPE_NEW, CLIENT_TYPE_REPEAT,
   todayHarare, addDays
 } from '../utils/salesActivity';
 import { ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react';
@@ -32,7 +32,8 @@ const emptyForm = () => ({
   line_of_business: '',
   contact_method: 'Phone call',
   product_pitched: 'Not yet pitched',
-  client_type: 'New client',
+  client_type: CLIENT_TYPE_NEW,
+  new_client_name: '',
   outcome: '',
   quoted_amount_usd: '',
   feedback_notes: '',
@@ -54,6 +55,7 @@ const LogActivity = () => {
   const [form, setForm] = useState(emptyForm());
   const [client, setClient] = useState(null);
   const [duplicateToday, setDuplicateToday] = useState(false);
+  const [existingMatch, setExistingMatch] = useState(null); // a client that already owns the typed phone
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(isEdit || Boolean(searchParams.get('clientId')));
   const [submitting, setSubmitting] = useState(false);
@@ -62,6 +64,8 @@ const LogActivity = () => {
 
   const today = todayHarare();
   const labels = (key) => (options[key] || []).map((o) => o.label);
+  // New clients are typed in by name (no search); repeat clients are looked up.
+  const isNewClient = !isEdit && form.client_type === CLIENT_TYPE_NEW;
   const closed = CLOSED_OUTCOMES.includes(form.outcome);
   const showAmount = QUOTE_OUTCOMES.includes(form.outcome);
 
@@ -82,12 +86,14 @@ const LogActivity = () => {
   const loadClientContext = async (clientId, date) => {
     try {
       const res = await salesActivityAPI.getClientContext({ clientId, date });
-      const { client: c, suggestedClientType, duplicateToday: dup, lastActivity } = res.data.data;
+      const { client: c, duplicateToday: dup, lastActivity } = res.data.data;
       setClient(c);
       setDuplicateToday(dup);
+      setExistingMatch(null);
       setForm((f) => ({
         ...f,
-        client_type: suggestedClientType,
+        client_type: CLIENT_TYPE_REPEAT,
+        new_client_name: '',
         contact_person: f.contact_person || lastActivity?.contact_person || c.contact_person || '',
         contact_title: f.contact_title || lastActivity?.contact_title || '',
         phone: f.phone || lastActivity?.phone || c.phone || '',
@@ -152,7 +158,8 @@ const LogActivity = () => {
     setErrors({});
     const payload = {
       ...form,
-      client_id: client?.id,
+      client_id: isNewClient ? undefined : client?.id,
+      new_client_name: isNewClient ? form.new_client_name : undefined,
       quoted_amount_usd: showAmount ? form.quoted_amount_usd : ''
     };
     try {
@@ -172,7 +179,11 @@ const LogActivity = () => {
       }
     } catch (err) {
       const apiErrors = err.response?.data?.errors;
-      if (Array.isArray(apiErrors)) {
+      if (err.response?.status === 409 && err.response?.data?.code === 'PHONE_EXISTS') {
+        // Typed as a new client, but that number already belongs to one.
+        setExistingMatch(err.response.data.data.client);
+        setErrors({ phone: err.response.data.message });
+      } else if (Array.isArray(apiErrors)) {
         setErrors(Object.fromEntries(apiErrors.map((e) => [e.field, e.message])));
         toast.error('Please fix the highlighted fields');
       } else {
@@ -222,9 +233,59 @@ const LogActivity = () => {
           <h1 className="text-xl font-bold text-gray-900 mb-4">{isEdit ? 'Edit activity' : 'Log activity'}</h1>
 
           <form onSubmit={(e) => { e.preventDefault(); submit(false); }} className="space-y-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 md:p-6">
-            <Field label="Client / company" error={errors.client_id}>
-              <SalesClientPicker value={client} onSelect={handleClientSelect} error={errors.client_id} disabled={isEdit} />
+            <Field label="Is this a new client or a follow-up?" error={errors.client_type}>
+              <div className="grid grid-cols-2 gap-2">
+                {labels('client_type').map((l) => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => {
+                      set('client_type', l);
+                      if (!isEdit) {
+                        setClient(null);
+                        setDuplicateToday(false);
+                        setExistingMatch(null);
+                      }
+                    }}
+                    className={`py-3 rounded-xl border text-sm font-semibold ${form.client_type === l ? 'bg-red-600 border-red-600 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
             </Field>
+
+            {isNewClient ? (
+              <Field label="Client / company name" error={errors.new_client_name} hint="No need to search — just type the name. They're added to the system when you save.">
+                <input
+                  type="text"
+                  value={form.new_client_name}
+                  onChange={(e) => set('new_client_name', e.target.value)}
+                  placeholder="e.g. Zim Fresh Farms"
+                  className={inputClass(errors.new_client_name)}
+                />
+              </Field>
+            ) : (
+              <Field label="Search for the client" error={errors.client_id}>
+                <SalesClientPicker value={client} onSelect={handleClientSelect} error={errors.client_id} disabled={isEdit} />
+              </Field>
+            )}
+
+            {existingMatch && (
+              <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                <p><strong>{existingMatch.name}</strong> already has this number, so they aren't a new client.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    set('client_type', CLIENT_TYPE_REPEAT);
+                    handleClientSelect(existingMatch);
+                  }}
+                  className="mt-2 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-medium"
+                >
+                  Log it against {existingMatch.name}
+                </button>
+              </div>
+            )}
 
             {duplicateToday && (
               <div className="flex gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
@@ -237,21 +298,6 @@ const LogActivity = () => {
               <Field label="Outcome" error={errors.outcome}>{select('outcome', 'outcome')}</Field>
               <Field label="Contact method" error={errors.contact_method}>{select('contact_method', 'contact_method')}</Field>
             </div>
-
-            <Field label="Client type" error={errors.client_type}>
-              <div className="grid grid-cols-2 gap-2">
-                {labels('client_type').map((l) => (
-                  <button
-                    key={l}
-                    type="button"
-                    onClick={() => set('client_type', l)}
-                    className={`py-2.5 rounded-xl border text-sm font-medium ${form.client_type === l ? 'bg-red-600 border-red-600 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
-            </Field>
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Contact person" error={errors.contact_person}>

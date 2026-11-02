@@ -296,14 +296,16 @@ const Dashboard = () => {
 const LogActivityCta = () => {
   const navigate = useNavigate();
   return (
-    <div className="relative mb-5 md:mb-8">
-      <span className="absolute inset-0 rounded-2xl bg-red-500/40 animate-ping motion-reduce:animate-none" aria-hidden="true" />
-      <button
-        onClick={() => navigate('/sales-activity/new')}
-        className="relative w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-red-600 text-white text-lg font-bold shadow-lg hover:bg-red-700 active:scale-[0.98] transition"
-      >
-        <PhoneCall className="h-6 w-6" /> Log activity
-      </button>
+    <div className="mb-5 md:mb-6 flex md:justify-start">
+      <div className="relative w-full md:w-auto">
+        <span className="absolute inset-0 rounded-xl bg-red-500/40 animate-ping motion-reduce:animate-none" aria-hidden="true" />
+        <button
+          onClick={() => navigate('/sales-activity/new')}
+          className="relative w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-red-600 text-white text-base font-bold shadow-md hover:bg-red-700 active:scale-[0.98] transition"
+        >
+          <PhoneCall className="h-5 w-5" /> Log activity
+        </button>
+      </div>
     </div>
   );
 };
