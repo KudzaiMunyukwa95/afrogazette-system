@@ -7,7 +7,8 @@ import SalesTargetBar from '../components/SalesTargetBar';
 import { salesActivityAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
-import { STATUS_STYLES, OUTCOME_STYLES, formatDate } from '../utils/salesActivity';
+import TeamActivity from './TeamActivity';
+import { STATUS_STYLES, OUTCOME_STYLES, formatDate, dailyExpectedNow } from '../utils/salesActivity';
 import { Plus, Pencil, PhoneCall, CalendarClock, Loader2 } from 'lucide-react';
 
 const Badge = ({ text, styles }) => (
@@ -16,14 +17,7 @@ const Badge = ({ text, styles }) => (
   </span>
 );
 
-// Daily pace: the day's contacts are expected to build up between 8:00 and
-// 17:00, so the marker on the bar (and the amber warning) follows the clock.
-const dailyExpectedNow = (target) => {
-  const hour = new Date().getHours() + new Date().getMinutes() / 60;
-  return Math.round(target * Math.min(1, Math.max(0, (hour - 8) / 9)));
-};
-
-const SalesActivity = () => {
+const RepSalesActivity = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
@@ -205,6 +199,12 @@ const SalesActivity = () => {
       </div>
     </Layout>
   );
+};
+
+// Admins are the managers: they get the live team view instead of a personal log.
+const SalesActivity = () => {
+  const { user } = useAuth();
+  return user?.role === 'admin' ? <TeamActivity /> : <RepSalesActivity />;
 };
 
 export default SalesActivity;

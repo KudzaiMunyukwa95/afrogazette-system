@@ -29,6 +29,7 @@ router.post('/prospects', controller.createProspect);
 
 // Manager dashboard (admin)
 router.get('/summary', isAdmin, controller.getSummary);
+router.get('/export', isAdmin, controller.exportActivities);
 
 // Activities
 router.get('/', controller.getActivities);

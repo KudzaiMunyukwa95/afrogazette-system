@@ -17,7 +17,8 @@ const ACTIVITY_COLUMNS = `
   a.contact_method, a.product_pitched, a.client_type, a.outcome,
   a.quoted_amount_usd::float8 AS quoted_amount_usd, a.feedback_notes,
   a.main_objection, a.next_action, a.follow_up_date::text AS follow_up_date,
-  a.is_withdrawn, a.created_at, a.updated_at`;
+  a.is_withdrawn, a.created_at, a.updated_at,
+  EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - a.created_at))::int AS seconds_ago`;
 
 // "Latest" = the rep's most recent row for that client. Older rows' follow-ups
 // have been acted on by the later contact, so they are Superseded, not Overdue.
@@ -423,15 +424,8 @@ const createProspect = async (req, res) => {
 
 // ---------------------------------------------------------------- list / detail
 
-const getActivities = async (req, res) => {
-  try {
-    const today = todayInHarare();
-    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-    const limit = Math.min(parseInt(req.query.limit, 10) || 30, 100);
-    const repId = resolveRepId(req);
-
-    const result = await pool.query(
-      `${RANKED_CTE}
+// Shared by the list and the CSV export so both always apply the same filters.
+const FILTERED_ACTIVITIES_SQL = `${RANKED_CTE}
        SELECT ${ACTIVITY_COLUMNS}, c.name AS client_name, c.company, u.full_name AS rep_name,
               a.is_latest, COUNT(*) OVER ()::int AS total_count
        FROM ranked a
@@ -446,18 +440,29 @@ const getActivities = async (req, res) => {
          AND ($7::boolean IS NOT TRUE OR
               (a.is_latest AND a.outcome NOT IN ($8, $9) AND a.follow_up_date < $10))
        ORDER BY a.activity_date DESC, a.id DESC
-       LIMIT $11 OFFSET $12`,
-      [
-        repId,
-        isDateString(req.query.from) ? req.query.from : null,
-        isDateString(req.query.to) ? req.query.to : null,
-        req.query.outcome || null,
-        req.query.lineOfBusiness || null,
-        parseInt(req.query.clientId, 10) || null,
-        req.query.overdueOnly === '1',
-        OUTCOME.WON, OUTCOME.LOST, today,
-        limit, (page - 1) * limit
-      ]
+       LIMIT $11 OFFSET $12`;
+
+const filterParams = (req, today, limit, offset) => [
+  resolveRepId(req),
+  isDateString(req.query.from) ? req.query.from : null,
+  isDateString(req.query.to) ? req.query.to : null,
+  req.query.outcome || null,
+  req.query.lineOfBusiness || null,
+  parseInt(req.query.clientId, 10) || null,
+  req.query.overdueOnly === '1',
+  OUTCOME.WON, OUTCOME.LOST, today,
+  limit, offset
+];
+
+const getActivities = async (req, res) => {
+  try {
+    const today = todayInHarare();
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 30, 100);
+
+    const result = await pool.query(
+      FILTERED_ACTIVITIES_SQL,
+      filterParams(req, today, limit, (page - 1) * limit)
     );
 
     const total = result.rows[0]?.total_count || 0;
@@ -470,6 +475,51 @@ const getActivities = async (req, res) => {
     });
   } catch (error) {
     serverError(res, 'Fetching activities', error);
+  }
+};
+
+// Spreadsheet apps run text that starts with = + - @ as a formula, and reps
+// type these cells, so neutralise them. Phones are normalised by the server
+// (they start with +), so they are trusted. Then standard CSV quoting.
+const csvCell = (value, { trusted = false } = {}) => {
+  if (value === null || value === undefined) return '';
+  let text = String(value);
+  if (!trusted && /^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+const EXPORT_COLUMNS = [
+  ['Date', 'activity_date'], ['Rep', 'rep_name'], ['Client', 'client_name'],
+  ['Contact person', 'contact_person'], ['Title', 'contact_title'],
+  ['Industry', 'line_of_business'], ['Phone', 'phone'], ['Email', 'email'],
+  ['Contact method', 'contact_method'], ['Product pitched', 'product_pitched'],
+  ['Client type', 'client_type'], ['Outcome', 'outcome'],
+  ['Quoted amount (USD)', 'quoted_amount_usd'], ['Feedback', 'feedback_notes'],
+  ['Main objection', 'main_objection'], ['Next action', 'next_action'],
+  ['Follow-up date', 'follow_up_date'], ['Follow-up status', 'follow_up_status']
+];
+
+const EXPORT_ROW_LIMIT = 10000;
+
+const exportActivities = async (req, res) => {
+  try {
+    const today = todayInHarare();
+    const result = await pool.query(FILTERED_ACTIVITIES_SQL, filterParams(req, today, EXPORT_ROW_LIMIT, 0));
+    const rows = result.rows.map((r) => decorate(r, today));
+
+    const lines = [EXPORT_COLUMNS.map(([header]) => csvCell(header)).join(',')];
+    for (const row of rows) {
+      lines.push(EXPORT_COLUMNS.map(([, key]) => csvCell(row[key], { trusted: key === 'phone' })).join(','));
+    }
+
+    const from = isDateString(req.query.from) ? req.query.from : 'all';
+    const to = isDateString(req.query.to) ? req.query.to : today;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="sales-activity_${from}_to_${to}.csv"`);
+    // BOM so Excel reads the file as UTF-8.
+    res.send('\uFEFF' + lines.join('\r\n'));
+  } catch (error) {
+    serverError(res, 'Exporting activities', error);
   }
 };
 
@@ -750,7 +800,7 @@ const getSummary = async (req, res) => {
     const repFilter = parseInt(req.query.repId, 10) || null;
 
     const config = await loadTargetConfig();
-    const [repsRes, periodRes, latestRes, todayRes] = await Promise.all([
+    const [repsRes, periodRes, latestRes, todayRes, lastRes] = await Promise.all([
       pool.query(
         `SELECT id, full_name FROM users
          WHERE role = 'sales_rep' OR id IN (SELECT rep_user_id FROM sales_activities)
@@ -775,10 +825,16 @@ const getSummary = async (req, res) => {
         `SELECT rep_user_id, COUNT(*)::int AS count FROM sales_activities
          WHERE NOT is_withdrawn AND activity_date = $1 GROUP BY rep_user_id`,
         [today]
+      ),
+      pool.query(
+        `SELECT rep_user_id,
+                EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - MAX(created_at)))::int AS seconds_ago
+         FROM sales_activities WHERE NOT is_withdrawn GROUP BY rep_user_id`
       )
     ]);
 
     const loggedTodayByRep = new Map(todayRes.rows.map((r) => [r.rep_user_id, r.count]));
+    const lastLoggedByRep = new Map(lastRes.rows.map((r) => [r.rep_user_id, r.seconds_ago]));
     const workdays = countWorkingDays(from, to, config.workingDays);
     const reps = repsRes.rows.filter((r) => !repFilter || r.id === repFilter);
 
@@ -796,6 +852,7 @@ const getSummary = async (req, res) => {
         hitTarget: periodTarget > 0 && stats.contactsLogged >= periodTarget,
         percentOfTarget: periodTarget > 0 ? Math.round((stats.contactsLogged / periodTarget) * 100) : null,
         loggedToday: loggedTodayByRep.get(rep.id) || 0,
+        lastLoggedSecondsAgo: lastLoggedByRep.has(rep.id) ? lastLoggedByRep.get(rep.id) : null,
         ...stats
       };
     });
@@ -840,6 +897,6 @@ module.exports = {
   getOptions, createOption, updateOption,
   getSettings, updateSettings, setRepTarget,
   getProgress, getTodayFollowUps, getClientContext, createProspect,
-  getActivities, getActivityById, createActivity, updateActivity, withdrawActivity,
+  getActivities, exportActivities, getActivityById, createActivity, updateActivity, withdrawActivity,
   getSummary
 };

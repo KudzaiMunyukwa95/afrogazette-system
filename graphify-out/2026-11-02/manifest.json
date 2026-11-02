@@ -1,0 +1,680 @@
+{
+  "backend/package.json": {
+    "mtime": 1793622266.2100887,
+    "seen": 1793633496.547657,
+    "ast_hash": "db25f1e59fcb889b2eb3c10370aa66b3",
+    "semantic_hash": ""
+  },
+  "backend/src/config/adPolicy.js": {
+    "mtime": 1786372956.4801538,
+    "seen": 1793633496.547661,
+    "ast_hash": "13832d73d678bd40df4e0339274d793c",
+    "semantic_hash": ""
+  },
+  "backend/src/config/company.js": {
+    "mtime": 1788766242.4830382,
+    "seen": 1793633496.5476632,
+    "ast_hash": "58f1c890a2a5c6263b0f16d020491ce2",
+    "semantic_hash": ""
+  },
+  "backend/src/config/database.js": {
+    "mtime": 1786361983.9273775,
+    "seen": 1793633496.547664,
+    "ast_hash": "0f7ac25fa2cdb8f716f75e5baa8fc5f9",
+    "semantic_hash": ""
+  },
+  "backend/src/config/migrate.js": {
+    "mtime": 1786361983.9275756,
+    "seen": 1793633496.5476649,
+    "ast_hash": "f64dbce603ba3215343e5f2286655708",
+    "semantic_hash": ""
+  },
+  "backend/src/config/ratePolicy.js": {
+    "mtime": 1786885487.23389,
+    "seen": 1793633496.5476658,
+    "ast_hash": "49e414e9468e3d7d2c83423455fde9a7",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/activityController.js": {
+    "mtime": 1788097831.2124395,
+    "seen": 1793633496.5476658,
+    "ast_hash": "3792ac503fa8fa84e825b91352ca4070",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/advertController.js": {
+    "mtime": 1793623046.0463457,
+    "seen": 1793633496.547667,
+    "ast_hash": "ddd298544ff3ae98c13560af0e7dfd5a",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/analyticsController.js": {
+    "mtime": 1788245213.093302,
+    "seen": 1793633496.547668,
+    "ast_hash": "dace7a1f688ba75bde903eedbb6caca2",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/authController.js": {
+    "mtime": 1786361983.9284403,
+    "seen": 1793633496.547669,
+    "ast_hash": "7c856b7d205173d84c6086453f1f2816",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/clientController.js": {
+    "mtime": 1793623046.0469673,
+    "seen": 1793633496.547669,
+    "ast_hash": "cc76583d7934da977b7a4cd355eff9b7",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/expenseController.js": {
+    "mtime": 1786532564.0106447,
+    "seen": 1793633496.5476701,
+    "ast_hash": "f10c5e2ef66fc274114710c6410f598f",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/financeController.js": {
+    "mtime": 1788789497.514298,
+    "seen": 1793633496.547671,
+    "ast_hash": "c9d000ab7d6f41bc7c4b7cb33916344f",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/financePDFController.js": {
+    "mtime": 1788789521.246709,
+    "seen": 1793633496.547672,
+    "ast_hash": "bc70dca7ffb4dd04a79b1e185669467c",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/invoiceController.js": {
+    "mtime": 1788676938.642508,
+    "seen": 1793633496.547673,
+    "ast_hash": "319389f3143270e0f0eff039eec50fb1",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/notificationController.js": {
+    "mtime": 1786535437.844719,
+    "seen": 1793633496.5476742,
+    "ast_hash": "ddc4323114e7aa5191a23fbca7f49d5f",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/quotationController.js": {
+    "mtime": 1788766269.0117352,
+    "seen": 1793633496.5476742,
+    "ast_hash": "39c35e269352e9a19bc882cd480619f7",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/reportsController.js": {
+    "mtime": 1786423242.1235926,
+    "seen": 1793633496.547675,
+    "ast_hash": "7f74a40fe52798bf87a36d29381654c4",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/salesActivityController.js": {
+    "mtime": 1793633434.1044123,
+    "seen": 1793633496.547675,
+    "ast_hash": "81c161bd6ea62514d3fc6a4caae446e7",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/slotController.js": {
+    "mtime": 1787025833.370623,
+    "seen": 1793633496.5476758,
+    "ast_hash": "3f60d78111ffddb9ab6deccb134d19b0",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/targetController.js": {
+    "mtime": 1788243977.2405324,
+    "seen": 1793633496.547677,
+    "ast_hash": "af2c02056f59309786b0d79970310fb4",
+    "semantic_hash": ""
+  },
+  "backend/src/controllers/userController.js": {
+    "mtime": 1786361983.929904,
+    "seen": 1793633496.547677,
+    "ast_hash": "c7edb0664ce72bb05e07c1b5a5c51c6d",
+    "semantic_hash": ""
+  },
+  "backend/src/middleware/auth.js": {
+    "mtime": 1786361983.930128,
+    "seen": 1793633496.547678,
+    "ast_hash": "e1654a40dcc56e1e753ace1576e362f2",
+    "semantic_hash": ""
+  },
+  "backend/src/middleware/validate.js": {
+    "mtime": 1786361983.9302416,
+    "seen": 1793633496.547679,
+    "ast_hash": "1835308e9123c1ec2a555749eb8887f7",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/activityRoutes.js": {
+    "mtime": 1786536168.2791655,
+    "seen": 1793633496.547679,
+    "ast_hash": "667e42f4d74a5c00bdf5d993c6c72f50",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/advertRoutes.js": {
+    "mtime": 1788097775.8130615,
+    "seen": 1793633496.54768,
+    "ast_hash": "1be5c7ea67e1837fc8788315df09e24e",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/analyticsRoutes.js": {
+    "mtime": 1786361983.9306483,
+    "seen": 1793633496.547681,
+    "ast_hash": "4711cca21f4b440b94b38e71b7cbb1f4",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/authRoutes.js": {
+    "mtime": 1786361983.930776,
+    "seen": 1793633496.547681,
+    "ast_hash": "70c36fbd170899fc0b4f2899fc3eb80c",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/clientRoutes.js": {
+    "mtime": 1788078189.7829673,
+    "seen": 1793633496.547682,
+    "ast_hash": "d2a8216574c6705287cb71389b892914",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/financeRoutes.js": {
+    "mtime": 1786361983.9311237,
+    "seen": 1793633496.547683,
+    "ast_hash": "e6480cebebe448b3f508b8decc0392d4",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/invoiceRoutes.js": {
+    "mtime": 1788176969.524737,
+    "seen": 1793633496.547683,
+    "ast_hash": "73be5e6e30c2020c5db52ea91e8b4181",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/notificationRoutes.js": {
+    "mtime": 1786361983.9314966,
+    "seen": 1793633496.5476842,
+    "ast_hash": "3fa5605e25da02977246454b419434a4",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/quotationRoutes.js": {
+    "mtime": 1788507213.7354927,
+    "seen": 1793633496.5476851,
+    "ast_hash": "94092e75c7ab092363b1396f875ec35a",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/rateRoutes.js": {
+    "mtime": 1786417773.8118422,
+    "seen": 1793633496.5476851,
+    "ast_hash": "492529d872afb7cf00e6053c70c0265d",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/reportsRoutes.js": {
+    "mtime": 1786423251.3999646,
+    "seen": 1793633496.5476859,
+    "ast_hash": "b2256e7199915854ee3d2e356bb30d2e",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/salesActivityRoutes.js": {
+    "mtime": 1793622223.0397081,
+    "seen": 1793633496.5476868,
+    "ast_hash": "1a8786627c4a8da713dd11629f4009b2",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/slotRoutes.js": {
+    "mtime": 1786361983.9315777,
+    "seen": 1793633496.5476868,
+    "ast_hash": "5630117de86f36c54d6887171105bae1",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/targetRoutes.js": {
+    "mtime": 1786417767.369017,
+    "seen": 1793633496.547688,
+    "ast_hash": "754c3899b4b0709eded710e3861260b4",
+    "semantic_hash": ""
+  },
+  "backend/src/routes/userRoutes.js": {
+    "mtime": 1786361983.9316638,
+    "seen": 1793633496.547688,
+    "ast_hash": "c3c50f0823319b98247b669f7bb72db8",
+    "semantic_hash": ""
+  },
+  "backend/src/server.js": {
+    "mtime": 1793622223.0699644,
+    "seen": 1793633496.547689,
+    "ast_hash": "c143ed52e27e74791266935981429ea4",
+    "semantic_hash": ""
+  },
+  "backend/src/services/aiVettingService.js": {
+    "mtime": 1786365378.7936022,
+    "seen": 1793633496.54769,
+    "ast_hash": "01fe94cf1f030f6b83a11faf6aad605b",
+    "semantic_hash": ""
+  },
+  "backend/src/services/cronService.js": {
+    "mtime": 1786361983.932012,
+    "seen": 1793633496.54769,
+    "ast_hash": "be86d168759e0f78213f6008240d839e",
+    "semantic_hash": ""
+  },
+  "backend/src/services/schedulingService.js": {
+    "mtime": 1786361983.9322968,
+    "seen": 1793633496.547691,
+    "ast_hash": "a60b4d7ada78614275bdedfda88dc645",
+    "semantic_hash": ""
+  },
+  "backend/src/utils/pdfLogo.js": {
+    "mtime": 1786534187.304704,
+    "seen": 1793633496.547692,
+    "ast_hash": "d5dd263d02b00cafed8cbcb02722831e",
+    "semantic_hash": ""
+  },
+  "backend/src/utils/phone.js": {
+    "mtime": 1793622095.0743835,
+    "seen": 1793633496.547693,
+    "ast_hash": "17399f4612fcb4a28adf385567af8c3d",
+    "semantic_hash": ""
+  },
+  "backend/src/utils/salesActivityRules.js": {
+    "mtime": 1793624972.9147215,
+    "seen": 1793633496.547693,
+    "ast_hash": "dd785d2c450f08d5c3d90e4e32fdcc9c",
+    "semantic_hash": ""
+  },
+  "backend/src/utils/similarity.js": {
+    "mtime": 1788117034.9798276,
+    "seen": 1793633496.547694,
+    "ast_hash": "447c06510e7bb225525657214dbdd93f",
+    "semantic_hash": ""
+  },
+  "backend/test/salesActivityRules.test.js": {
+    "mtime": 1793624972.9160008,
+    "seen": 1793633496.5476952,
+    "ast_hash": "e910746144b81ccf0bc1a91991f5ac30",
+    "semantic_hash": ""
+  },
+  "frontend/package.json": {
+    "mtime": 1788418249.7351472,
+    "seen": 1793633496.5476952,
+    "ast_hash": "b1dd1d57bdc85b0c8b7a3a1b2871ae3b",
+    "semantic_hash": ""
+  },
+  "frontend/postcss.config.js": {
+    "mtime": 1786361983.9331717,
+    "seen": 1793633496.547696,
+    "ast_hash": "ef3ba2a81ba19f8ea5ddf625521e96f0",
+    "semantic_hash": ""
+  },
+  "frontend/scripts/write-build-id.js": {
+    "mtime": 1788418244.9189796,
+    "seen": 1793633496.5476968,
+    "ast_hash": "d361e398d8152c8b5fae3d723991bb14",
+    "semantic_hash": ""
+  },
+  "frontend/src/App.jsx": {
+    "mtime": 1793623160.24667,
+    "seen": 1793633496.5476968,
+    "ast_hash": "e844aa62bfcf2fca4b8bb416d9fba621",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/ClientAutocomplete.jsx": {
+    "mtime": 1788097905.7773764,
+    "seen": 1793633496.547698,
+    "ast_hash": "15e829611eb4fc22bff8896cdf5799a9",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/ConfirmModal.jsx": {
+    "mtime": 1786361983.9347794,
+    "seen": 1793633496.547699,
+    "ast_hash": "a651997331b4067645f22df5f5f563d4",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/FinanceNav.jsx": {
+    "mtime": 1786361983.9349456,
+    "seen": 1793633496.5477,
+    "ast_hash": "0418a340e030525e4cfc8d4f559ba326",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/Layout.jsx": {
+    "mtime": 1793623168.2993581,
+    "seen": 1793633496.5477,
+    "ast_hash": "a8e17c208f2ffbcbb5e64d5203c03d58",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/NotificationBell.jsx": {
+    "mtime": 1786361983.9353073,
+    "seen": 1793633496.547701,
+    "ast_hash": "c9148beba923a1573b289a8339b4eeda",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/Pagination.jsx": {
+    "mtime": 1786361983.9354863,
+    "seen": 1793633496.547702,
+    "ast_hash": "2fed46041ad0003638c0968f9a6074e1",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/PrivateRoute.jsx": {
+    "mtime": 1786361983.9355881,
+    "seen": 1793633496.547704,
+    "ast_hash": "98c226fbb402633bb1600c041966f359",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/Toast.jsx": {
+    "mtime": 1786361983.9357994,
+    "seen": 1793633496.5477061,
+    "ast_hash": "8178145135f14c0fd561e516e6573742",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/UpdateAvailableBanner.jsx": {
+    "mtime": 1788418294.1314695,
+    "seen": 1793633496.5477068,
+    "ast_hash": "8e4566ef8ee3b94ecb735cc4b7af869f",
+    "semantic_hash": ""
+  },
+  "frontend/src/context/AuthContext.jsx": {
+    "mtime": 1786361983.9359925,
+    "seen": 1793633496.5477068,
+    "ast_hash": "cb433fd1625c4285fe43191f65c4a98b",
+    "semantic_hash": ""
+  },
+  "frontend/src/context/NotificationContext.jsx": {
+    "mtime": 1786361983.9361165,
+    "seen": 1793633496.5477078,
+    "ast_hash": "0b707f8d8c2c93b5a19497855b9aa7fc",
+    "semantic_hash": ""
+  },
+  "frontend/src/main.jsx": {
+    "mtime": 1786361983.9363928,
+    "seen": 1793633496.547709,
+    "ast_hash": "6860e7b41c1b1d407213bac9fc51721e",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/ActivityLog.jsx": {
+    "mtime": 1788097867.3951535,
+    "seen": 1793633496.547709,
+    "ast_hash": "91eaa6380b4f40a6d4876c36d30a3831",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/AdvertTools.jsx": {
+    "mtime": 1786373410.6493964,
+    "seen": 1793633496.54771,
+    "ast_hash": "515c50b1d0c21abbed4ed0ed28a69ec4",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/AllAdverts.jsx": {
+    "mtime": 1788789584.458357,
+    "seen": 1793633496.547711,
+    "ast_hash": "450753f31b698160d2ce796612cfc6ec",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/Analytics.jsx": {
+    "mtime": 1788244372.074376,
+    "seen": 1793633496.547711,
+    "ast_hash": "20901b652f4d62f1e33ad32de7bf6938",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/ClientManagement.jsx": {
+    "mtime": 1788078250.441035,
+    "seen": 1793633496.547712,
+    "ast_hash": "ee10729c4f14a997e5a002988ea8bfdb",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/CreateAdvert.jsx": {
+    "mtime": 1788184823.599783,
+    "seen": 1793633496.547713,
+    "ast_hash": "f9e755467b2782fa0439bacceb9221f4",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/CreateQuotation.jsx": {
+    "mtime": 1788676887.2294905,
+    "seen": 1793633496.547713,
+    "ast_hash": "47645120b4ae3c68d9dd25bd4c8a77f5",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/Dashboard.jsx": {
+    "mtime": 1793624995.3875918,
+    "seen": 1793633496.547714,
+    "ast_hash": "dc904f745b00aff526b2fba334cd9673",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/DuplicateClients.jsx": {
+    "mtime": 1788175097.815167,
+    "seen": 1793633496.547714,
+    "ast_hash": "2ba0997c2092420a9f199e874e3eba26",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/Expenses.jsx": {
+    "mtime": 1786361983.9372137,
+    "seen": 1793633496.5477152,
+    "ast_hash": "9e3d1e652a9d0083c0b7e3fa25f5e8e0",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/FinanceOverview.jsx": {
+    "mtime": 1786361983.937342,
+    "seen": 1793633496.5477161,
+    "ast_hash": "b76bc081a9f41fa48124b79a4e236d63",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/FinancialReports.jsx": {
+    "mtime": 1786361983.937444,
+    "seen": 1793633496.5477161,
+    "ast_hash": "fe95d6d9f11bdf48a89b6db9b17d7a06",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/FreeClients.jsx": {
+    "mtime": 1788074608.0026653,
+    "seen": 1793633496.547717,
+    "ast_hash": "9aa0291fed6e5c063e068eb19768dda0",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/Login.jsx": {
+    "mtime": 1786361983.9376295,
+    "seen": 1793633496.5477178,
+    "ast_hash": "96ffdd785f45a23c300ddd3b0ed93b5e",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/MyAdverts.jsx": {
+    "mtime": 1786361983.9377484,
+    "seen": 1793633496.547719,
+    "ast_hash": "7a59b3542f6c206f4316971c12f07daf",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/MyClients.jsx": {
+    "mtime": 1788117206.4501047,
+    "seen": 1793633496.54772,
+    "ast_hash": "4ab3c2c1877a275588af58d1fbc02052",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/MyInvoices.jsx": {
+    "mtime": 1786361983.938036,
+    "seen": 1793633496.54772,
+    "ast_hash": "e3ae7b6dd696bea4285aeae1b9206caf",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/MyRequisitions.jsx": {
+    "mtime": 1786361983.9381444,
+    "seen": 1793633496.547721,
+    "ast_hash": "79c338538e4d0dbd2f73d7d33f7857ae",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/PendingApprovals.jsx": {
+    "mtime": 1787987550.8617613,
+    "seen": 1793633496.547722,
+    "ast_hash": "f77db77cd1333f824b362e5834351f98",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/Profile.jsx": {
+    "mtime": 1786361983.938448,
+    "seen": 1793633496.547723,
+    "ast_hash": "c5f045f7522341c06fbc363eb6fe91fa",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/Requisitions.jsx": {
+    "mtime": 1786532632.1758482,
+    "seen": 1793633496.547723,
+    "ast_hash": "27ecab6654057cf031ac2383afc93794",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/SalesCalendar.jsx": {
+    "mtime": 1786361983.9387238,
+    "seen": 1793633496.547725,
+    "ast_hash": "c39f1ab419a1b8a0e7da4ecec045a224",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/SalesKit.jsx": {
+    "mtime": 1786420420.5354888,
+    "seen": 1793633496.547725,
+    "ast_hash": "68276b3167244f046fc665ddf0d509e6",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/Schedule.jsx": {
+    "mtime": 1787025870.511905,
+    "seen": 1793633496.5477262,
+    "ast_hash": "6b9a54c4a41d6ba6db11f0cce4dc8935",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/Targets.jsx": {
+    "mtime": 1788244255.5837991,
+    "seen": 1793633496.547727,
+    "ast_hash": "ba18870e97b239deafd54ec072633921",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/Users.jsx": {
+    "mtime": 1786361983.9390087,
+    "seen": 1793633496.5477278,
+    "ast_hash": "c3e970375c588ee8c84675eee267892d",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/VerifyInvoice.jsx": {
+    "mtime": 1788176996.1553733,
+    "seen": 1793633496.5477288,
+    "ast_hash": "aee47aa575b582f6cc26cca55af78808",
+    "semantic_hash": ""
+  },
+  "frontend/src/services/api.js": {
+    "mtime": 1793633434.1048903,
+    "seen": 1793633496.5477288,
+    "ast_hash": "4e02556cffe8fdb3e99bb735b372e853",
+    "semantic_hash": ""
+  },
+  "frontend/src/utils/whatsappFormat.js": {
+    "mtime": 1786372970.2530525,
+    "seen": 1793633496.547731,
+    "ast_hash": "37ab1bcfd09a05939dd41b12bde77d29",
+    "semantic_hash": ""
+  },
+  "frontend/tailwind.config.js": {
+    "mtime": 1786361983.9393835,
+    "seen": 1793633496.5477319,
+    "ast_hash": "a76d468c341afc2de7cad0bc67104f6c",
+    "semantic_hash": ""
+  },
+  "frontend/vite.config.js": {
+    "mtime": 1786361983.939486,
+    "seen": 1793633496.5477319,
+    "ast_hash": "2b74c4bc9be1d03c64d5529f805b00da",
+    "semantic_hash": ""
+  },
+  "jobs/expiringAdvertsJob.js": {
+    "mtime": 1786361983.939666,
+    "seen": 1793633496.547733,
+    "ast_hash": "36d0ae674bdf98f48514a01a406dfdc1",
+    "semantic_hash": ""
+  },
+  "API_TESTING.md": {
+    "mtime": 1786361983.9244027,
+    "seen": 1793633496.547734,
+    "ast_hash": "1808939da19bb622bb9cc60acd311d68",
+    "semantic_hash": ""
+  },
+  "DEPLOYMENT.md": {
+    "mtime": 1786361983.9245887,
+    "seen": 1793633496.547735,
+    "ast_hash": "adb94f8c4a7d8c88a7bfe9d90763a86e",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1793622964.9520998,
+    "seen": 1793633496.547735,
+    "ast_hash": "2a7ec64644a6ebfba1e696eb67fb351d",
+    "semantic_hash": ""
+  },
+  "frontend/index.html": {
+    "mtime": 1786374306.5829663,
+    "seen": 1793633496.5477362,
+    "ast_hash": "490088c93c6ac609455dce103f7c8c30",
+    "semantic_hash": ""
+  },
+  "AfroGazette_Financial_Report_2026-03-01_2026-07-31.pdf": {
+    "mtime": 1786408532.0355,
+    "seen": 1793633496.5477371,
+    "ast_hash": "adfee5967fa4cfb0c0ce8b51ac42a42d",
+    "semantic_hash": ""
+  },
+  "AfroGazette_Financial_Report_2026-07-01_2026-07-31.pdf": {
+    "mtime": 1786408503.70869,
+    "seen": 1793633496.5477371,
+    "ast_hash": "a3f6731921cf158bf39bf1795ed01bb1",
+    "semantic_hash": ""
+  },
+  "backend/src/assets/logo.png": {
+    "mtime": 1786361983.9265366,
+    "seen": 1793633496.547738,
+    "ast_hash": "767fa65b837a62db798dba8aee0ee42b",
+    "semantic_hash": ""
+  },
+  "backend/src/assets/logo.svg": {
+    "mtime": 1786361983.9268866,
+    "seen": 1793633496.5477388,
+    "ast_hash": "98deb90e08a0664f97a350e32b205738",
+    "semantic_hash": ""
+  },
+  "frontend/public/logo.png": {
+    "mtime": 1786361983.9335814,
+    "seen": 1793633496.5477388,
+    "ast_hash": "767fa65b837a62db798dba8aee0ee42b",
+    "semantic_hash": ""
+  },
+  "frontend/public/logo.svg": {
+    "mtime": 1786361983.9338605,
+    "seen": 1793633496.54774,
+    "ast_hash": "98deb90e08a0664f97a350e32b205738",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/PhoneActions.jsx": {
+    "mtime": 1793623078.0806658,
+    "seen": 1793633496.547703,
+    "ast_hash": "9adcde6f853ba12df0d0f64ef8e196fb",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/SalesClientPicker.jsx": {
+    "mtime": 1793623095.829172,
+    "seen": 1793633496.5477052,
+    "ast_hash": "bd84b020b0fb55accdcd9729b8ed5aa5",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/SalesTargetBar.jsx": {
+    "mtime": 1793623078.0759628,
+    "seen": 1793633496.5477052,
+    "ast_hash": "42741af86a1f145e3849dddb0e80214f",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/LogActivity.jsx": {
+    "mtime": 1793625066.528106,
+    "seen": 1793633496.5477178,
+    "ast_hash": "7d1d71acec289dbe9d99539e5456ad3e",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/SalesActivity.jsx": {
+    "mtime": 1793633434.1059973,
+    "seen": 1793633496.547724,
+    "ast_hash": "6fc599ab5c0dff9848dd2450153b95a6",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/TeamActivity.jsx": {
+    "mtime": 1793633465.7210464,
+    "seen": 1793633496.547727,
+    "ast_hash": "819a347b40c2c73fb9fffedc677c346c",
+    "semantic_hash": ""
+  },
+  "frontend/src/utils/salesActivity.js": {
+    "mtime": 1793633434.1055288,
+    "seen": 1793633496.54773,
+    "ast_hash": "bf1bac0422eb884e25f423166e61f092",
+    "semantic_hash": ""
+  }
+}

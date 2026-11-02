@@ -59,3 +59,28 @@ export const OUTCOME_STYLES = {
   'Closed - Won': 'bg-emerald-100 text-emerald-700',
   'Closed - Lost': 'bg-red-100 text-red-700'
 };
+
+// Daily pace: the day's contacts are expected to build up between 8:00 and
+// 17:00, so the pace marker (and the amber warning) follows the clock.
+export const dailyExpectedNow = (target) => {
+  const now = new Date();
+  const hour = now.getHours() + now.getMinutes() / 60;
+  return Math.round(target * Math.min(1, Math.max(0, (hour - 8) / 9)));
+};
+
+export const timeAgo = (seconds) => {
+  if (seconds == null) return 'never';
+  if (seconds < 60) return 'just now';
+  const m = Math.floor(seconds / 60);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} hr ago`;
+  const d = Math.floor(h / 24);
+  return `${d} day${d === 1 ? '' : 's'} ago`;
+};
+
+// Wall-clock time (Harare) of something that happened `seconds` ago.
+export const clockTimeAgo = (seconds) =>
+  new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Harare', hour: '2-digit', minute: '2-digit'
+  }).format(new Date(Date.now() - seconds * 1000));
