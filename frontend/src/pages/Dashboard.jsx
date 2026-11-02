@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, TrendingDown, Users, DollarSign, FileText,
-  Clock, CheckCircle, AlertTriangle, Calendar, Target, Sparkles, UserX, ChevronRight
+  Clock, CheckCircle, AlertTriangle, Calendar, Target, Sparkles, UserX, ChevronRight, PhoneCall
 } from 'lucide-react';
 
 const COLORS = ['#E63946', '#457B9D', '#F1FAEE', '#A8DADC', '#1D3557'];
@@ -276,14 +276,35 @@ const Dashboard = () => {
               freeClients={freeClients} freeClientsLoading={freeClientsLoading}
             />
           ) : (
-            <SalesRepDashboard
-              data={data} timeFilter={timeFilter} targetData={targetData} targetLoading={targetLoading}
-              freeClients={freeClients} freeClientsLoading={freeClientsLoading}
-            />
+            <>
+              <LogActivityCta />
+              <SalesRepDashboard
+                data={data} timeFilter={timeFilter} targetData={targetData} targetLoading={targetLoading}
+                freeClients={freeClients} freeClientsLoading={freeClientsLoading}
+              />
+            </>
           )}
         </div>
       </div>
     </Layout>
+  );
+};
+
+// Logging contacts is the rep's daily routine (10 a day), so the way in is
+// the most prominent thing on their dashboard. The ring pulses to draw the
+// eye; it stands still for anyone who has reduced motion switched on.
+const LogActivityCta = () => {
+  const navigate = useNavigate();
+  return (
+    <div className="relative mb-5 md:mb-8">
+      <span className="absolute inset-0 rounded-2xl bg-red-500/40 animate-ping motion-reduce:animate-none" aria-hidden="true" />
+      <button
+        onClick={() => navigate('/sales-activity/new')}
+        className="relative w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-red-600 text-white text-lg font-bold shadow-lg hover:bg-red-700 active:scale-[0.98] transition"
+      >
+        <PhoneCall className="h-6 w-6" /> Log activity
+      </button>
+    </div>
   );
 };
 
