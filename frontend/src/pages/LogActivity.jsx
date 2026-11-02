@@ -303,14 +303,14 @@ const LogActivity = () => {
               <Field label="Contact person" error={errors.contact_person}>
                 <input type="text" value={form.contact_person} onChange={(e) => set('contact_person', e.target.value)} className={inputClass(errors.contact_person)} />
               </Field>
-              <Field label="Position / title" error={errors.contact_title}>
+              <Field label="Position / title (optional)" error={errors.contact_title}>
                 <input type="text" value={form.contact_title} onChange={(e) => set('contact_title', e.target.value)} className={inputClass(errors.contact_title)} />
               </Field>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Phone" error={errors.phone}>
-                <input type="tel" inputMode="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="0771234567" className={inputClass(errors.phone)} />
+              <Field label="Phone *" error={errors.phone}>
+                <input type="tel" inputMode="tel" required value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="0771234567" className={inputClass(errors.phone)} />
               </Field>
               <Field label="Email (optional)" error={errors.email}>
                 <input type="email" inputMode="email" value={form.email} onChange={(e) => set('email', e.target.value)} className={inputClass(errors.email)} />
