@@ -33,6 +33,8 @@ import Targets from './pages/Targets';
 import SalesKit from './pages/SalesKit';
 import Analytics from './pages/Analytics';
 import ActivityLog from './pages/ActivityLog';
+import SalesActivity from './pages/SalesActivity';
+import LogActivity from './pages/LogActivity';
 
 function App() {
   return (
@@ -148,6 +150,33 @@ function App() {
                 element={
                   <PrivateRoute adminOnly>
                     <ActivityLog />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/sales-activity"
+                element={
+                  <PrivateRoute>
+                    <SalesActivity />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/sales-activity/new"
+                element={
+                  <PrivateRoute>
+                    <LogActivity />
+                  </PrivateRoute>
+                }
+              />
+
+              <Route
+                path="/sales-activity/:id/edit"
+                element={
+                  <PrivateRoute>
+                    <LogActivity />
                   </PrivateRoute>
                 }
               />

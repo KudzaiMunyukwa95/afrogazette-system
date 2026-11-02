@@ -30,7 +30,8 @@ import {
   History,
   GitMerge,
   UserX,
-  Receipt
+  Receipt,
+  PhoneCall
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -45,7 +46,7 @@ const Layout = ({ children }) => {
   // else, tucked behind "More" so the common case stays uncluttered.
   const getNavigation = () => {
     const currentPath = location.pathname;
-    const withCurrent = (items) => items.map(item => ({ ...item, current: currentPath === item.href }));
+    const withCurrent = (items) => items.map(item => ({ ...item, current: item.current ?? currentPath === item.href }));
 
     if (user && user.role === 'admin') {
       return {
@@ -56,6 +57,7 @@ const Layout = ({ children }) => {
           { name: 'Advert Tools', href: '/advert-tools', icon: ShieldCheck }
         ]),
         secondary: withCurrent([
+          { name: 'Sales Activity', href: '/sales-activity', icon: PhoneCall, current: currentPath.startsWith('/sales-activity') },
           { name: 'Analytics', href: '/analytics', icon: Activity },
           { name: 'Schedule', href: '/schedule', icon: Calendar },
           { name: 'Invoices', href: '/invoices', icon: FileText },
@@ -75,11 +77,12 @@ const Layout = ({ children }) => {
     return {
       primary: withCurrent([
         { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
-        { name: 'Advert Tools', href: '/advert-tools', icon: ShieldCheck },
+        { name: 'Sales Activity', href: '/sales-activity', icon: PhoneCall, current: currentPath.startsWith('/sales-activity') },
         { name: 'New Advert', href: '/create-advert', icon: Plus },
         { name: 'Adverts', href: '/my-adverts', icon: FileText }
       ]),
       secondary: withCurrent([
+        { name: 'Advert Tools', href: '/advert-tools', icon: ShieldCheck },
         { name: 'Analytics', href: '/analytics', icon: Activity },
         { name: 'Sales Kit', href: '/sales-kit', icon: MessageSquare },
         { name: 'Calendar', href: '/calendar', icon: Calendar },

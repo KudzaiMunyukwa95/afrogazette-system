@@ -201,6 +201,20 @@ export const clientAPI = {
   standardize: (data) => api.post('/clients/standardize', data)
 };
 
+// Sales activity log APIs
+export const salesActivityAPI = {
+  getOptions: () => api.get('/sales-activity/options'),
+  getProgress: (params) => api.get('/sales-activity/progress', { params }),
+  getFollowUps: (params) => api.get('/sales-activity/follow-ups', { params }),
+  getClientContext: (params) => api.get('/sales-activity/client-context', { params }),
+  createProspect: (data) => api.post('/sales-activity/prospects', data),
+  list: (params) => api.get('/sales-activity', { params }),
+  getById: (id) => api.get(`/sales-activity/${id}`),
+  create: (data) => api.post('/sales-activity', data),
+  update: (id, data) => api.put(`/sales-activity/${id}`, data),
+  withdraw: (id, reason) => api.post(`/sales-activity/${id}/withdraw`, { reason })
+};
+
 // Finance APIs
 export const financeAPI = {
   // Expenses

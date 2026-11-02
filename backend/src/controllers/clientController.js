@@ -18,7 +18,7 @@ const getClients = async (req, res) => {
         COALESCE(SUM(a.amount_paid), 0) as total_spent
       FROM clients c
       LEFT JOIN adverts a ON c.id = a.client_id
-      WHERE c.sales_rep_id = $1
+      WHERE c.sales_rep_id = $1 AND NOT c.is_prospect
     `;
 
         const params = [salesRepId];
@@ -39,7 +39,7 @@ const getClients = async (req, res) => {
         query += ` GROUP BY c.id ORDER BY c.name ASC`;
 
         // Get total count
-        const countQuery = `SELECT COUNT(*) FROM clients WHERE sales_rep_id = $1` +
+        const countQuery = `SELECT COUNT(*) FROM clients WHERE sales_rep_id = $1 AND NOT is_prospect` +
             (search ? ` AND (name ILIKE $2 OR email ILIKE $2 OR company ILIKE $2 OR phone ILIKE $2)` : '');
         const countResult = await pool.query(countQuery, search ? [salesRepId, `%${search}%`] : [salesRepId]);
         const total = parseInt(countResult.rows[0].count);
@@ -682,6 +682,7 @@ const getPossibleDuplicates = async (req, res) => {
             FROM clients c
             LEFT JOIN users u ON c.sales_rep_id = u.id
             LEFT JOIN adverts a ON a.client_id = c.id
+            WHERE NOT c.is_prospect
             GROUP BY c.id, u.full_name
         `);
 
@@ -770,6 +771,7 @@ const getAllClients = async (req, res) => {
                     COALESCE(SUM(a.amount_paid), 0) AS total_spent
                 FROM clients c
                 LEFT JOIN adverts a ON a.client_id = c.id
+                WHERE NOT c.is_prospect
                 GROUP BY c.id
              ),
              -- Ownership follows the rep of the most recent ADVERT, not

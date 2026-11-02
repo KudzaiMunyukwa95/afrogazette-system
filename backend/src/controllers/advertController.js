@@ -200,6 +200,12 @@ const createAdvert = async (req, res) => {
 
     const newAdvert = result.rows[0];
 
+    // A prospect created from the sales activity log becomes a real client
+    // the moment an advert is booked for it.
+    if (clientId) {
+      await pool.query('UPDATE clients SET is_prospect = false WHERE id = $1 AND is_prospect', [clientId]);
+    }
+
     // Note: booking does NOT auto-vet. Vetting is a deliberate action —
     // either the rep runs it ahead of time via Check Advert, or an admin
     // runs it from Pending Approvals via Rescan. Not every ad needs it.
